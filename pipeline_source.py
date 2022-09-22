@@ -18,6 +18,52 @@ def dump_info(img):
     print(f"* dims: {img.dims if hasattr(img, 'dims') else 'N/A'}")
 
 
+def denseSegmentation(image: np.ndarray, debug_mode=False):
+    """
+    Apply the segmentation based on EVERY frame thresholds.
+
+    Parameters:
+        image: 3D image in shape of [N, H, W].
+        debug_mode: True if want to retrieve threshold list.
+    Returns:
+        result: Segmented image of original shape
+        th_l: List of thresholds.
+    """
+    result = np.zeros_like(image)
+    th_l = []
+    for i in range(len(image)):
+        th = find_threshold_v2(image[i]) * 2
+        if debug_mode:
+            th_l.append(th * 2)
+        temp = image[i].copy()
+        temp[temp <= th] = 0
+        temp[temp > th] = 255
+        result[i] = temp
+    if debug_mode:
+        return result, th_l
+    else:
+        return
+
+
+def examine_segmentation(image_i: np.ndarray, image_o: np.ndarray, idx: int):
+    """
+    QC function to visualize the denseSegmentation() result within Jupyter Notebook
+
+    Parameters:
+        image_i: 3D image prior to segmentation
+        image_o: 3D image after segmentation
+    """
+    assert image_i.shape == image_o.shape and 0 <= idx < image_i.shape[0]
+    plt.figure(figsize=(16, 6))
+    plt.title("Visualization of Dense Segmentation")
+    plt.subplot(1, 2, 1)
+    plt.imshow(image_i[idx], cmap='gray')
+    plt.title("Before")
+    plt.subplot(1, 2, 2)
+    plt.imshow(image_o[idx], cmap='gray')
+    plt.title("After")
+
+
 def apply_segmentation(image: np.ndarray, z: int, thresh: int, multi_img=False):
     """
     Apply segmentation based on given threshold on frame z.
@@ -37,31 +83,6 @@ def apply_segmentation(image: np.ndarray, z: int, thresh: int, multi_img=False):
         data = image.copy()
     data[data <= thresh] = 0
     return data
-
-
-def examine_segmentation(image: np.ndarray, z: int, thresh: int):
-    """
-    Apply segmentation based on given threshold on frame z and plot to visualize.
-    This is just a debugging function to process frame by frame.
-
-    Parameters:
-        image: 3D tiff image
-        z: slice to apply
-        thresh: threshold to perform segmentation
-    """
-    temp = image.copy()
-    temp = apply_segmentation(temp, z, thresh)
-    plt.figure()
-    plt.suptitle(f'Image at slice {z} with threshold {thresh}')
-    plt.subplot(1, 2, 1)
-    plt.imshow(image[z, ...], cmap='gray')
-    plt.title('original')
-    plt.colorbar()
-    plt.subplot(1, 2, 2)
-    plt.imshow(temp[:500, :], cmap='gray')
-    plt.title('after')
-    plt.colorbar()
-    plt.show()
 
 
 def find_threshold(data: np.ndarray) -> int:
@@ -97,20 +118,19 @@ def find_threshold(data: np.ndarray) -> int:
     return max(a, b)
 
 
-def find_threshold_v2(hist, image):
-    bg = image.copy()
-    ob = image.copy()
+def find_threshold_v2(image):
     T = randint(0, 255)
     T_prime = 300
     while T_prime != T:
-        bg[bg>T] = 0
-        ob[ob<=T] = 0
+        bg = image.copy()
+        ob = image.copy()
+        bg[bg > T] = 0
+        ob[ob <= T] = 0
         m1 = np.mean(ob)
         m2 = np.mean(bg)
         T_prime = T
-        T = (m1+m2)/2
+        T = (m1 + m2) // 2
     return T
-
 
 
 def generate_histogram(image: np.ndarray, z: int, plot=False):
