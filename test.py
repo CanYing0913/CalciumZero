@@ -1,24 +1,34 @@
+import time
+
 import numpy as np
 import matplotlib.pyplot as plt
-from pipeline_source import find_threshold_v2
+from pipeline_source import *
 import tifffile
 
 if __name__ == "__main__":
-    # for i in range(92):
-    #     temp = np.load(r"E:/roi_"+str(i)+".npy")
+    # test for individual frame cropping
+    # ifile = tifffile.imread(r"E:/cropped_result.tif")
+    # for i in range(len(ifile)):
+    #     curimage = ifile[i]
+    #     x1, y1, x2, y2 = find_bb(curimage)
+    #     cv2.rectangle(curimage, (x1, y1), (x2, y2), [255,255,255], 10)
     #     plt.figure()
-    #     plt.imshow(temp)
+    #     plt.imshow(curimage, cmap="gray")
     #     plt.show()
-    #     print(temp.shape)
-    ifile = tifffile.imread(r"E:/resized_case1.tif")
-    ofile = np.zeros_like(ifile)
-    th_l = []
-    for i in range(len(ifile)):
-        th = find_threshold_v2(None, ifile[i])*2
-        th_l.append(th*2)
-        temp = ifile[i].copy()
-        temp[temp <= th] = 0
-        ofile[i] = temp
-    tifffile.imwrite(r"E:/segmented_case1.tif", ofile)
+
+    # test for dense segmentation
+    ifile = tifffile.imread(r"E:/Case2 Movie_58.tif")
+    ifile = denseSegmentation(ifile)
+    tifffile.imwrite(r"E:/Case2 Movie_58_s.tif", ifile)
+
+    # # test for dense cropping
+    ifile = tifffile.imread(r"E:/Case2 Movie_58_s.tif")
+    st = time.time()
+    x1, y1, x2, y2 = find_bb_3D_dense(ifile)
+    print(f"finish in {time.time()-st} seconds.")
+
+    infile = tifffile.imread(r"E:/Case2 Movie_58.tif")
+    result = apply_bb_3D(infile, (x1, y1, x2, y2), 200)
+    tifffile.imwrite(r"E:/Case2 Movie_58_c.tif", result)
 
     print()
