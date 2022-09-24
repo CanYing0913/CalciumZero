@@ -2,6 +2,8 @@ import time, os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 from random import randint
+import cv2
+from math import sqrt
 
 
 def dump_info(img):
@@ -42,7 +44,7 @@ def denseSegmentation(image: np.ndarray, debug_mode=False):
     if debug_mode:
         return result, th_l
     else:
-        return
+        return result
 
 
 def examine_segmentation(image_i: np.ndarray, image_o: np.ndarray, idx: int):
@@ -52,37 +54,17 @@ def examine_segmentation(image_i: np.ndarray, image_o: np.ndarray, idx: int):
     Parameters:
         image_i: 3D image prior to segmentation
         image_o: 3D image after segmentation
+        idx: index to access
     """
     assert image_i.shape == image_o.shape and 0 <= idx < image_i.shape[0]
     plt.figure(figsize=(16, 6))
     plt.title("Visualization of Dense Segmentation")
     plt.subplot(1, 2, 1)
-    plt.imshow(image_i[idx], cmap='gray')
+    plt.imshow(image_i[idx, ...], cmap='gray')
     plt.title("Before")
     plt.subplot(1, 2, 2)
-    plt.imshow(image_o[idx], cmap='gray')
+    plt.imshow(image_o[idx, ...], cmap='gray')
     plt.title("After")
-
-
-def apply_segmentation(image: np.ndarray, z: int, thresh: int, multi_img=False):
-    """
-    Apply segmentation based on given threshold on frame z.
-    This is just a debugging function to process frame by frame.
-
-    Parameters:
-        image: 3D tiff image
-        z: slice to apply
-        thresh: threshold to perform segmentation
-        multi_img: True if apply to every frame
-    Returns:
-        Segmented image.
-    """
-    if not multi_img:
-        data = image[z, ...].copy()
-    else:
-        data = image.copy()
-    data[data <= thresh] = 0
-    return data
 
 
 def find_threshold(data: np.ndarray) -> int:
@@ -161,7 +143,7 @@ def generate_histogram(image: np.ndarray, z: int, plot=False):
     return histogram
 
 
-def find_bb(image: np.ndarray) -> tuple:
+def find_bb(image: np.ndarray, debug_mode=False) -> tuple:
     """
     Find coordinates of segmentation bounding box given the segmentation image.
 
@@ -170,44 +152,89 @@ def find_bb(image: np.ndarray) -> tuple:
     Return:
         tuple: return x, y coordinates for upper-left and bottom-right corners of the bounding box.
     """
-    x1 = y1 = x2 = y2 = -1
     h, w = image.shape
-    mx, my = h // 2, w // 2
-    x1 = x2 = mx
-    y1 = y2 = my
-    # idxx, idxy = mx, my
+    cnts = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
+    s1 = 100
+    s2 = h * w * 0.8
+    xcnts = []
+    for cnt in cnts:
+        area = cv2.contourArea(cnt)
+        if s1 < area < s2:
+            xcnts.append(cnt)
+    x1 = y1 = x2 = y2 = -1
+    image_t = np.ones_like(image)
 
-    scale = 0.10
-    # Make sure the object is basically at the center
-    assert image[mx, my] != 0, "Object is not close to center of Image!"
-    center_col = image[mx, :].copy()
-    center_row = image[:, my].copy()
-    while x1 >= 0 and center_row[x1]:
-        x1 -= 100
-    while x2 < h and center_row[x2]:
-        x2 += 100
-    while y1 >= 0 and center_col[y1]:
-        y1 -= 100
-    while y2 < w and center_col[y2]:
-        y2 += 100
-    if x1 < 0 or y1 < 0 or x2 < 0 or y2 < 0:
-        raise IndexError
-    x1 -= 100 if x1 >= 100 else x1
-    x2 += 100 if x2 <= w - 100 else x2
-    y1 -= 100 if y1 >= 100 else y1
-    y2 += 100 if y2 <= h - 100 else y2
+    prevDiff = sqrt((0.1 * w) ** 2 + (0.1 * h) ** 2)
+    finalxcnt = np.zeros_like(xcnts[0])
+    finalxcnts = []
+    for xcnt in xcnts:
+        xcnt_np = np.array(xcnt)
+        xcnt_x = xcnt_np[..., 0]
+        xcnt_y = xcnt_np[..., 1]
+        mean_x = np.mean(xcnt_x)
+        mean_y = np.mean(xcnt_y)
+        sum_diff = sqrt((mean_x - w // 2) ** 2 + (mean_y - h // 2) ** 2)
+        if sum_diff < prevDiff:
+            finalxcnts.append(xcnt)
+
+    prevDist = float('inf')
+    for xcnt in finalxcnts:
+        x,y = xcnt[0][0]
+        dist = sqrt((x-w//2)**2+(y-h//2)**2)
+        if dist < prevDist:
+            prevDist = dist
+            finalxcnt = np.array(xcnt)
+            xcnt_x = finalxcnt[..., 0]
+            xcnt_y = finalxcnt[..., 1]
+            x1 = np.min(xcnt_x)  # -int(h*0.05)
+            x2 = np.max(xcnt_x)  # +int(h*0.05)
+            y1 = np.min(xcnt_y)  # -int(w*0.05)
+            y2 = np.max(xcnt_y)  # +int(w*0.05)
+    #
+    # prevDiff = sum_diff
+    # finalxcnt = xcnt
+    # x1 = np.min(xcnt_x)  # -int(h*0.05)
+    # x2 = np.max(xcnt_x)  # +int(h*0.05)
+    # y1 = np.min(xcnt_y)  # -int(w*0.05)
+    # y2 = np.max(xcnt_y)  # +int(w*0.05)
+
+    if debug_mode:
+        cv2.drawContours(image_t, finalxcnt, -1, (0, 255, 0), 3)
+
+    x1 = 0 if x1 < 0 else x1
+    y1 = 0 if y1 < 0 else y1
+    x2 = w - 1 if x1 >= w else x2
+    y2 = h - 1 if y1 >= h else y2
+    if debug_mode:
+        cv2.rectangle(image_t, (x1, y1), (x2, y2), (0, 255, 0), 5)
+        plt.figure()
+        plt.imshow(image_t, cmap="gray")
+        plt.show()
     return tuple([x1, y1, x2, y2])
 
 
-def find_bb_3D(image: np.ndarray, stride: int) -> tuple:
-    sliceNum, w, h = image.shape
-    x1, y1, x2, y2 = find_bb(image[0, ...])
-    i = stride
-    while i < sliceNum:
-        a, b, c, d = find_bb(image[i, ...])
-        x1 = a if a < x1 else x1
-        y1 = b if b < y1 else y1
-        x2 = c if c > x2 else x2
-        y2 = d if d > y2 else y2
-        i += stride
+def find_bb_3D_dense(image: np.ndarray) -> tuple:
+    sliceNum, h, w = image.shape
+    x1, y1, x2, y2 = find_bb(image[0, ...], True)
+    for i in range(1, sliceNum):
+        x1c, y1c, x2c, y2c = find_bb(image[i, ...], False)
+        x1 = x1c if x1 > x1c else x1
+        y1 = y1c if y1 > y1c else y1
+        x2 = x2c if x2 < x2c else x2
+        y2 = y2c if y2 < y2c else y2
+
+    assert not (x1 == y1 == x2 == y2 == -1)
     return tuple([x1, y1, x2, y2])
+
+
+def apply_bb_3D(image: np.ndarray, bb: tuple, margin: int) -> np.ndarray:
+    x1, y1, x2, y2 = bb
+    s, h, w = image.shape
+    x1 = x1 - margin if x1 - margin >= 0 else 0
+    y1 = y1 - margin if y1 - margin >= 0 else 0
+    x2 = x2 + margin if x2 + margin < w else w-1
+    y2 = y2 + margin if y2 + margin < h else h-1
+
+    result = image.copy()
+    result = result[:, y1:y2, x1:x2]
+    return result
