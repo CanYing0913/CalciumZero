@@ -18,6 +18,7 @@ def s1(app_path, fpath_in, fpath_out, *args):
         MAX_iteration = args[3]
         error_tolerance = args[4]
     else:
+        print("[INFO] Using default parameters.")
         Transformation = "Translation"  # or "Affine"
         MAX_Pyramid_level = 1
         update_coefficient = 0.90
