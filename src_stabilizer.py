@@ -1,9 +1,11 @@
 import imagej, scyjava
+import numpy as np
+import tifffile
 from scyjava import jimport
 from time import time
 
 
-def s1(app_path, fpath_in, fpath_out, *args):
+def s1(work_dir: dir, app_path, fpath_in, fpath_out, *args) -> np.ndarray:
     ij = imagej.init(app_path, mode="interactive")
     imp = ij.IJ.openVirtual(fpath_in)
 
@@ -33,3 +35,4 @@ def s1(app_path, fpath_in, fpath_out, *args):
     print(f"Task finishes. Total of {int((time() - st) // 60)} m {int((time() - st) % 60)} s.")
     ij.IJ.saveAs(imp, "Tiff", fpath_out)
     imp.close()
+    return tifffile.imread(fpath_out)

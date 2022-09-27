@@ -1,18 +1,28 @@
 """
 Source file for Section 0 - Dense Segmentation and object detection
 """
-import numpy as np
-import matplotlib.pyplot as plt
-import tifffile, cv2
-from random import randint
-from time import time
 from math import sqrt
+from random import randint
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+import tifffile
 
 
-def s0(fname_in: str, margin: int, fname_out=None, save=True, debug=False):
+def prints0(text: str):
+    print(f"  *  [S0]: {text}")
+
+
+def s0(work_dir: str, fname_in: str, margin: int, fname_out=None, save=True, debug=False):
     image_i = tifffile.imread(fname_in)
     image_o = denseSegmentation(image_i, debug)
     if save:
+        if fname_out is None:
+            fname_out = fname_in[fname_in.rfind("/") + 1: fname_in.rfind(".tif")] + "_out.tif"
+            fname_out = os.path.join(work_dir, fname_out)
+            prints0(f"Using output name: {fname_out}")
         tifffile.imwrite(fname_out, image_o)
 
     x1, y1, x2, y2 = find_bb_3D_dense(image_o, debug)
@@ -103,8 +113,8 @@ def find_bb(image: np.ndarray, debug_mode=False) -> tuple:
 
     prevDist = float('inf')
     for xcnt in finalxcnts:
-        x,y = xcnt[0][0]
-        dist = sqrt((x-w//2)**2+(y-h//2)**2)
+        x, y = xcnt[0][0]
+        dist = sqrt((x - w // 2) ** 2 + (y - h // 2) ** 2)
         if dist < prevDist:
             prevDist = dist
             finalxcnt = np.array(xcnt)
@@ -149,8 +159,8 @@ def apply_bb_3D(image: np.ndarray, bb: tuple, margin: int) -> np.ndarray:
     s, h, w = image.shape
     x1 = x1 - margin if x1 - margin >= 0 else 0
     y1 = y1 - margin if y1 - margin >= 0 else 0
-    x2 = x2 + margin if x2 + margin < w else w-1
-    y2 = y2 + margin if y2 + margin < h else h-1
+    x2 = x2 + margin if x2 + margin < w else w - 1
+    y2 = y2 + margin if y2 + margin < h else h - 1
 
     result = image.copy()
     result = result[:, y1:y2, x1:x2]
