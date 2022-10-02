@@ -15,19 +15,19 @@ def prints0(text: str):
     print(f"  *  [S0]: {text}")
 
 
-def s0(work_dir: str, fname_in: str, margin: int, fname_out=None, save=True, debug=False):
+def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debug=False):
     image_i = tifffile.imread(fname_in)
     image_o = denseSegmentation(image_i, debug)
     if save:
         if fname_out is None:
             fname_out = fname_in[fname_in.rfind("/") + 1: fname_in.rfind(".tif")] + "_out.tif"
             fname_out = os.path.join(work_dir, fname_out)
-            prints0(f"Using output name: {fname_out}")
+        prints0(f"Using output name: {fname_out}")
         tifffile.imwrite(fname_out, image_o)
 
     x1, y1, x2, y2 = find_bb_3D_dense(image_o, debug)
     image_o = apply_bb_3D(image_i, (x1, y1, x2, y2), margin)
-    return image_o
+    return image_o, fname_out
 
 
 def denseSegmentation(image: np.ndarray, debug_mode=False):
