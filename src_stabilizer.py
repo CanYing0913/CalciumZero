@@ -12,7 +12,10 @@ def prints1(text: str):
 
 def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, *args) -> tuple[np.ndarray, str]:
     ij = imagej.init(app_path, mode="interactive")
-    imp = ij.IJ.openVirtual(fpath_in)
+    prints1(f"ImageJ version {ij.getVersion()}")
+    dataset = ij.io().open(fpath_in)
+    imp = ij.py.to_imageplus(dataset)
+    imp = ij.IJ.openImage(fpath_in)
 
     if fpath_out is None:
         fpath_out = fpath_in[fpath_in.rfind("/") + 1: fpath_in.rfind(".tif")] + "_stabilized.tif"
@@ -37,12 +40,13 @@ def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, *args) -> tuple[np.nda
         MAX_iteration = 200
         error_tolerance = 1E-7
 
+    prints1("Starting stabilizer in headless mode...")
     st = time()
     ij.IJ.run(imp, "Image Stabilizer Headless",
               "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
               " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" + str(MAX_iteration) +
               " error_tolerance=" + str(error_tolerance))
-    print(f"Task finishes. Total of {int((time() - st) // 60)} m {int((time() - st) % 60)} s.")
+    prints1(f"Task finishes. Total of {int((time() - st) // 60)} m {int((time() - st) % 60)} s.")
     ij.IJ.saveAs(imp, "Tiff", fpath_out)
     imp.close()
     return tifffile.imread(fpath_out), fpath_out

@@ -17,17 +17,27 @@ def prints0(text: str):
 
 def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debug=False):
     image_i = tifffile.imread(fname_in)
-    image_o = denseSegmentation(image_i, debug)
-    if save:
-        if fname_out is None:
-            fname_out = fname_in[fname_in.rfind("/") + 1: fname_in.rfind(".tif")] + "_out.tif"
-            fname_out = os.path.join(work_dir, fname_out)
-        prints0(f"Using output name: {fname_out}")
-        tifffile.imwrite(fname_out, image_o)
+    image_seg_o, th_l = denseSegmentation(image_i, debug)
 
-    x1, y1, x2, y2 = find_bb_3D_dense(image_o, debug)
-    image_o = apply_bb_3D(image_i, (x1, y1, x2, y2), margin)
-    return image_o, fname_out
+    x1, y1, x2, y2 = find_bb_3D_dense(image_seg_o, debug)
+    image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), margin)
+    if fname_out is None:
+        temp = fname_in[fname_in.rfind("/") + 1: fname_in.rfind(".tif")]
+        fname_seg_out = temp + "_seg.tif"
+        fname_crop_out = temp + "_crop.tif"
+        fname_seg_out = os.path.join(work_dir, fname_seg_out)
+        fname_crop_out = os.path.join(work_dir, fname_crop_out)
+    else:
+        temp = fname_out[fname_out.rfind("/") + 1: fname_out.rfind(".tif")]
+        fname_seg_out = temp + "_seg.tif"
+        fname_crop_out = temp + "_crop.tif"
+        fname_seg_out = os.path.join(work_dir, fname_seg_out)
+        fname_crop_out = os.path.join(work_dir, fname_crop_out)
+    prints0(f"Using output name: {fname_seg_out} and {fname_crop_out}")
+    if save:
+        tifffile.imwrite(fname_seg_out, image_seg_o)
+        tifffile.imwrite(fname_crop_out, image_crop_o)
+    return image_crop_o, fname_crop_out
 
 
 def denseSegmentation(image: np.ndarray, debug_mode=False):
