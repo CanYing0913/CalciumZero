@@ -7,7 +7,7 @@ from time import time
 
 
 def prints1(text: str):
-    print(f"  *  [S1]: {text}")
+    print(f"  *  [S1 - ImageJ stabilizer]: {text}")
 
 
 def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, *args) -> tuple[np.ndarray, str]:
