@@ -13,6 +13,7 @@ from caiman.utils.visualization import plot_contours, nb_view_patches, nb_plot_c
 import cv2
 import numpy as np
 from time import time
+import os
 
 import bokeh.plotting as bpl
 import holoviews as hv
@@ -40,10 +41,16 @@ max_deviation_rigid = 3  # maximum deviation allowed for patch with respect to r
 border_nan = 'copy'  # replicate values along the boundaries
 
 
-def s2(fpath_in: str, fpath_out: str):
+def s2(work_dir: str, fpath_in: str, fpath_out):
     fnames = ['E:\\case1 Movie_57_c.tif']
     fnames = [fpath_in]
 
+    if fpath_out is None:
+        temp = fpath_in[fpath_in.rfind("/") + 1: fpath_in.rfind("_crop.tif")]
+        fname_caiman = temp + "_caiman.tif"
+        fname_out = os.path.join(work_dir, fname_caiman)
+    else:
+        fname_out = fpath_out
     mc_dict = {
         'fnames': fnames,
         'fr': frate,
@@ -203,15 +210,15 @@ def s2(fpath_in: str, fpath_out: str):
         print(percent)
         if percent < 0.25:
             # change the label of this component
-            merged = np.where(bl2 == True, i + 1, merged)
+            merged = np.where(bl2 is True, i + 1, merged)
             # exclude the overlapped areas
-            merged = np.where(bli == True, 0, merged)
+            merged = np.where(bli is True, 0, merged)
         else:
             # put the overlapped areas here
             mhits = np.where(bli == True, 999 + i, mhits)
 
-    np.savetxt(r"E:/coor_merged.csv", merged, delimiter=",")
-    np.savetxt(r"E:/coor_mhits.csv", mhits, delimiter=",")
+    np.savetxt(os.path.join(work_dir, "coor_merged.csv"), merged, delimiter=",")
+    np.savetxt(os.path.join(work_dir, "coor_mhits.csv"), mhits, delimiter=",")
 
     # Extract DF/F values
     (components, frames) = cnm.estimates.C.shape
@@ -219,11 +226,11 @@ def s2(fpath_in: str, fpath_out: str):
     cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
     # Save the estimates to local to save time for later processing
     c = np.zeros_like(cnm.estimates.C)
-    fname = 'caiman_out_slice'
+    fname = os.path.join(work_dir, 'caiman_out_slice')
     np.save(fname + '_overall.npy', c)
     for i in range(len(c)):
         fname_i = fname + str(i) + '.npy'
         np.save(fname_i, c[i])
     # reconstruct denoised movie
     denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-    denoised.save(fpath_out)
+    denoised.save(fname_out)
