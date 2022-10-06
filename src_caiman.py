@@ -17,6 +17,7 @@ import os
 
 import bokeh.plotting as bpl
 import holoviews as hv
+import pickle
 
 
 def prints2(txt: str):
@@ -41,7 +42,7 @@ max_deviation_rigid = 3  # maximum deviation allowed for patch with respect to r
 border_nan = 'copy'  # replicate values along the boundaries
 
 
-def s2(work_dir: str, fpath_in: str, fpath_out):
+def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True):
     fnames = ['E:\\case1 Movie_57_c.tif']
     fnames = [fpath_in]
 
@@ -234,3 +235,8 @@ def s2(work_dir: str, fpath_in: str, fpath_out):
     # reconstruct denoised movie
     denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
     denoised.save(fname_out)
+    if save:
+        path = os.path.join(work_dir, "cmn_obj")
+        with open(path, "wb") as f:
+            pickle.dump(cnm, f)
+            prints2(f"object cnm dumped to {path}.")
