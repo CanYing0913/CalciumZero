@@ -12,7 +12,7 @@ import tifffile
 
 
 def prints0(text: str):
-    print(f"  *  [S0]: {text}")
+    print(f"  *  [S0 - detection]: {text}")
 
 
 def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debug=False):

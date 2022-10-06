@@ -13,9 +13,15 @@ from caiman.utils.visualization import plot_contours, nb_view_patches, nb_plot_c
 import cv2
 import numpy as np
 from time import time
+import os
 
 import bokeh.plotting as bpl
 import holoviews as hv
+
+
+def prints2(txt: str):
+    print(f"  *  [S1 - CaImAn]: {txt}")
+
 
 bpl.output_notebook()
 hv.notebook_extension('bokeh')
@@ -35,9 +41,16 @@ max_deviation_rigid = 3  # maximum deviation allowed for patch with respect to r
 border_nan = 'copy'  # replicate values along the boundaries
 
 
-def s2(fpath_in: str):
+def s2(work_dir: str, fpath_in: str, fpath_out):
     fnames = ['E:\\case1 Movie_57_c.tif']
+    fnames = [fpath_in]
 
+    if fpath_out is None:
+        temp = fpath_in[fpath_in.rfind("/") + 1: fpath_in.rfind("_crop.tif")]
+        fname_caiman = temp + "_caiman.tif"
+        fname_out = os.path.join(work_dir, fname_caiman)
+    else:
+        fname_out = fpath_out
     mc_dict = {
         'fnames': fnames,
         'fr': frate,
@@ -64,6 +77,7 @@ def s2(fpath_in: str):
                                          np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
         else:
             bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
+            plt.figure()
             plt.subplot(1, 2, 1)
             plt.imshow(mc.total_template_rig)  # % plot template
             plt.subplot(1, 2, 2)
@@ -71,6 +85,7 @@ def s2(fpath_in: str):
             plt.legend(['x shifts', 'y shifts'])
             plt.xlabel('frames')
             plt.ylabel('pixels')
+            plt.show()
 
         bord_px = 0 if border_nan == 'copy' else bord_px
         fname_new = cm.save_memmap(fname_mc, base_name='memmap_', order='C', border_to_0=bord_px)
@@ -127,7 +142,8 @@ def s2(fpath_in: str):
                                     'nb_patch': nb_patch,
                                     'method_deconvolution': 'oasis',  # could use 'cvxpy' alternatively
                                     'low_rank_background': low_rank_background,
-                                    'update_background_components': True,  # sometimes setting to False improve the results
+                                    'update_background_components': True,
+                                    # sometimes setting to False improve the results
                                     'min_corr': min_corr,
                                     'min_pnr': min_pnr,
                                     'normalize_init': False,  # just leave as is
@@ -139,15 +155,16 @@ def s2(fpath_in: str):
 
     # Inspect summary images and set parameters
     # compute some summary images (correlation and peak to noise)
-    cn_filter, pnr = cm.summary_images.correlation_pnr(images[::10], gSig=gSig[0], swap_dim=False) # change swap dim if output looks weird, it is a problem with tiffile
+    cn_filter, pnr = cm.summary_images.correlation_pnr(images[::10], gSig=gSig[0],
+                                                       swap_dim=False)  # change swap dim if output looks weird, it is a problem with tiffile
     # inspect the summary images and set the parameters
     nb_inspect_correlation_pnr(cn_filter, pnr)
 
     # Run the CNMF-E algorithm
     tstart = time()
     cnm = cnmf.CNMF(n_processes=6, dview=None, Ain=Ain, params=opts)
-    cnm.fit(images) # 15 min for resized
-    print(f"it takes {int((time()-tstart)//60)} minutes, {int((time()-tstart)%60)} seconds to complete")
+    cnm.fit(images)  # 15 min for resized
+    print(f"it takes {int((time() - tstart) // 60)} minutes, {int((time() - tstart) % 60)} seconds to complete")
 
     # ## Component Evaluation
     # the components are evaluated in three ways:
@@ -175,13 +192,13 @@ def s2(fpath_in: str):
     bl = coordinate1 > 0
 
     # setup blank merge arrays. One is from merge, the other is from overlapped areas
-    merged = np.where(bl == True, 0, coordinate1)
-    mhits = np.where(bl == True, 0, coordinate1)
+    merged = np.where(bl is True, 0, coordinate1)
+    mhits = np.where(bl is True, 0, coordinate1)
     blm = merged > 0
 
     for i in myidx:
         coordinate2 = np.reshape(cnm.estimates.A[:, i].toarray(), dims, order='F')
-        #%% generate boolean indexing
+        # %% generate boolean indexing
         bl2 = coordinate2 > 0
         ct2 = np.sum(bl2)
         blm = merged > 0
@@ -193,27 +210,27 @@ def s2(fpath_in: str):
         print(percent)
         if percent < 0.25:
             # change the label of this component
-            merged = np.where(bl2 == True, i + 1, merged)
+            merged = np.where(bl2 is True, i + 1, merged)
             # exclude the overlapped areas
-            merged = np.where(bli == True, 0, merged)
+            merged = np.where(bli is True, 0, merged)
         else:
             # put the overlapped areas here
             mhits = np.where(bli == True, 999 + i, mhits)
 
-    np.savetxt(r"E:/coor_merged.csv", merged, delimiter=",")
-    np.savetxt(r"E:/coor_mhits.csv", mhits, delimiter=",")
+    np.savetxt(os.path.join(work_dir, "coor_merged.csv"), merged, delimiter=",")
+    np.savetxt(os.path.join(work_dir, "coor_mhits.csv"), mhits, delimiter=",")
 
     # Extract DF/F values
-    (components,frames) = cnm.estimates.C.shape
+    (components, frames) = cnm.estimates.C.shape
     print(frames)
     cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
     # Save the estimates to local to save time for later processing
     c = np.zeros_like(cnm.estimates.C)
-    fname = 'caiman_out_slice'
-    np.save(fname+'_overall.npy', c)
+    fname = os.path.join(work_dir, 'caiman_out_slice')
+    np.save(fname + '_overall.npy', c)
     for i in range(len(c)):
         fname_i = fname + str(i) + '.npy'
         np.save(fname_i, c[i])
     # reconstruct denoised movie
     denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-    denoised.save('E:\\denoised.tif')
+    denoised.save(fname_out)
