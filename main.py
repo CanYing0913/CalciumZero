@@ -1,8 +1,22 @@
 from src_detection import s0
 from src_stabilizer import s1
 from src_caiman import s2
-
+import argparse
 import os
+
+
+def parse():
+    desp = "Automated pipeline for caiman processing."
+    parser = argparse.ArgumentParser(description=desp)
+    parser.add_argument('-ijp', '--imagej-path', type=str, metavar='', required=True,
+                        help='Path to local Fiji ImageJ fiji folder.')
+    parser.add_argument('-wd', '--work-dir', type=str, metavar='', required=True,
+                        help='Path to a folder where all intermediate and overall results are stored. If not exist then'
+                        ' will create one automatically.')
+
+
+    args = parser.parse_args()
+    return args
 
 
 def main(work_dir: str, app_path: str, file: str):
@@ -30,6 +44,7 @@ def main(work_dir: str, app_path: str, file: str):
 
 
 if __name__ == "__main__":
+    parse()
     try:
         main(r"E:/work_dir", r"D:\CanYing\Fiji.app", r"E:/case1 Movie_57.tif")
     except:
