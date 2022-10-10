@@ -8,15 +8,15 @@ import os
 def parse():
     desp = "Automated pipeline for caiman processing."
     parser = argparse.ArgumentParser(description=desp)
-    parser.add_argument('-ijp', '--imagej-path', type=str, metavar='', required=True,
+    parser.add_argument('-ijp', '--imagej-path', type=str, metavar='ImageJ-Path', required=True,
                         help='Path to local Fiji ImageJ fiji folder.')
-    parser.add_argument('-wd', '--work-dir', type=str, metavar='', required=True,
+    parser.add_argument('-wd', '--work-dir', type=str, metavar='Work-Dir', required=True,
                         help='Path to a working folder where all intermediate and overall results are stored. If not '
                              'exist then will create one automatically.')
-    parser.add_argument('-in1', type=str, metavar='', required=True,
+    parser.add_argument('-in1', type=str, metavar='INPUT', required=True,
                         help='Path to raw input files, supplied to auto-cropping. If provided without absolute path, '
                              'it will assume the file exists inside working folder.')
-    parser.add_argument('-intermediate1', type=bool, default=False, required=False,
+    parser.add_argument('-intermediate1', default=False, action="store_true", required=False,
                         help='Specified if want to begin execution starting with ImageJ stabilizer (skipping '
                              'auto-cropping).')
     parser.add_argument('-in2', type=str, metavar='', required=False,
@@ -25,7 +25,7 @@ def parse():
                              'read from it. Please only provide with relative path, it assumes to save inside working '
                              'folder. If -intermediate1 is specified, the program will skip auto-cropping, and read '
                              'from filename specified to start stabilizer.')
-    parser.add_argument('-intermediate2', type=bool, default=False, required=False,
+    parser.add_argument('-intermediate2', default=False, action="store_true", required=False,
                         help='Specified if want to begin execution starting with caiman (skipping auto-cropping and '
                              'stabilizer).')
     parser.add_argument('-in3', type=str, metavar='', required=False,
@@ -41,7 +41,15 @@ def parse():
                              'other related debug files.')
 
     arguments = parser.parse_args()
+
     # TODO: post-process arguments
+    arguments.imagej_path = rf"{arguments.imagej_path}"
+    arguments.work_dir = rf"{arguments.work_dir}"
+    arguments.in1 = rf"{arguments.in1}"
+    if hasattr(arguments, 'in2'):
+        arguments.in2 = rf"{arguments.in2}"
+    if hasattr(arguments, 'in3'):
+        arguments.in3 = rf"{arguments.in3}"
 
     return arguments
 
@@ -75,8 +83,8 @@ def main(work_dir: str, app_path: str, file: str):
 if __name__ == "__main__":
     # Assume parse() already takes care of handling arugments
     args = parse()
-    ImageJ_path = args.ijp
-    work_dir = args.wd
+    ImageJ_path = args.imagej_path
+    work_dir = args.work_dir
     fpath_in1, fpath_in2, fpath_in3 = args.in1, args.in2, args.in3
     fapth_out = args.out
     imm1, imm2 = args.intermediate1, args.intermediate2
