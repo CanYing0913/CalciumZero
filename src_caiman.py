@@ -1,7 +1,4 @@
 import logging
-
-logging.basicConfig(format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-                    level=logging.DEBUG)
 import caiman as cm
 import matplotlib.pyplot as plt
 from caiman.source_extraction import cnmf
@@ -15,8 +12,8 @@ import numpy as np
 from time import time
 import os
 
-import bokeh.plotting as bpl
-import holoviews as hv
+# import bokeh.plotting as bpl
+# import holoviews as hv
 import pickle
 
 
@@ -24,8 +21,8 @@ def prints2(txt: str):
     print(f"  *  [S1 - CaImAn]: {txt}")
 
 
-bpl.output_notebook()
-hv.notebook_extension('bokeh')
+# bpl.output_notebook()
+# hv.notebook_extension('bokeh')
 
 # dataset dependent parameters
 frate = 10  # movie frame rate
@@ -43,6 +40,9 @@ border_nan = 'copy'  # replicate values along the boundaries
 
 
 def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True):
+    logging.basicConfig(
+        format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+        level=logging.DEBUG)
     fnames = ['E:\\case1 Movie_57_c.tif']
     fnames = [fpath_in]
 

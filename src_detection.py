@@ -28,7 +28,7 @@ def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debu
         fname_seg_out = os.path.join(work_dir, fname_seg_out)
         fname_crop_out = os.path.join(work_dir, fname_crop_out)
     else:
-        temp = fname_out[fname_out.rfind("/") + 1: fname_out.rfind(".tif")]
+        temp = fname_out[: fname_out.rfind(".tif")]
         fname_seg_out = temp + "_seg.tif"
         fname_crop_out = temp + "_crop.tif"
         fname_seg_out = os.path.join(work_dir, fname_seg_out)

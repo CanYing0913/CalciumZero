@@ -13,14 +13,16 @@ def prints1(text: str):
 def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, *args) -> tuple[np.ndarray, str]:
     ij = imagej.init(app_path, mode="interactive")
     prints1(f"ImageJ version {ij.getVersion()}")
-    dataset = ij.io().open(fpath_in)
-    imp = ij.py.to_imageplus(dataset)
+    # dataset = ij.io().open(fpath_in)
+    # imp = ij.py.to_imageplus(dataset)
     imp = ij.IJ.openImage(fpath_in)
 
     if fpath_out is None:
         fpath_out = fpath_in[fpath_in.rfind("/") + 1: fpath_in.rfind(".tif")] + "_stabilized.tif"
         fpath_out = os.path.join(work_dir, fpath_out)
-        prints1(f"Using output name: {fpath_out}")
+    else:
+        fpath_out = os.path.join(work_dir, fpath_out)
+    prints1(f"Using output name: {fpath_out}")
 
     param = False
     if len(args) != 0:
