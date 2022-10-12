@@ -42,6 +42,24 @@ def parse():
                              'input filename to use as output filename. Please only provide with relative path, '
                              'it assumes to save inside working folder. It will also save numpy arrays as well as '
                              'other related debug files.')
+    # ImageJ Stabilizer Parameters
+    parser.add_argument('-ij_param', default=False, action="store_true", required=False,
+                        help='Specified if want to customize ImageJ stabilizer parameters.')
+    parser.add_argument('-ij_trans', default=0, type=int, required=False,
+                        help='Transformation of ImageJ stabilizer parameter. You have to specify -ij_param to use it. '
+                             'Default to translation, set it to 1 if want to set it to affine.')
+    parser.add_argument('-ij_maxpl', default=1, type=float, required=False,
+                        help='MAX_Pyramid_level of ImageJ stabilizer parameter. You have to specify -ij_param to use '
+                             'it. Default to be 1.0.')
+    parser.add_argument('-ij_upco', default=0.90, type=float, required=False,
+                        help='update_coefficient of ImageJ stabilizer parameter. You have to specify -ij_param to use '
+                             'it. Default to 0.90.')
+    parser.add_argument('-ij_maxiter', default=200, type=int, required=False,
+                        help='MAX_iteration of ImageJ stabilizer parameter. You have to specify -ij_param to use it. '
+                             'Default to 200.')
+    parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
+                        help='error_rolerance of ImageJ stabilizer parameter. You have to specify -ij_param to use '
+                             'it. Default to 1E-7.')
 
     arguments = parser.parse_args()
 
@@ -65,6 +83,7 @@ def main(work_path: str, app_path: str, file: str, argv):
         work_path: Directory where all temporal data are stored.
         app_path: Path pointing to local Fiji ImageJ fiji folder.
         file: Selected raw input file path.
+        argv: arguments parsed by argparse.
     """
     if not os.path.exists(work_path):
         print("[NOTE INFO]: Project Working directory does not exist. Attempting to create one...")
@@ -84,10 +103,12 @@ def main(work_path: str, app_path: str, file: str, argv):
     # fname_crop = r"E:/work_dir/case1 Movie_57_crop.tif"  # for unit testing purpose
     fpath_sb = argv.in3
     if not argv.intermediate2:
+        #TODO: pass IJ param to IJ from argparse.
+        ij_param = argv.
         print("[INFO] Starting section 1 - ImageJ Stabilizer:")
         # currently, ImageJ asks for output directory even with headless plugin (need to be verified from image.sc)
         # just prompt "click cancel" if problem persists.
-        image_sb, fpath_sb = s1(work_dir=work_path, app_path=app_path, fpath_in=fname_crop, fpath_out=argv.in3)  # , *args)
+        image_sb, fpath_sb = s1(work_dir=work_path, app_path=app_path, fpath_in=fname_crop, fpath_out=argv.in3, *args)
     else:
         print("[INFO] Skipping section 1 - ImageJ Stabilizer.")
 
