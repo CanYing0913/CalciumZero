@@ -9,3 +9,4 @@ Case EB1-30-2019/
 *.ecclog
 *.xls
 *.csv
+main_*.ipynb # hide temp test notebook
