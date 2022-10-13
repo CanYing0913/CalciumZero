@@ -10,7 +10,7 @@ def prints1(text: str):
     print(f"  *  [S1 - ImageJ stabilizer]: {text}")
 
 
-def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, *args) -> tuple[np.ndarray, str]:
+def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, argv=None) -> tuple[np.ndarray, str]:
     ij = imagej.init(app_path, mode="interactive")
     prints1(f"ImageJ version {ij.getVersion()}")
     # dataset = ij.io().open(fpath_in)
@@ -24,23 +24,12 @@ def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, *args) -> tuple[np.nda
         fpath_out = os.path.join(work_dir, fpath_out)
     prints1(f"Using output name: {fpath_out}")
 
-    param = False
-    if len(args) != 0:
-        assert len(args) == 5
-        param = True
-    if param:
-        Transformation = args[0]
-        MAX_Pyramid_level = args[1]
-        update_coefficient = args[2]
-        MAX_iteration = args[3]
-        error_tolerance = args[4]
-    else:
-        prints1("Using default parameters.")
-        Transformation = "Translation"  # or "Affine"
-        MAX_Pyramid_level = 1
-        update_coefficient = 0.90
-        MAX_iteration = 200
-        error_tolerance = 1E-7
+    prints1("Using default parameters.")
+    Transformation = "Translation" if argv.TODO else "Affine"
+    MAX_Pyramid_level = argv.TODO
+    update_coefficient = argv.TODO
+    MAX_iteration = argv.TODO
+    error_tolerance = argv.TODO
 
     prints1("Starting stabilizer in headless mode...")
     st = time()

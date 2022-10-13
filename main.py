@@ -103,12 +103,10 @@ def main(work_path: str, app_path: str, file: str, argv):
     # fname_crop = r"E:/work_dir/case1 Movie_57_crop.tif"  # for unit testing purpose
     fpath_sb = argv.in3
     if not argv.intermediate2:
-        #TODO: pass IJ param to IJ from argparse.
-        ij_param = argv.
         print("[INFO] Starting section 1 - ImageJ Stabilizer:")
         # currently, ImageJ asks for output directory even with headless plugin (need to be verified from image.sc)
         # just prompt "click cancel" if problem persists.
-        image_sb, fpath_sb = s1(work_dir=work_path, app_path=app_path, fpath_in=fname_crop, fpath_out=argv.in3, *args)
+        image_sb, fpath_sb = s1(work_dir=work_path, app_path=app_path, fpath_in=fname_crop, fpath_out=argv.in3, argv=argv)
     else:
         print("[INFO] Skipping section 1 - ImageJ Stabilizer.")
 
