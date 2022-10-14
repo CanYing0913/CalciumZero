@@ -24,12 +24,17 @@ def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, argv=None) -> tuple[np
         fpath_out = os.path.join(work_dir, fpath_out)
     prints1(f"Using output name: {fpath_out}")
 
-    prints1("Using default parameters.")
-    Transformation = "Translation" if argv.TODO else "Affine"
-    MAX_Pyramid_level = argv.TODO
-    update_coefficient = argv.TODO
-    MAX_iteration = argv.TODO
-    error_tolerance = argv.TODO
+    Transformation = "Translation" if argv.ij_trans == 0 else "Affine"
+    MAX_Pyramid_level = argv.ij_maxpl
+    update_coefficient = argv.upco
+    MAX_iteration = argv.maxiter
+    error_tolerance = argv.errtol
+    prints1("Using following parameters:")
+    prints1(f"\tTransformation: {Transformation};")
+    prints1(f"\tMAX_Pyramid_level: {MAX_Pyramid_level};")
+    prints1(f"\tupdate_coefficient: {update_coefficient};")
+    prints1(f"\tMAX_iteration: {MAX_iteration};")
+    prints1(f"\terror_tolerance: {error_tolerance};")
 
     prints1("Starting stabilizer in headless mode...")
     st = time()
