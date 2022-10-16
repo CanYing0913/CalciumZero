@@ -1,5 +1,7 @@
-# from src_detection import s0
-# from src_stabilizer import s1
+import sys
+
+from src_detection import s0
+from src_stabilizer import s1
 # from src_caiman import s2
 import argparse
 import os
@@ -93,22 +95,22 @@ def main(work_path: str, app_path: str, file: str, argv):
             print(f"[ERROR]: OSError detected. Please check if disk exists or privilege level satisfies.")
             exit(1)
 
-    # fname_crop = argv.in2
-    # if not argv.intermediate1 and not argv.intermediate2:
-    #     print("[INFO] Starting section 0 - dense segmentation/auto-cropping:")
-    #     image_crop, fname_crop = s0(work_dir=work_path, fname_in=file, margin=200, fname_out=argv.in2, save=True, debug=False)
-    # else:
-    #     print("[INFO] Skipping section 0 - dense segmentation/auto-cropping.")
-    #
-    # # fname_crop = r"E:/work_dir/case1 Movie_57_crop.tif"  # for unit testing purpose
-    # fpath_sb = argv.in3
-    # if not argv.intermediate2:
-    #     print("[INFO] Starting section 1 - ImageJ Stabilizer:")
-    #     # currently, ImageJ asks for output directory even with headless plugin (need to be verified from image.sc)
-    #     # just prompt "click cancel" if problem persists.
-    #     image_sb, fpath_sb = s1(work_dir=work_path, app_path=app_path, fpath_in=fname_crop, fpath_out=argv.in3, argv=argv)
-    # else:
-    #     print("[INFO] Skipping section 1 - ImageJ Stabilizer.")
+    fname_crop = argv.in2
+    if not argv.intermediate1 and not argv.intermediate2:
+        print("[INFO] Starting section 0 - dense segmentation/auto-cropping:")
+        image_crop, fname_crop = s0(work_dir=work_path, fname_in=file, margin=200, fname_out=argv.in2, save=True, debug=False)
+    else:
+        print("[INFO] Skipping section 0 - dense segmentation/auto-cropping.")
+
+    # fname_crop = r"E:/work_dir/case1 Movie_57_crop.tif"  # for unit testing purpose
+    fpath_sb = argv.in3
+    if not argv.intermediate2:
+        print("[INFO] Starting section 1 - ImageJ Stabilizer:")
+        # currently, ImageJ asks for output directory even with headless plugin (need to be verified from image.sc)
+        # just prompt "click cancel" if problem persists.
+        image_sb, fpath_sb = s1(work_dir=work_path, app_path=app_path, fpath_in=fname_crop, fpath_out=argv.in3, argv=argv)
+    else:
+        print("[INFO] Skipping section 1 - ImageJ Stabilizer.")
 
     # print("[INFO] Starting section 2 - CaImAn:")
     # s2(app_path, fpath_in=fpath_sb, fpath_out=None)
@@ -126,3 +128,4 @@ if __name__ == "__main__":
     imm1, imm2 = args.intermediate1, args.intermediate2
 
     main(work_path=work_dir, app_path=ImageJ_path, file=fpath_in1, argv=args)
+    sys.exit(0)

@@ -26,15 +26,15 @@ def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, argv=None) -> tuple[np
 
     Transformation = "Translation" if argv.ij_trans == 0 else "Affine"
     MAX_Pyramid_level = argv.ij_maxpl
-    update_coefficient = argv.upco
-    MAX_iteration = argv.maxiter
-    error_tolerance = argv.errtol
+    update_coefficient = argv.ij_upco
+    MAX_iteration = argv.ij_maxiter
+    error_tolerance = argv.ij_errtol
     prints1("Using following parameters:")
-    prints1(f"\tTransformation: {Transformation};")
-    prints1(f"\tMAX_Pyramid_level: {MAX_Pyramid_level};")
-    prints1(f"\tupdate_coefficient: {update_coefficient};")
-    prints1(f"\tMAX_iteration: {MAX_iteration};")
-    prints1(f"\terror_tolerance: {error_tolerance};")
+    prints1(f"\t\tTransformation: {Transformation};")
+    prints1(f"\t\tMAX_Pyramid_level: {MAX_Pyramid_level};")
+    prints1(f"\t\tupdate_coefficient: {update_coefficient};")
+    prints1(f"\t\tMAX_iteration: {MAX_iteration};")
+    prints1(f"\t\terror_tolerance: {error_tolerance};")
 
     prints1("Starting stabilizer in headless mode...")
     st = time()
