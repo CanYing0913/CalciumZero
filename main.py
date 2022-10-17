@@ -1,8 +1,9 @@
 import sys
+import time
 
 from src_detection import s0
 from src_stabilizer import s1
-# from src_caiman import s2
+from src_caiman import s2
 import argparse
 import os
 from pathlib import Path
@@ -62,10 +63,12 @@ def parse():
     parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
                         help='error_rolerance of ImageJ stabilizer parameter. You have to specify -ij_param to use '
                              'it. Default to 1E-7.')
+    parser.add_argument('-log', type=bool, default=False, required=False,
+                        help='True if enable logging for caiman part. Default to be false.')
 
     arguments = parser.parse_args()
 
-    # TODO: post-process arguments
+    # Post-process arguments
     arguments.imagej_path = rf"{arguments.imagej_path}"
     arguments.work_dir = rf"{arguments.work_dir}"
     arguments.in1 = rf"{arguments.in1}"
@@ -112,9 +115,10 @@ def main(work_path: str, app_path: str, file: str, argv):
     else:
         print("[INFO] Skipping section 1 - ImageJ Stabilizer.")
 
-    # print("[INFO] Starting section 2 - CaImAn:")
-    # s2(app_path, fpath_in=fpath_sb, fpath_out=None)
-    # pass
+    print("[INFO] Starting section 2 - CaImAn:")
+    st = time.time()
+    s2(work_dir=work_path, fpath_in=fpath_sb, fpath_out=None, save=True, log=argv.log)
+    print(f"[INFO] Section 2: caiman finished. Total execution time: {int(time.time() - st) / 60} m {(time.time() - st) % 60} s")
 
 
 if __name__ == "__main__":

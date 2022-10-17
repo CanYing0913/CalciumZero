@@ -175,3 +175,23 @@ def apply_bb_3D(image: np.ndarray, bb: tuple, margin: int) -> np.ndarray:
     result = image.copy()
     result = result[:, y1:y2, x1:x2]
     return result
+
+
+def examine_segmentation(image_i: np.ndarray, image_o: np.ndarray, idx: int):
+    """
+    QC function to visualize the denseSegmentation() result within Jupyter Notebook
+
+    Parameters:
+        image_i: 3D image prior to segmentation
+        image_o: 3D image after segmentation
+        idx: index to access
+    """
+    assert image_i.shape == image_o.shape and 0 <= idx < image_i.shape[0]
+    plt.figure(figsize=(16, 6))
+    plt.title("Visualization of Dense Segmentation")
+    plt.subplot(1, 2, 1)
+    plt.imshow(image_i[idx, ...], cmap='gray')
+    plt.title("Before")
+    plt.subplot(1, 2, 2)
+    plt.imshow(image_o[idx, ...], cmap='gray')
+    plt.title("After")

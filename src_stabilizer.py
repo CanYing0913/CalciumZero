@@ -1,9 +1,10 @@
-import imagej, scyjava
+import imagej
 import numpy as np
 import tifffile
 import os
 from scyjava import jimport
 from time import time
+import matplotlib.pyplot as plt
 
 
 def prints1(text: str):
@@ -46,3 +47,23 @@ def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, argv=None) -> tuple[np
     ij.IJ.saveAs(imp, "Tiff", fpath_out)
     imp.close()
     return tifffile.imread(fpath_out), fpath_out
+
+
+def examine_stabilizer(image_i: np.ndarray, image_o: np.ndarray, idx: int):
+    """
+    QC function to visualize the stabilizer result within Jupyter Notebook
+
+    Parameters:
+        image_i: 3D image prior to stabilizer
+        image_o: 3D image after stabilizer
+        idx: index to access
+    """
+    assert image_i.shape == image_o.shape and 0 <= idx < image_i.shape[0]
+    plt.figure(figsize=(16, 6))
+    plt.title("Visualization of Dense Segmentation")
+    plt.subplot(1, 2, 1)
+    plt.imshow(image_i[idx, ...], cmap='gray')
+    plt.title("Before")
+    plt.subplot(1, 2, 2)
+    plt.imshow(image_o[idx, ...], cmap='gray')
+    plt.title("After")

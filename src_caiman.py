@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 from time import time
 import os
+from pathlib import Path
 
 # import bokeh.plotting as bpl
 # import holoviews as hv
@@ -18,7 +19,7 @@ import pickle
 
 
 def prints2(txt: str):
-    print(f"  *  [S1 - CaImAn]: {txt}")
+    print(f"  *  [S2 - CaImAn]: {txt}")
 
 
 # bpl.output_notebook()
@@ -39,19 +40,21 @@ max_deviation_rigid = 3  # maximum deviation allowed for patch with respect to r
 border_nan = 'copy'  # replicate values along the boundaries
 
 
-def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True):
-    logging.basicConfig(
-        format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-        level=logging.DEBUG)
-    fnames = ['E:\\case1 Movie_57_c.tif']
+def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
+    if log:
+        logging.basicConfig(
+            format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+            level=logging.DEBUG)
+    # fnames = ['E:\\case1 Movie_57_c.tif']
     fnames = [fpath_in]
 
     if fpath_out is None:
-        temp = fpath_in[fpath_in.rfind("/") + 1: fpath_in.rfind("_crop.tif")]
+        temp = fpath_in[fpath_in.rfind("/") + 1: fpath_in.rfind("stabilized.tif")]
         fname_caiman = temp + "_caiman.tif"
         fname_out = os.path.join(work_dir, fname_caiman)
     else:
         fname_out = fpath_out
+    prints2(f"using output name: {fname_out}")
     mc_dict = {
         'fnames': fnames,
         'fr': frate,
@@ -165,7 +168,7 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True):
     tstart = time()
     cnm = cnmf.CNMF(n_processes=6, dview=None, Ain=Ain, params=opts)
     cnm.fit(images)  # 15 min for resized
-    print(f"it takes {int((time() - tstart) // 60)} minutes, {int((time() - tstart) % 60)} seconds to complete")
+    prints2(f"it takes {int((time() - tstart) // 60)} minutes, {int((time() - tstart) % 60)} seconds to complete")
 
     # ## Component Evaluation
     # the components are evaluated in three ways:
@@ -180,9 +183,9 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True):
                                'use_cnn': False})
     cnm.estimates.evaluate_components(images, cnm.params, dview=None)
 
-    print(' ***** ')
-    print('Number of total components: ', len(cnm.estimates.C))
-    print('Number of accepted components: ', len(cnm.estimates.idx_components))
+    prints2(' ***** ')
+    prints2(f'Number of total components:  {len(cnm.estimates.C)}')
+    prints2(f'Number of accepted components: {len(cnm.estimates.idx_components)}')
 
     # Get alll detected spatial components
     (x, y) = cnm.estimates.A.shape
@@ -208,7 +211,7 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True):
         cti = np.sum(bli)
         # calculate the portion of the overlapped
         percent = cti / ct2
-        print(percent)
+        # print(percent)
         if percent < 0.25:
             # change the label of this component
             merged = np.where(bl2 is True, i + 1, merged)
@@ -216,25 +219,25 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True):
             merged = np.where(bli is True, 0, merged)
         else:
             # put the overlapped areas here
-            mhits = np.where(bli == True, 999 + i, mhits)
+            mhits = np.where(bli is True, 999 + i, mhits)
 
     np.savetxt(os.path.join(work_dir, "coor_merged.csv"), merged, delimiter=",")
     np.savetxt(os.path.join(work_dir, "coor_mhits.csv"), mhits, delimiter=",")
 
     # Extract DF/F values
     (components, frames) = cnm.estimates.C.shape
-    print(frames)
+    prints2(f"frames: {frames}")
     cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
-    # Save the estimates to local to save time for later processing
-    c = np.zeros_like(cnm.estimates.C)
-    fname = os.path.join(work_dir, 'caiman_out_slice')
-    np.save(fname + '_overall.npy', c)
-    for i in range(len(c)):
-        fname_i = fname + str(i) + '.npy'
-        np.save(fname_i, c[i])
     # reconstruct denoised movie
     denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
     denoised.save(fname_out)
+    # Save the estimates to local to save time for later processing
+    fname = os.path.join(work_dir, "npy_files")
+    Path(fname).mkdir(parents=False, exist_ok=False)
+    for i in range(92):
+        fname_i = os.path.join(fname, "slice_" + str(i) + '.npy')
+        roi = np.reshape(cnm.estimates.A[:, i].toarray(), dims, order='F')
+        np.save(fname_i, roi)
     if save:
         path = os.path.join(work_dir, "cmn_obj")
         with open(path, "wb") as f:
