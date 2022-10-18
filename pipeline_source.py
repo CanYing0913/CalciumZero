@@ -1,3 +1,4 @@
+# Note: using this file is deprecated.
 import time, os, sys
 import numpy as np
 import matplotlib.pyplot as plt

@@ -1,7 +1,7 @@
 # Pipeline Setup Instruction  
+- Latest update on 2022.10.16, Docker is not set up yet, please follow to create conda environment.  
 ## 1. Check System Requirement  
-It has been tested stable on Windows 10 
-
+It has been tested stable on Windows 10
 ## 2. Create & Setup a new Python environment from Conda for this project.  
 Note:  
 - If you don't have conda installed, You should get started by [here](https://www.anaconda.com/), and then get back to this readme file.
@@ -12,7 +12,7 @@ Note:
 1. Create environment using conda and mamba
 2. Install Auto-cropping dependencies
 3. Install ImageJ-related dependencies
-4. Install 
+4. Install caiman-related dependencies
 
 ```
 conda install mamba -n base -c conda-forge
@@ -21,7 +21,7 @@ conda activate pyimagej
 ```
 
 ## 3. Install Fiji ImageJ to local and add headless stabilizer plugin to ImageJ
-Up until latest change @ `2022.10.11`, there is no docker for this project. Please install fiji ImageJ [here](https://imagej.net/software/fiji/downloads).  
+Up until latest change @ `2022.10.16`, there is no docker for this project. Please install fiji ImageJ [here](https://imagej.net/software/fiji/downloads).  
 After successfully installing Fiji ImageJ, copy the compiled plugin file, `Image_Stabilizer.java`, under ImageJ folder: `fiji.app/plugins/`
 
 ## 4. Before running the pipeline  
