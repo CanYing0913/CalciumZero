@@ -49,7 +49,7 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
     fnames = [fpath_in]
 
     if fpath_out is None:
-        temp = fpath_in[fpath_in.rfind("/") + 1: fpath_in.rfind("stabilized.tif")]
+        temp = fpath_in[fpath_in.rfind(r"\\") + 1: fpath_in.rfind("stabilized.tif")]
         fname_caiman = temp + "_caiman.tif"
         fname_out = os.path.join(work_dir, fname_caiman)
     else:

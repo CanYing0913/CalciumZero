@@ -122,6 +122,7 @@ def main(work_path: str, app_path: str, file: str, argv):
 
 
 if __name__ == "__main__":
+    st = time.time()
     # Assume parse() already takes care of handling arguments
     args = parse()
     ImageJ_path = args.imagej_path
@@ -132,4 +133,5 @@ if __name__ == "__main__":
     imm1, imm2 = args.intermediate1, args.intermediate2
 
     main(work_path=work_dir, app_path=ImageJ_path, file=fpath_in1, argv=args)
+    print(f"total taken {time.time() - st} seconds")
     sys.exit(0)

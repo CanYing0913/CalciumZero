@@ -19,7 +19,7 @@ def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, argv=None) -> tuple[np
     imp = ij.IJ.openImage(fpath_in)
 
     if fpath_out is None:
-        fpath_out = fpath_in[fpath_in.rfind("/") + 1: fpath_in.rfind(".tif")] + "_stabilized.tif"
+        fpath_out = fpath_in[fpath_in.rfind(r"\\") + 1: fpath_in.rfind(".tif")] + "_stabilized.tif"
         fpath_out = os.path.join(work_dir, fpath_out)
     else:
         fpath_out = os.path.join(work_dir, fpath_out)
