@@ -11,7 +11,7 @@ def prints1(text: str):
     print(f"  *  [S1 - ImageJ stabilizer]: {text}")
 
 
-def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, argv=None) -> tuple[np.ndarray, str]:
+def s1(work_dir: dir, app_path, fpath_in, fpath_out=None, argv=None): # -> tuple[np.ndarray, str]:
     ij = imagej.init(app_path, mode="interactive")
     prints1(f"ImageJ version {ij.getVersion()}")
     # dataset = ij.io().open(fpath_in)
