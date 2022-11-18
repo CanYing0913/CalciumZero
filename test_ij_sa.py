@@ -1,4 +1,5 @@
 import imagej
+from time import time
 
 
 def prints1(txt):
