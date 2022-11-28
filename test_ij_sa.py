@@ -1,4 +1,5 @@
-import imagej
+import imagej, cv2, caiman, pickle
+from time import time
 
 
 def prints1(txt):
@@ -6,7 +7,9 @@ def prints1(txt):
 
 
 ij = imagej.init('/tmp/Fiji.app', mode='interactive')
+print(f"ImageJ Version {ij.getVersion()}")
 imp = ij.IJ.openImage('/temp/test.tif')
+print(type(imp))
 Transformation = "Translation"
 MAX_Pyramid_level = 1.0
 update_coefficient = 0.9
