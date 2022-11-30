@@ -6,9 +6,9 @@ def prints1(txt):
     print(txt)
 
 
-ij = imagej.init('/tmp/Fiji.app', mode='interactive')
+ij = imagej.init('/tmp/Fiji.app', mode='headless')
 print(f"ImageJ Version {ij.getVersion()}")
-imp = ij.IJ.openImage('/temp/test.tif')
+imp = ij.IJ.openImage('/tmp/test.tif')
 print(type(imp))
 Transformation = "Translation"
 MAX_Pyramid_level = 1.0
