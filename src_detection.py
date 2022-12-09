@@ -1,5 +1,7 @@
 """
 Source file for Section 0 - Dense Segmentation and object detection
+Last edited on Dec.8 2022
+Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 from math import sqrt
 from random import randint
@@ -16,6 +18,22 @@ def prints0(text: str):
 
 
 def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debug=False):
+    """
+    A handy main function for cropping. It will save both segmented and cropped images to designated location.
+
+    Parameters:
+        work_dir: Path to folder where every output results are saved.
+        fname_in: Input tiff file name.
+        margin: Margin (in pixels) when to perform the cropping.
+        fname_out: Output result path. If None, we will use input name as a starting point and save to work_dir.
+                    You can force to save to other location by assigning absolute path to fname_out
+        save: Whether to save the output results. Only True, will the output specified by fname_out get saved.
+                Default to be True.
+        debug: Used by debug purpose. Default to be False.
+    Returns:
+        image_crop_o: The cropped image in numpy array.
+        fname_crop_out: Filename of the cropped image if saved to file.
+    """
     image_i = tifffile.imread(fname_in)
     image_seg_o, th_l = denseSegmentation(image_i, debug)
 
@@ -42,14 +60,14 @@ def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debu
 
 def denseSegmentation(image: np.ndarray, debug_mode=False):
     """
-    Apply the segmentation based on EVERY frame thresholds.
+    Apply the segmentation based on threshold on a frame-by-frame basis.
 
     Parameters:
         image: 3D image in shape of [N, H, W].
         debug_mode: True if you want to retrieve threshold list.
     Returns:
         result: Segmented image of original shape
-        th_l: List of thresholds.
+        th_l: List of thresholds, used for debugging purposes.
     """
     result = np.zeros_like(image)
     th_l = []

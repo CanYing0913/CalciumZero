@@ -1,3 +1,8 @@
+"""
+Source file for Section 2 - caiman
+Last edited on Dec.8 2022
+Copyright Yian Wang (canying0913@gmail.com) - 2022
+"""
 import logging
 import caiman as cm
 import matplotlib.pyplot as plt

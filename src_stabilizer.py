@@ -1,3 +1,8 @@
+"""
+Source file for Section 1 - ImageJ Stabilizer
+Last edited on Dec.8 2022
+Copyright Yian Wang (canying0913@gmail.com) - 2022
+"""
 import imagej
 import numpy as np
 import tifffile
