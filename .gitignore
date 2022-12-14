@@ -1,13 +1,5 @@
 __pycache__/
 .ipynb_checkpoints/
 java/
-out/
-test/
-tiny/
-Case EB1-30-2019/
 .idea/
-*.ecclog
-*.xls
-*.csv
-main_*.ipynb # hide temp test notebook
-test.py
+.vscode/
