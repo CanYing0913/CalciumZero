@@ -1,5 +1,10 @@
 # Pipeline Setup Instruction  
 - Latest update on 2022.12.14, Docker is not set up yet, please follow to create conda environment.  
+# roadmap
+- update image generation to be consistent with [paper output](https://bmcneurosci.biomedcentral.com/articles/10.1186/s12868-017-0391-y/figures/7)    
+- try multiple instances in caiman && free up RAM for each instance  
+- add support for peak caller to handle multiple cmn_objs **(perhaps pipelined?)**
+- test docker container / try Linux container  
 ## In this project, we provide several ways for you to run the pipeline:  
 1. You can directly run it on Google Colab [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing).  
 2. You can run it using our Docker container [NOT UP yet].
