@@ -1,6 +1,6 @@
 """
 Source file for Section 2 - caiman
-Last edited on Dec.8 2022
+Last edited on Dec.17 2022
 Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 import logging
@@ -50,7 +50,6 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
         logging.basicConfig(
             format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
             level=logging.DEBUG)
-    # fnames = ['E:\\case1 Movie_57_c.tif']
     fnames = [fpath_in]
 
     if fpath_out is None:
