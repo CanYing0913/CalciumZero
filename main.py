@@ -17,7 +17,9 @@ def parse():
     parser.add_argument('-wd', '--work-dir', type=str, metavar='Work-Dir', required=True,
                         help='Path to a working folder where all intermediate and overall results are stored. If not '
                              'exist then will create one automatically.')
-    parser.add_argument('-in1', type=str, metavar='INPUT', required=True,
+    parser.add_argument('-input', type=str, metavar='INPUT', required=True,
+                        help='Path to input/inputs folder. If you have multiple inputs file, please place them inside a single folder.')
+    parser.add_argument('-in1', type=str, metavar='INPUT1', required=False,
                         help='Path to raw input files, supplied to auto-cropping. If provided without absolute path, '
                              'it will assume the file exists inside working folder.')
     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
@@ -71,7 +73,19 @@ def parse():
     # Post-process arguments
     arguments.imagej_path = rf"{arguments.imagej_path}"
     arguments.work_dir = rf"{arguments.work_dir}"
-    arguments.in1 = rf"{arguments.in1}"
+    arguments.input = rf"{arguments.input}"
+    if Path.exist(arguments.input):
+        if os.path.isdir(arguments.input):
+            # A folder of multiple inputs
+            arguments.input = [f for f in os.listdir(arguments.input) if '.tif' in f]
+        else:
+            # A folder of multiple inputs
+            pass
+    else:
+        raise FileNotFoundError(f"file path {arguments.input} does not exist.")
+    # TODO: add check for path, retrieve input lists
+    if hasattr(arguments, 'in1'):
+        arguments.in1 = rf"{arguments.in1}"
     if hasattr(arguments, 'in2'):
         arguments.in2 = rf"{arguments.in2}" if arguments.in2 is not None else None
     if hasattr(arguments, 'in3'):
