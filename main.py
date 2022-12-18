@@ -83,7 +83,6 @@ def parse():
             pass
     else:
         raise FileNotFoundError(f"file path {arguments.input} does not exist.")
-    # TODO: add check for path, retrieve input lists
     if hasattr(arguments, 'in1'):
         arguments.in1 = rf"{arguments.in1}"
     if hasattr(arguments, 'in2'):
