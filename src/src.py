@@ -13,6 +13,7 @@ import numpy as np
 import tifffile
 import seaborn
 import imagej
+from src_peak_caller import PeakCaller
 
 # Retrieve source
 from src_detection import *
@@ -69,13 +70,20 @@ def parse():
     if not Path.exists(arguments.imagej_path):
         if not arguments.skip_1:
             raise OSError(f"[ERROR]: ImageJ path does not exist: {arguments.imagej_path}")
-    arguments.ij_params = {
-        'Transformation': arguments.ij_trans,
-        'MAX_Pyramid_level': arguments.ij_maxpl,
-        'update_coefficient': arguments.ij_upco,
-        'MAX_iteration': arguments.ij_maxiter,
-        'error_tolerance': arguments.ij_errtol
-    }
+    # arguments.ij_params = {
+    #     'Transformation': arguments.ij_trans,
+    #     'MAX_Pyramid_level': arguments.ij_maxpl,
+    #     'update_coefficient': arguments.ij_upco,
+    #     'MAX_iteration': arguments.ij_maxiter,
+    #     'error_tolerance': arguments.ij_errtol
+    # }
+    arguments.ij_params = [
+        arguments.ij_trans,
+        arguments.ij_maxpl,
+        arguments.ij_upco,
+        arguments.ij_maxiter,
+        arguments.ij_errtol
+    ]
     # work_dir path
     arguments.work_dir = Path(arguments.work_dir)
     if not Path.exists(arguments.work_dir):
@@ -94,9 +102,10 @@ def parse():
             arguments.input = [f for f in os.listdir(str(arguments.input)) if '.tif' in f]
         else:
             # Path to a single input file.
-            arguments.input_root = os.path.basename(arguments.input)
+            temp = os.path.basename(arguments.input)
+            arguments.input_root = str(arguments.input).removesuffix(temp)
             if '.tif' in arguments.input:
-                arguments.input = [arguments.input]
+                arguments.input = [temp]
     else:
         raise FileNotFoundError(f"[ERROR]: Input file path {arguments.input} does not exist.")
     return arguments
@@ -111,11 +120,15 @@ class pipeline(object):
         self.input_root = ''
         self.input_list = []
         self.margin = 0
+        self.imm1_list = []  # Intermediate result list 1
         # ImageJ stabilizer related variables
         self.ij = None
-        self.s1_params = {}
+        self.s1_params = []
+        self.imm2_list = []  # Intermediate result list 2
         # CaImAn related variables
         self.caiman_obj = None
+        # Peak Caller related
+        self.pc_obj = None
 
     def parse(self):
         # Retrieve calling parameters
@@ -136,6 +149,9 @@ class pipeline(object):
         # CaImAn related variables
         # TODO: add caiman parameters
         pass
+        # TODO: add peak_caller parameters
+        # TODO: get control params to determine dest list
+        pass
         # TODO: collect task report
         print(rf"******Tasks TODO list******")
         print(rf"")
@@ -143,6 +159,7 @@ class pipeline(object):
     def s0(self, debug=False):
         def ps0(text: str):
             print(f"***[S0 - Detection]: {text}")
+
         # TODO: segmentation and cropping
         generator = get_image(self.input_list, self.input_root)
         fname_i, image_i = generator.__next__()
@@ -152,18 +169,57 @@ class pipeline(object):
         x1, y1, x2, y2 = find_bb_3D_dense(image_seg_o, debug)
         image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), self.margin)
         # Handle output path
-        fname_seg_o = fname_i[fname_i.rfind("/") + 1: fname_i.rfind(".tif")] + '_seg.tif'
-        fname_crop_o = fname_i[fname_i.rfind("/") + 1: fname_i.rfind(".tif")] + '_crop.tif'
+        plain_name = os.path.basename(fname_i).removesuffix('.tif')
+        fname_seg_o = plain_name + '_seg.tif'
+        fname_crop_o = plain_name + '_crop.tif'
         fname_seg_o = os.path.join(self.work_dir, fname_seg_o)
         fname_crop_o = os.path.join(self.work_dir, fname_crop_o)
         ps0(f"Using paths: {fname_seg_o} and {fname_crop_o} to save intermediate results.")
+        # Save imm1 data to files
         tifffile.imwrite(fname_seg_o, image_seg_o)
         tifffile.imwrite(fname_crop_o, image_crop_o)
+        self.imm1_list.append(fname_crop_o)
         return image_crop_o, fname_crop_o
 
     def s1(self):
+        def ps1(text: str):
+            print(f"***[S1 - ImageJ stabilizer]: {text}")
+
         # TODO: stabilizer
-        pass
+        # TODO: select one file in self.imm_list1
+        fname_i = ''
+        imp = self.ij.IJ.openImage(fname_i)
+        # Get ImageJ Stabilizer Parameters
+        ij_params = self.s1_params
+        Transformation = "Translation" if ij_params[0] == 0 else "Affine"
+        MAX_Pyramid_level = ij_params[1]
+        update_coefficient = ij_params[2]
+        MAX_iteration = ij_params[3]
+        error_tolerance = ij_params[4]
+        ps1("Using following parameters:")
+        ps1(f"\t\tTransformation: {Transformation};")
+        ps1(f"\t\tMAX_Pyramid_level: {MAX_Pyramid_level};")
+        ps1(f"\t\tupdate_coefficient: {update_coefficient};")
+        ps1(f"\t\tMAX_iteration: {MAX_iteration};")
+        ps1(f"\t\terror_tolerance: {error_tolerance};")
+        # Start stabilizer
+        ps1("Starting stabilizer in headless mode...")
+        st = time()
+        self.ij.IJ.run(imp, "Image Stabilizer Headless",
+                       "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
+                       " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
+                       str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
+        ps1(f"Task finishes. Total of {int((time() - st) // 60)} m {int((time() - st) % 60)} s.")
+        # Set output path
+        temp = os.path.basename(fname_i)
+        fname_o = temp.removesuffix('.tif') + '_stabilized.tif'
+        fname_o = os.path.join(self.work_dir, fname_o)
+        ps1(f"Using output name: {fname_o}")
+        # Save output and update imm_list2
+        self.ij.IJ.saveAs(imp, "Tiff", fname_o)
+        imp.close()
+        self.imm2_list.append(fname_o)
+        return
 
     def s2(self):
         # TODO: caiman
@@ -171,17 +227,31 @@ class pipeline(object):
 
     def s3(self):
         # TODO: peak_caller
-        pass
+        data = self.caiman_obj.estimates.C[:92, :]
+        filename = ''  # TODO
+        self.pc_obj = PeakCaller(data, filename)
+        self.pc_obj.Detrender_2()
+        self.pc_obj.Find_Peak()
+        # The above code generates a PeakCaller object with peaks detected
+        self.pc_obj.Print_ALL_Peaks()
+        self.pc_obj.Raster_Plot()
+        self.pc_obj.Histogram_Height()
+        self.pc_obj.Histogram_Time()
+        self.pc_obj.Correlation()
+        # To save results, do something like this:
+        self.pc_obj.Synchronization()
+        self.pc_obj.Save_Result()
 
 
 def main():
     testobj = pipeline()
     testobj.parse()
-    
+
     # testobj.s0()
-    # testobj.s0()
+    testobj.s1()
     # testobj.s0()
 
 
 if __name__ == '__main__':
     main()
+    exit(0)
