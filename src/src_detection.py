@@ -1,6 +1,6 @@
 """
 Source file for Section 0 - Dense Segmentation and object detection
-Last edited on Dec.8 2022
+Last edited on Dec.19 2022
 Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 from math import sqrt
@@ -13,11 +13,22 @@ import os
 import tifffile
 
 
-def prints0(text: str):
-    print(f"  *  [S0 - detection]: {text}")
+def get_image(fnames_in: list[str], input_root: str):
+    """
+    A Python generator to quickly get input image.
+    """
+    idx = 0
+    while idx < len(fnames_in):
+        file_name = fnames_in[idx]
+        yield file_name, tifffile.imread(os.path.join(input_root, file_name))
+        idx += 1
 
 
-def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debug=False):
+# def ps0(text: str):
+#     print(f"  *  [S0 - detection]: {text}")
+
+
+def s0(work_dir: str, fname_in: list[str], margin=200, save=True, debug=False):
     """
     A handy main function for cropping. It will save both segmented and cropped images to designated location.
 
@@ -25,8 +36,6 @@ def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debu
         work_dir: Path to folder where every output results are saved.
         fname_in: Input tiff file name.
         margin: Margin (in pixels) when to perform the cropping.
-        fname_out: Output result path. If None, we will use input name as a starting point and save to work_dir.
-                    You can force to save to other location by assigning absolute path to fname_out
         save: Whether to save the output results. Only True, will the output specified by fname_out get saved.
                 Default to be True.
         debug: Used by debug purpose. Default to be False.
@@ -34,28 +43,23 @@ def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debu
         image_crop_o: The cropped image in numpy array.
         fname_crop_out: Filename of the cropped image if saved to file.
     """
-    image_i = tifffile.imread(fname_in)
+    # Get input data
+    generator = get_image(fname_in)
+    fname_i, image_i = generator.__next__()
+    # Process input
     image_seg_o, th_l = denseSegmentation(image_i, debug)
-
     x1, y1, x2, y2 = find_bb_3D_dense(image_seg_o, debug)
     image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), margin)
-    if fname_out is None:
-        temp = fname_in[fname_in.rfind("/") + 1: fname_in.rfind(".tif")]
-        fname_seg_out = temp + "_seg.tif"
-        fname_crop_out = temp + "_crop.tif"
-        fname_seg_out = os.path.join(work_dir, fname_seg_out)
-        fname_crop_out = os.path.join(work_dir, fname_crop_out)
-    else:
-        temp = fname_out[: fname_out.rfind(".tif")]
-        fname_seg_out = temp + "_seg.tif"
-        fname_crop_out = temp + "_crop.tif"
-        fname_seg_out = os.path.join(work_dir, fname_seg_out)
-        fname_crop_out = os.path.join(work_dir, fname_crop_out)
-    prints0(f"Using output name: {fname_seg_out} and {fname_crop_out}")
+    # Handle output path
+    fname_seg_o = fname_i[fname_i.rfind("/") + 1: fname_i.rfind(".tif")] + '_seg.tif'
+    fname_crop_o = fname_i[fname_i.rfind("/") + 1: fname_i.rfind(".tif")] + '_crop.tif'
+    fname_seg_o = os.path.join(work_dir, fname_seg_o)
+    fname_crop_o = os.path.join(work_dir, fname_crop_o)
+    ps0(f"Using paths: {fname_seg_o} and {fname_crop_o} to save intermediate results.")
     if save:
-        tifffile.imwrite(fname_seg_out, image_seg_o)
-        tifffile.imwrite(fname_crop_out, image_crop_o)
-    return image_crop_o, fname_crop_out
+        tifffile.imwrite(fname_seg_o, image_seg_o)
+        tifffile.imwrite(fname_crop_o, image_crop_o)
+    return image_crop_o, fname_crop_o
 
 
 def denseSegmentation(image: np.ndarray, debug_mode=False):
@@ -105,12 +109,13 @@ def find_threshold(image) -> int:
     return T
 
 
-def find_bb(image: np.ndarray, debug_mode=False) -> tuple:
+def find_bb(image: np.ndarray, debug=False) -> tuple:
     """
     Find coordinates of segmentation bounding box given the segmentation image.
 
     Parameters:
         image: Segmentation 2D image. Note that the object should be near the center.
+        debug: used for debugging purposes.
     Return:
         tuple: return x, y coordinates for upper-left and bottom-right corners of the bounding box.
     """
@@ -153,14 +158,14 @@ def find_bb(image: np.ndarray, debug_mode=False) -> tuple:
             y1 = np.min(xcnt_y)
             y2 = np.max(xcnt_y)
 
-    if debug_mode:
+    if debug:
         cv2.drawContours(image_t, finalxcnt, -1, (0, 255, 0), 3)
 
     x1 = 0 if x1 < 0 else x1
     y1 = 0 if y1 < 0 else y1
     x2 = w - 1 if x1 >= w else x2
     y2 = h - 1 if y1 >= h else y2
-    if debug_mode:
+    if debug:
         cv2.rectangle(image_t, (x1, y1), (x2, y2), (0, 255, 0), 5)
         plt.figure()
         plt.imshow(image_t, cmap="gray")
