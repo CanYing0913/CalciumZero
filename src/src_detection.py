@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tifffile
+from tqdm import trange, tqdm
 
 
 def get_image(fnames_in: list[str], input_root: str):
@@ -75,7 +76,9 @@ def denseSegmentation(image: np.ndarray, debug_mode=False):
     """
     result = np.zeros_like(image)
     th_l = []
-    for i in range(len(image)):
+    pbar = tqdm(range(len(image)))
+    for i in pbar:
+        pbar.set_description(f"Segmenting image_{i}")
         th = find_threshold(image[i]) * 2
         if debug_mode:
             th_l.append(th * 2)
@@ -83,6 +86,7 @@ def denseSegmentation(image: np.ndarray, debug_mode=False):
         temp[temp <= th] = 0
         temp[temp > th] = 255
         result[i] = temp
+    del temp
     return result, th_l
 
 
@@ -106,6 +110,7 @@ def find_threshold(image) -> int:
         m2 = np.mean(bg)
         T_prime = T
         T = (m1 + m2) // 2
+    del bg, ob, m1, m2, T_prime
     return T
 
 
@@ -176,7 +181,9 @@ def find_bb(image: np.ndarray, debug=False) -> tuple:
 def find_bb_3D_dense(image: np.ndarray, debug_mode=False) -> tuple:
     sliceNum, h, w = image.shape
     x1, y1, x2, y2 = find_bb(image[0, ...], debug_mode)
-    for i in range(1, sliceNum):
+    pbar = tqdm(range(1, sliceNum))
+    for i in pbar:
+        pbar.set_description(f"Finding bb for img_{i+1}")
         x1c, y1c, x2c, y2c = find_bb(image[i, ...], debug_mode)
         x1 = x1c if x1 > x1c else x1
         y1 = y1c if y1 > y1c else y1

@@ -13,6 +13,7 @@ import numpy as np
 import tifffile
 import seaborn
 import imagej
+from tqdm import tqdm
 from src_peak_caller import PeakCaller
 
 # Retrieve source
@@ -150,6 +151,7 @@ class pipeline(object):
         # TODO: add caiman parameters
         pass
         # TODO: add peak_caller parameters
+        pass
         # TODO: get control params to determine dest list
         pass
         # TODO: collect task report
@@ -157,29 +159,44 @@ class pipeline(object):
         print(rf"")
 
     def s0(self, debug=False):
+        """
+
+        Parameters:
+            debug: Used for debugging purposes.
+        """
         def ps0(text: str):
             print(f"***[S0 - Detection]: {text}")
 
         # TODO: segmentation and cropping
-        generator = get_image(self.input_list, self.input_root)
-        fname_i, image_i = generator.__next__()
-        ps0(f"Reading input {fname_i} with shape {image_i.shape}.")
-        # Process input
-        image_seg_o, th_l = denseSegmentation(image_i, debug)
-        x1, y1, x2, y2 = find_bb_3D_dense(image_seg_o, debug)
-        image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), self.margin)
-        # Handle output path
-        plain_name = os.path.basename(fname_i).removesuffix('.tif')
-        fname_seg_o = plain_name + '_seg.tif'
-        fname_crop_o = plain_name + '_crop.tif'
-        fname_seg_o = os.path.join(self.work_dir, fname_seg_o)
-        fname_crop_o = os.path.join(self.work_dir, fname_crop_o)
-        ps0(f"Using paths: {fname_seg_o} and {fname_crop_o} to save intermediate results.")
-        # Save imm1 data to files
-        tifffile.imwrite(fname_seg_o, image_seg_o)
-        tifffile.imwrite(fname_crop_o, image_crop_o)
-        self.imm1_list.append(fname_crop_o)
-        return image_crop_o, fname_crop_o
+        x1 = y1 = float('inf')
+        x2 = y2 = -1
+        # Scanning for bounding box for multiple input
+        for fname_i in self.input_list:
+            image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
+            ps0(f"Reading input {fname_i} with shape {image_i.shape}.")
+            # Process input
+            image_seg_o, th_l = denseSegmentation(image_i, debug)
+            x1_, y1_, x2_, y2_ = find_bb_3D_dense(image_seg_o, debug)
+            if not debug:
+                del th_l, image_seg_o
+            x1 = min(x1, x1_)
+            y1 = min(y1, y1_)
+            x2 = max(x2, x2_)
+            y2 = max(y2, y2_)
+        del x1_, y1_, x2_, y2_
+        if debug:
+            ps0(f"Bounding box found with x1,y1,x2,y2: {x1,y1,x2,y2}")
+        for fname_i in self.input_list:
+            image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
+            image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), self.margin)
+            # Handle output path
+            fname_crop_o = fname_i.removesuffix('.tif') + '_crop.tif'
+            fname_crop_o = os.path.join(self.work_dir, fname_crop_o)
+            ps0(f"Using paths: {fname_crop_o} to save cropped result(s).")
+            # Save imm1 data to files
+            tifffile.imwrite(fname_crop_o, image_crop_o)
+            self.imm1_list.append(fname_crop_o)
+        return
 
     def s1(self):
         def ps1(text: str):
@@ -247,8 +264,8 @@ def main():
     testobj = pipeline()
     testobj.parse()
 
-    # testobj.s0()
-    testobj.s1()
+    testobj.s0()
+    # testobj.s1()
     # testobj.s0()
 
 
