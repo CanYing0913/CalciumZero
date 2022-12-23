@@ -74,7 +74,7 @@ def parse():
     arguments.imagej_path = rf"{arguments.imagej_path}"
     arguments.work_dir = rf"{arguments.work_dir}"
     arguments.input = rf"{arguments.input}"
-    if Path.exists(arguments.input):
+    if os.path.exists(arguments.input):
         if os.path.isdir(arguments.input):
             # A folder of multiple inputs
             arguments.input = [f for f in os.listdir(arguments.input) if '.tif' in f]
