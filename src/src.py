@@ -17,7 +17,8 @@ from tqdm import tqdm
 from src_peak_caller import PeakCaller
 
 # Retrieve source
-from src_detection import *
+from src_detection import dense_segmentation, find_bb_3D_dense, apply_bb_3D
+from src_stabilizer import print_param, run_stabilizer
 
 
 def parse():
@@ -135,7 +136,7 @@ class pipeline(object):
         # Retrieve calling parameters
         arguments = parse()
         # Use parameters to set up pipeline global info
-        # Control releated
+        # Control related
         self.work_dir = arguments.work_dir
         self.skip_0 = arguments.skip_0
         self.skip_1 = arguments.skip_1
@@ -160,6 +161,7 @@ class pipeline(object):
 
     def s0(self, debug=False):
         """
+        Function to run segmentation, detection and cropping.
 
         Parameters:
             debug: Used for debugging purposes.
@@ -168,14 +170,14 @@ class pipeline(object):
             print(f"***[S0 - Detection]: {text}")
 
         # TODO: segmentation and cropping
+        # Scanning for bounding box for multiple input
         x1 = y1 = float('inf')
         x2 = y2 = -1
-        # Scanning for bounding box for multiple input
         for fname_i in self.input_list:
             image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
             ps0(f"Reading input {fname_i} with shape {image_i.shape}.")
             # Process input
-            image_seg_o, th_l = denseSegmentation(image_i, debug)
+            image_seg_o, th_l = dense_segmentation(image_i, debug)
             x1_, y1_, x2_, y2_ = find_bb_3D_dense(image_seg_o, debug)
             if not debug:
                 del th_l, image_seg_o
@@ -202,31 +204,15 @@ class pipeline(object):
         def ps1(text: str):
             print(f"***[S1 - ImageJ stabilizer]: {text}")
 
-        # TODO: stabilizer
+        # TODO: ImageJ Stabilizer
         # TODO: select one file in self.imm_list1
         fname_i = ''
         imp = self.ij.IJ.openImage(fname_i)
         # Get ImageJ Stabilizer Parameters
-        ij_params = self.s1_params
-        Transformation = "Translation" if ij_params[0] == 0 else "Affine"
-        MAX_Pyramid_level = ij_params[1]
-        update_coefficient = ij_params[2]
-        MAX_iteration = ij_params[3]
-        error_tolerance = ij_params[4]
-        ps1("Using following parameters:")
-        ps1(f"\t\tTransformation: {Transformation};")
-        ps1(f"\t\tMAX_Pyramid_level: {MAX_Pyramid_level};")
-        ps1(f"\t\tupdate_coefficient: {update_coefficient};")
-        ps1(f"\t\tMAX_iteration: {MAX_iteration};")
-        ps1(f"\t\terror_tolerance: {error_tolerance};")
+        print_param(self.s1_params, ps1)
         # Start stabilizer
         ps1("Starting stabilizer in headless mode...")
-        st = time()
-        self.ij.IJ.run(imp, "Image Stabilizer Headless",
-                       "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
-                       " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
-                       str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
-        ps1(f"Task finishes. Total of {int((time() - st) // 60)} m {int((time() - st) % 60)} s.")
+        run_stabilizer(self.ij, imp, self.s1_params, ps1)
         # Set output path
         temp = os.path.basename(fname_i)
         fname_o = temp.removesuffix('.tif') + '_stabilized.tif'
