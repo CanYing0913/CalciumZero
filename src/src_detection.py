@@ -1,6 +1,6 @@
 """
-Source file for Section 0 - Dense Segmentation and object detection
-Last edited on Dec.19 2022
+Source file for Section 0 - Dense Segmentation , object detection, and cropping.
+Last edited on Dec.22 2022
 Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 from math import sqrt
@@ -9,61 +9,10 @@ from random import randint
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import tifffile
-from tqdm import trange, tqdm
+from tqdm import tqdm
 
 
-def get_image(fnames_in: list[str], input_root: str):
-    """
-    A Python generator to quickly get input image.
-    """
-    idx = 0
-    while idx < len(fnames_in):
-        file_name = fnames_in[idx]
-        yield file_name, tifffile.imread(os.path.join(input_root, file_name))
-        idx += 1
-
-
-# def ps0(text: str):
-#     print(f"  *  [S0 - detection]: {text}")
-
-
-def s0(work_dir: str, fname_in: list[str], margin=200, save=True, debug=False):
-    """
-    A handy main function for cropping. It will save both segmented and cropped images to designated location.
-
-    Parameters:
-        work_dir: Path to folder where every output results are saved.
-        fname_in: Input tiff file name.
-        margin: Margin (in pixels) when to perform the cropping.
-        save: Whether to save the output results. Only True, will the output specified by fname_out get saved.
-                Default to be True.
-        debug: Used by debug purpose. Default to be False.
-    Returns:
-        image_crop_o: The cropped image in numpy array.
-        fname_crop_out: Filename of the cropped image if saved to file.
-    """
-    # Get input data
-    generator = get_image(fname_in)
-    fname_i, image_i = generator.__next__()
-    # Process input
-    image_seg_o, th_l = denseSegmentation(image_i, debug)
-    x1, y1, x2, y2 = find_bb_3D_dense(image_seg_o, debug)
-    image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), margin)
-    # Handle output path
-    fname_seg_o = fname_i[fname_i.rfind("/") + 1: fname_i.rfind(".tif")] + '_seg.tif'
-    fname_crop_o = fname_i[fname_i.rfind("/") + 1: fname_i.rfind(".tif")] + '_crop.tif'
-    fname_seg_o = os.path.join(work_dir, fname_seg_o)
-    fname_crop_o = os.path.join(work_dir, fname_crop_o)
-    ps0(f"Using paths: {fname_seg_o} and {fname_crop_o} to save intermediate results.")
-    if save:
-        tifffile.imwrite(fname_seg_o, image_seg_o)
-        tifffile.imwrite(fname_crop_o, image_crop_o)
-    return image_crop_o, fname_crop_o
-
-
-def denseSegmentation(image: np.ndarray, debug_mode=False):
+def dense_segmentation(image: np.ndarray, debug_mode=False):
     """
     Apply the segmentation based on threshold on a frame-by-frame basis.
 
