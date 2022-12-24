@@ -14,8 +14,13 @@ def main():
     Main pipeline function.
     """
     pipeline = src.pipeline()
-    pipeline.parse()
-    pipeline.run()
+    try:
+        pipeline.parse()
+        pipeline.run()
+    except:
+        # Upon exceptions, update log so user can inspect
+        if pipeline.log is not None:
+            pipeline.log.close()
 
 
 if __name__ == "__main__":
