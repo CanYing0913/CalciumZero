@@ -40,9 +40,9 @@ def parse():
                         help='Path to input/inputs folder. If you have multiple inputs file, please place them inside '
                              'a single folder. If you only have one input, either provide direct path or the path to'
                              ' the folder containing the input(without any other files!)')
-    parser.add_argument('--skip-0', default=False, action="store_true", required=False, help='Skip segmentation and '
+    parser.add_argument('--skip_0', default=False, action="store_true", required=False, help='Skip segmentation and '
                                                                                              'cropping if specified.')
-    parser.add_argument('--skip-1', default=False, action="store_true", required=False, help='Skip stabilizer if '
+    parser.add_argument('--skip_1', default=False, action="store_true", required=False, help='Skip stabilizer if '
                                                                                              'specified.')
     # Functional parameters
     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
@@ -68,17 +68,10 @@ def parse():
     arguments = parser.parse_args()
     # Post-process arguments
     # ImageJ path and param
-    arguments.imagej_path = Path(arguments.imagej_path)
-    if not Path.exists(arguments.imagej_path):
+    # arguments.imagej_path = Path(arguments.imagej_path)
+    if not os.path.exists(arguments.imagej_path):
         if not arguments.skip_1:
             raise OSError(f"[ERROR]: ImageJ path does not exist: {arguments.imagej_path}")
-    # arguments.ij_params = {
-    #     'Transformation': arguments.ij_trans,
-    #     'MAX_Pyramid_level': arguments.ij_maxpl,
-    #     'update_coefficient': arguments.ij_upco,
-    #     'MAX_iteration': arguments.ij_maxiter,
-    #     'error_tolerance': arguments.ij_errtol
-    # }
     arguments.ij_params = [
         arguments.ij_trans,
         arguments.ij_maxpl,
@@ -87,8 +80,8 @@ def parse():
         arguments.ij_errtol
     ]
     # work_dir path
-    arguments.work_dir = Path(arguments.work_dir)
-    if not Path.exists(arguments.work_dir):
+    # arguments.work_dir = Path(arguments.work_dir)
+    if not os.path.exists(arguments.work_dir):
         print(f"Working directory {arguments.work_dir} does not exist. Attempting to create one.")
         try:
             Path(arguments.work_dir).mkdir(parents=True, exist_ok=False)
@@ -96,18 +89,19 @@ def parse():
             print(f"[ERROR]: OSError detected. Please check if disk exists or privilege level satisfies.")
             exit(1)
     # input folder path
-    arguments.input = Path(arguments.input)
-    if Path.exists(arguments.input):
+    arguments.input = str(arguments.input)  # To suppress IDE warning
+    if os.path.exists(arguments.input):
         if os.path.isdir(arguments.input):
             # Path to a folder of multiple inputs.
             arguments.input_root = arguments.input
-            arguments.input = [f for f in os.listdir(str(arguments.input)) if '.tif' in f]
+            arguments.input = [f for f in os.listdir(arguments.input_root) if f[-4:] == '.tif']
         else:
             # Path to a single input file.
             temp = os.path.basename(arguments.input)
-            arguments.input_root = str(arguments.input).removesuffix(temp)
-            if '.tif' in arguments.input:
-                arguments.input = [temp]
+            if temp[-4:] != ".tif":
+                raise FileNotFoundError(f"The input file {arguments.input} is not a tiff file.")
+            arguments.input_root = arguments.input.removesuffix(temp)
+            arguments.input = [temp]
     else:
         raise FileNotFoundError(f"[ERROR]: Input file path {arguments.input} does not exist.")
     return arguments
@@ -166,6 +160,7 @@ class pipeline(object):
         Parameters:
             debug: Used for debugging purposes.
         """
+
         def ps0(text: str):
             print(f"***[S0 - Detection]: {text}")
 
@@ -187,14 +182,14 @@ class pipeline(object):
             y2 = max(y2, y2_)
         del x1_, y1_, x2_, y2_
         if debug:
-            ps0(f"Bounding box found with x1,y1,x2,y2: {x1,y1,x2,y2}")
+            ps0(f"Bounding box found with x1,y1,x2,y2: {x1, y1, x2, y2}")
         for fname_i in self.input_list:
             image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
             image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), self.margin)
             # Handle output path
             fname_crop_o = fname_i.removesuffix('.tif') + '_crop.tif'
             fname_crop_o = os.path.join(self.work_dir, fname_crop_o)
-            ps0(f"Using paths: {fname_crop_o} to save cropped result(s).")
+            ps0(f"Using paths: {fname_crop_o} to save cropped result.")
             # Save imm1 data to files
             tifffile.imwrite(fname_crop_o, image_crop_o)
             self.imm1_list.append(fname_crop_o)
@@ -244,6 +239,24 @@ class pipeline(object):
         # To save results, do something like this:
         self.pc_obj.Synchronization()
         self.pc_obj.Save_Result()
+
+    def run(self):
+        start_time = time()
+        # First, decide which section to start execute
+        skip0, skip1 = self.skip_0, self.skip_1
+        if not skip0:
+            # Do cropping
+            pass
+        if not skip1:
+            # Do stabilizer
+            pass
+        # CaImAn part
+        pass
+        # Peak_caller part
+        pass
+        end_time = time()
+        exec_t = end_time - start_time
+        print(f"[INFO] pipeline.run takes {exec_t//60}m {int(exec_t%60)}s to run in total.")
 
 
 def main():

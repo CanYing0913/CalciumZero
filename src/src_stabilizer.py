@@ -80,11 +80,11 @@ def print_param(ij_params, f):
     MAX_iteration = ij_params[3]
     error_tolerance = ij_params[4]
     f("Using following parameters:")
-    f(f"\t\tTransformation: {Transformation};")
-    f(f"\t\tMAX_Pyramid_level: {MAX_Pyramid_level};")
-    f(f"\t\tupdate_coefficient: {update_coefficient};")
-    f(f"\t\tMAX_iteration: {MAX_iteration};")
-    f(f"\t\terror_tolerance: {error_tolerance};")
+    f(f"Transformation: {Transformation};")
+    f(f"MAX_Pyramid_level: {MAX_Pyramid_level};")
+    f(f"update_coefficient: {update_coefficient};")
+    f(f"MAX_iteration: {MAX_iteration};")
+    f(f"error_tolerance: {error_tolerance};")
     del Transformation, MAX_Pyramid_level, update_coefficient, MAX_iteration, error_tolerance
 
 
