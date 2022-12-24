@@ -141,6 +141,7 @@ if __name__ == "__main__":
     ImageJ_path = args.imagej_path
     work_dir = args.work_dir
     margin = args.margin
+    print(f"debug, {fpath_in1}")
     fpath_in1, fpath_in2, fpath_in3 = args.input, args.in2, args.in3
     fapth_out = args.out
     imm1, imm2 = args.intermediate1, args.intermediate2
