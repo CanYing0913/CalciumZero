@@ -75,12 +75,13 @@ def parse():
     arguments.work_dir = rf"{arguments.work_dir}"
     arguments.input = rf"{arguments.input}"
     if os.path.exists(arguments.input):
-        if os.path.isdir(arguments.input):
-            # A folder of multiple inputs
-            arguments.input = [f for f in os.listdir(arguments.input) if '.tif' in f]
-        else:
-            # A folder of multiple inputs
-            pass
+        print(f"debug, {arguments.input}")
+#         if os.path.isdir(arguments.input):
+#             # A folder of multiple inputs
+#             arguments.input = [f for f in os.listdir(arguments.input) if '.tif' in f]
+#         else:
+#             # A folder of multiple inputs
+#             pass
     else:
         raise FileNotFoundError(f"file path {arguments.input} does not exist.")
     if hasattr(arguments, 'in1'):
