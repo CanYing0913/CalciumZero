@@ -7,7 +7,6 @@ import logging
 import caiman as cm
 import matplotlib.pyplot as plt
 from caiman.source_extraction import cnmf
-from caiman.utils.utils import download_demo
 from caiman.utils.visualization import inspect_correlation_pnr, nb_inspect_correlation_pnr
 from caiman.motion_correction import MotionCorrect
 from caiman.source_extraction.cnmf import params as params
@@ -53,7 +52,7 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
     fnames = [fpath_in]
 
     if fpath_out is None:
-        temp = fpath_in[fpath_in.rfind(r"\\") + 1: fpath_in.rfind("stabilized.tif")]
+        temp = os.path.basename(fpath_in).removesuffix('.tif')
         fname_caiman = temp + "_caiman.tif"
         fname_out = os.path.join(work_dir, fname_caiman)
     else:
