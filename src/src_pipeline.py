@@ -14,11 +14,11 @@ import tifffile
 import seaborn
 import imagej
 from tqdm import tqdm
-from src_peak_caller import PeakCaller
+from src.src_peak_caller import PeakCaller
 
 # Retrieve source
-from src_detection import dense_segmentation, find_bb_3D_dense, apply_bb_3D
-from src_stabilizer import print_param, run_stabilizer
+from src.src_detection import dense_segmentation, find_bb_3D_dense, apply_bb_3D
+from src.src_stabilizer import print_param, run_stabilizer
 
 
 def parse():
@@ -31,6 +31,8 @@ def parse():
     parser = argparse.ArgumentParser(description=desp)
     # Set up arguments
     # Control parameters
+    parser.add_argument('-no_log', default=True, action='store_false',
+                        help='Specified if do not want to have terminal printouts saved to a separate file.')
     parser.add_argument('-ijp', '--imagej-path', type=str, metavar='ImageJ-Path', required=True,
                         help='Path to local Fiji ImageJ fiji folder.')
     parser.add_argument('-wd', '--work-dir', type=str, metavar='Work-Dir', required=True,
@@ -40,9 +42,9 @@ def parse():
                         help='Path to input/inputs folder. If you have multiple inputs file, please place them inside '
                              'a single folder. If you only have one input, either provide direct path or the path to'
                              ' the folder containing the input(without any other files!)')
-    parser.add_argument('--skip_0', default=False, action="store_true", required=False, help='Skip segmentation and '
+    parser.add_argument('-skip_0', default=False, action="store_true", required=False, help='Skip segmentation and '
                                                                                              'cropping if specified.')
-    parser.add_argument('--skip_1', default=False, action="store_true", required=False, help='Skip stabilizer if '
+    parser.add_argument('-skip_1', default=False, action="store_true", required=False, help='Skip stabilizer if '
                                                                                              'specified.')
     # Functional parameters
     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
@@ -62,7 +64,7 @@ def parse():
     parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
                         help='ImageJ stabilizer parameter - error_rolerance. You have to specify -ij_param to use '
                              'it. Default to 1E-7.')
-    parser.add_argument('-log', type=bool, default=False, required=False,
+    parser.add_argument('-c_log', type=bool, default=False, required=False,
                         help='True if enable logging for caiman part. Default to be false.')
     # Parse the arguments
     arguments = parser.parse_args()
@@ -112,19 +114,29 @@ class pipeline(object):
         # Control sequence
         self.skip_0 = self.skip_1 = False
         self.work_dir = ''
+        self.log = None
         # Segmentation and cropping related variables
         self.input_root = ''
         self.input_list = []
         self.margin = 0
-        self.imm1_list = []  # Intermediate result list 1
+        self.imm1_list = []  # Intermediate result list 1, relative path
         # ImageJ stabilizer related variables
         self.ij = None
         self.s1_params = []
-        self.imm2_list = []  # Intermediate result list 2
+        self.s1_root = ''
+        self.imm2_list = []  # Intermediate result list 2, relative path
         # CaImAn related variables
         self.caiman_obj = None
+        self.s2_root = ''
         # Peak Caller related
         self.pc_obj = None
+
+    def pprint(self, txt: str):
+        """
+        Customized print function that both print to stdout and log file
+        """
+        print(txt)
+        self.log.write(txt + '\n')
 
     def parse(self):
         # Retrieve calling parameters
@@ -134,24 +146,35 @@ class pipeline(object):
         self.work_dir = arguments.work_dir
         self.skip_0 = arguments.skip_0
         self.skip_1 = arguments.skip_1
+        if arguments.no_log:
+            log_path = os.path.join(self.work_dir, 'log.txt')
+            self.log = open(log_path, 'w')
+            self.pprint(f"log file is stored @ {log_path}")
         # Segmentation and cropping related variables
         self.input_root = arguments.input_root
         self.input_list = arguments.input
         self.margin = arguments.margin
         # ImageJ stabilizer related variables
         self.ij = imagej.init(arguments.imagej_path, mode='headless')
-        print(f"ImageJ initialized with version {self.ij.getVersion()}.")
+        self.pprint(f"ImageJ initialized with version {self.ij.getVersion()}.")
         self.s1_params = arguments.ij_params
         # CaImAn related variables
         # TODO: add caiman parameters
         pass
         # TODO: add peak_caller parameters
         pass
-        # TODO: get control params to determine dest list
-        pass
-        # TODO: collect task report
-        print(rf"******Tasks TODO list******")
-        print(rf"")
+        # Get control params to determine dest list
+        # TODO: need extra care for caiman mmap generation
+        # Must only specify one skip
+        assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
+        self.s1_root = self.s2_root = self.work_dir
+        if self.skip_0:
+            self.s1_root = self.input_root
+            self.imm1_list = self.input_list
+        elif self.skip_1:
+            self.s2_root = self.input_root
+            self.imm2_list = self.input_list
+        return None
 
     def s0(self, debug=False):
         """
@@ -162,7 +185,7 @@ class pipeline(object):
         """
 
         def ps0(text: str):
-            print(f"***[S0 - Detection]: {text}")
+            self.pprint(f"***[S0 - Detection]: {text}")
 
         # TODO: segmentation and cropping
         # Scanning for bounding box for multiple input
@@ -183,25 +206,28 @@ class pipeline(object):
         del x1_, y1_, x2_, y2_
         if debug:
             ps0(f"Bounding box found with x1,y1,x2,y2: {x1, y1, x2, y2}")
+        # Apply the uniform bb one-by-one to each input image
         for fname_i in self.input_list:
             image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
             image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), self.margin)
             # Handle output path
-            fname_crop_o = fname_i.removesuffix('.tif') + '_crop.tif'
-            fname_crop_o = os.path.join(self.work_dir, fname_crop_o)
+            fname_crop_root = fname_i.removesuffix('.tif') + '_crop.tif'
+            fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
             ps0(f"Using paths: {fname_crop_o} to save cropped result.")
             # Save imm1 data to files
             tifffile.imwrite(fname_crop_o, image_crop_o)
-            self.imm1_list.append(fname_crop_o)
+            self.imm1_list.append(fname_crop_root)
         return
 
     def s1(self):
         def ps1(text: str):
-            print(f"***[S1 - ImageJ stabilizer]: {text}")
+            self.pprint(f"***[S1 - ImageJ stabilizer]: {text}")
 
         # TODO: ImageJ Stabilizer
         # TODO: select one file in self.imm_list1
-        fname_i = ''
+        fname_i = self.imm1_list.pop()  # ''
+        fname_i = os.path.join(self.s1_root, fname_i)
+        ps1(f"Opening image at path {fname_i}...")
         imp = self.ij.IJ.openImage(fname_i)
         # Get ImageJ Stabilizer Parameters
         print_param(self.s1_params, ps1)
@@ -241,29 +267,37 @@ class pipeline(object):
         self.pc_obj.Save_Result()
 
     def run(self):
+        # TODO: collect task report
+        self.pprint(rf"******Tasks TODO list******")
+        self.pprint(rf"")
         start_time = time()
         # First, decide which section to start execute
         skip0, skip1 = self.skip_0, self.skip_1
         if not skip0:
             # Do cropping
-            pass
+            self.s0(False)
         if not skip1:
             # Do stabilizer
-            pass
+            # TODO: pipeline stabilizer to make it working all the time.
+            self.s1()
         # CaImAn part
         pass
         # Peak_caller part
         pass
         end_time = time()
         exec_t = end_time - start_time
-        print(f"[INFO] pipeline.run takes {exec_t//60}m {int(exec_t%60)}s to run in total.")
+        self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
+        self.log.close()
 
 
 def main():
     testobj = pipeline()
     testobj.parse()
 
-    testobj.s0()
+    # Note: current testing methodology is WRONG
+    testobj.run()
+    # testobj.s0()
+    # testobj.s1()
     # testobj.s1()
     # testobj.s0()
 
