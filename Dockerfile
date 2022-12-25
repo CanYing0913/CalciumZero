@@ -17,21 +17,22 @@ RUN micromamba install -y -n base -c conda-forge \
     micromamba clean --all --yes
 # RUN micromamba update --all
 ENV JAVA_HOME="/usr/local"
+WORKDIR "/tmp"
 # Retrieve ImageJ and source code
-RUN ls
 RUN git clone https://github.com/CanYing0913/CaImAn.git
-WORKDIR "/tmp/CaImAn"
 RUN wget https://downloads.imagej.net/fiji/latest/fiji-linux64.zip &> /dev/null
 RUN unzip fiji-linux64.zip > /dev/null
 RUN rm fiji-linux64.zip
-RUN cp /tmp/CaImAn/resource/Image_Stabilizer_Headless.class /tmp/CaImAn/Fiji.app/plugins/Examples
-# Retrieve test file
-RUN mkdir /tmp/input
+RUN cp CaImAn/resource/Image_Stabilizer_Headless.class Fiji.app/plugins/Examples
+# Create IO Mount directory
+RUN mkdir mnt
+# Create input directory
+RUN mkdir mnt/in
 # Create output directory
-RUN mkdir /tmp/result
+RUN mkdir mnt/out
 # Set MAMVA_DOCKERFILE_ACTIVATE (otherwise python will not be found)
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 # ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "python", "-c", "import numpy; print(numpy.__version__);"]
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "python", "/tmp/CaImAn/main.py", "-wd", "/tmp/result", \
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "python", "/tmp/CaImAn/main.py", "-wd", "/tmp/mnt/out", \
             "-ijp", "/tmp/Fiji.app"]
