@@ -31,7 +31,7 @@ def parse():
     parser = argparse.ArgumentParser(description=desp)
     # Set up arguments
     # Control parameters
-    parser.add_argument('-no_log', default=True, action='store_false',
+    parser.add_argument('-no_log', default=False, action='store_true',
                         help='Specified if do not want to have terminal printouts saved to a separate file.')
     parser.add_argument('-ijp', '--imagej-path', type=str, metavar='ImageJ-Path', required=True,
                         help='Path to local Fiji ImageJ fiji folder.')
@@ -136,7 +136,8 @@ class pipeline(object):
         Customized print function that both print to stdout and log file
         """
         print(txt)
-        self.log.write(txt + '\n')
+        if self.log is not None:
+            self.log.write(txt + '\n')
 
     def parse(self):
         # Retrieve calling parameters
@@ -146,7 +147,7 @@ class pipeline(object):
         self.work_dir = arguments.work_dir
         self.skip_0 = arguments.skip_0
         self.skip_1 = arguments.skip_1
-        if arguments.no_log:
+        if not arguments.no_log:
             log_path = os.path.join(self.work_dir, 'log.txt')
             self.log = open(log_path, 'w')
             self.pprint(f"log file is stored @ {log_path}")
