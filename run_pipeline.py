@@ -1,5 +1,5 @@
 import os
-from os.path import join, exists, isfile, isdir, basename
+from os.path import join, exists, isfile, isdir, basename, dirname
 import sys
 import argparse
 from pathlib import Path
@@ -43,20 +43,47 @@ def parse():
 
 def main():
     print("[INFO]: Collecting tasks before pipeline. Read the following info carefully.")
+    print("[INFO]: Do NOT place your input file(s) under a disk on your computer otherwise mounting will fail.")
     arguments = parse()
     sleep(2)
     if not exists(arguments.input):
         raise FileNotFoundError(f"input path {arguments.input} does not exist.")
     mnt_path = input_path = arguments.input
 
-    # TODO: Get file hierarchy report
-    # TODO: add detection if no need to change hierarchy (say already run once)
+    # detection if no need to change hierarchy (say already run once)
     pass_change = False
     if isfile(input_path):
         # single input path
         print("[NOTE]: You are running the pipeline with single input.")
-        sleep(1)
-        if not pass_change:
+        # 1 case: path to .../_.tif
+        ppath_i = dirname(input_path)
+        if basename(ppath_i) == "in":
+            ppath_o = join(dirname(ppath_i), "out")
+            if exists(ppath_o) and isdir(ppath_o):
+                pass_change = True
+                mnt_path = dirname(ppath_i)
+    elif isdir(input_path):
+        # input directory path
+        print("[NOTE]: You are running the pipeline with a input folder.")
+        # 2 cases: path to mnt/in/, or path to mnt/
+        ppath_o = join(dirname(input_path), "out")
+        if basename(input_path) == "in" and exists(ppath_o) and isdir(ppath_o):
+            mnt_path = dirname(input_path)
+            pass_change = True
+        else:
+            # input path to mnt/
+            if "in" in os.listdir(input_path) and "out" in os.listdir(input_path):
+                ppath_i = join(input_path, "in")
+                ppath_o = join(input_path, "out")
+                if isdir(ppath_i) and isdir(ppath_o):
+                    # mnt_path already set
+                    pass_change = True
+    else:
+        raise FileNotFoundError(f"Invalid input path {input_path}")
+
+    # Get file hierarchy report
+    if not pass_change:
+        if isfile(input_path):
             print("Here is the hierarchy we will make:")
             sleep(1)
             print("\t" + mnt_path.removesuffix(basename(input_path)))
@@ -64,11 +91,7 @@ def main():
             print("\t\t|--->in/")
             print(f"\t\t\t|--->{basename(input_path)}")
             print("\t\t|--->out/")
-    elif isdir(input_path):
-        # input directory path
-        print("[NOTE]: You are running the pipeline with a input folder.")
-        sleep(1)
-        if not pass_change:
+        elif isdir(input_path):
             input_list = [f for f in os.listdir(mnt_path) if f[-4:] == '.tif']
             print("Here is the hierarchy we will make:")
             sleep(1)
@@ -80,33 +103,36 @@ def main():
                 print(f"\t\t\t|---> ...")
             print("\t\t|--->out/")
 
+        # Create mounting hierarchy
+        sleep(2)
+        ans = ''
+        while ans.casefold() != 'y'.casefold() and ans.casefold() != 'n'.casefold():
+            ans = input('Are you sure you want to make these changes? [Y/N]:')
+        if ans.casefold() == 'n'.casefold():
+            sys.exit(1)
+        print(f"[INFO]: Creating mounting hierarchy...", end='')
+        try:
+            if isfile(input_path):
+                mnt_path = join(mnt_path.removesuffix(basename(input_path)), 'mnt')
+                Path(mnt_path).mkdir(parents=False, exist_ok=False)
+                Path(join(mnt_path, "in")).mkdir(parents=False, exist_ok=True)
+                shutil.move(input_path, join(mnt_path, "in", basename(input_path)))
+            elif isdir(input_path):
+                # mnt_path already set
+                input_list = [f for f in os.listdir(mnt_path) if f[-4:] == '.tif']
+                Path(join(mnt_path, "in")).mkdir(parents=False, exist_ok=True)
+                for f in input_list:
+                    shutil.move(join(mnt_path, f), join(mnt_path, "in", f))
+            Path(join(mnt_path, "out")).mkdir(parents=False, exist_ok=True)
+            print('Done')
+        except:
+            print(f"{sys.exc_info()[0]} occurred during changing hierarchy. Program exiting.")
+            sys.exit(1)
     else:
-        raise FileNotFoundError(f"Invalid input path {input_path}")
-    sleep(2)
-    ans = ''
-    while ans.casefold() != 'y'.casefold() and ans.casefold() != 'n'.casefold():
-        ans = input('Are you sure you want to make these changes? [Y/N]:')
-    if ans.casefold() == 'n'.casefold():
-        sys.exit(1)
+        print(f"[INFO]: no need to change hierarchy to mount.")
+        sleep(1)
 
-    # Create mounting hierarchy
-    try:
-        if isfile(input_path):
-            mnt_path = join(mnt_path.removesuffix(basename(input_path)), 'mnt')
-            Path(mnt_path).mkdir(parents=False, exist_ok=False)
-            Path(join(mnt_path, "in")).mkdir(parents=False, exist_ok=True)
-            shutil.move(input_path, join(mnt_path, "in", basename(input_path)))
-        elif isdir(input_path):
-            # mnt_path already set
-            input_list = [f for f in os.listdir(mnt_path) if f[-4:] == '.tif']
-            Path(join(mnt_path, "in")).mkdir(parents=False, exist_ok=True)
-            for f in input_list:
-                shutil.move(join(mnt_path, f), join(mnt_path, "in", f))
-        Path(join(mnt_path, "out")).mkdir(parents=False, exist_ok=True)
-    except:
-        print(f"{sys.exc_info()[0]} occurred during changing hierarchy. Program exiting.")
-        sys.exit(1)
-    # Handle other parameters
+    # Handle other parameters to pass to docker run command
     args_dict = vars(arguments)
     arg = ''
     for key, value in args_dict.items():
@@ -118,7 +144,7 @@ def main():
     pass
     cmd = f'docker run --name {container_name} -v "{mnt_path}":/tmp/mnt -i -t pipeline {arg}'
     print(cmd)
-    input("press enter to start docker run")
+    # input("press enter to start docker run")
     # os.system(cmd)
 
 
