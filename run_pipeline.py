@@ -3,6 +3,7 @@ from os.path import join, exists, isfile, isdir, basename
 import sys
 import argparse
 from pathlib import Path
+from time import sleep
 import shutil
 
 
@@ -41,43 +42,70 @@ def parse():
 
 
 def main():
-    print("[INFO] Collecting tasks before pipeline. Read the following info carefully.")
+    print("[INFO]: Collecting tasks before pipeline. Read the following info carefully.")
     arguments = parse()
+    sleep(2)
     if not exists(arguments.input):
         raise FileNotFoundError(f"input path {arguments.input} does not exist.")
     mnt_path = input_path = arguments.input
 
     # TODO: Get file hierarchy report
     # TODO: add detection if no need to change hierarchy (say already run once)
+    pass_change = False
     if isfile(input_path):
-        pass
+        # single input path
+        print("[NOTE]: You are running the pipeline with single input.")
+        sleep(1)
+        if not pass_change:
+            print("Here is the hierarchy we will make:")
+            sleep(1)
+            print("\t" + mnt_path.removesuffix(basename(input_path)))
+            print("\t|--->" + "mnt/")
+            print("\t\t|--->in/")
+            print(f"\t\t\t|--->{basename(input_path)}")
+            print("\t\t|--->out/")
     elif isdir(input_path):
-        pass
+        # input directory path
+        print("[NOTE]: You are running the pipeline with a input folder.")
+        sleep(1)
+        if not pass_change:
+            input_list = [f for f in os.listdir(mnt_path) if f[-4:] == '.tif']
+            print("Here is the hierarchy we will make:")
+            sleep(1)
+            print("\t" + mnt_path)
+            print("\t\t|--->in/")
+            for i in range(min(len(input_list), 2)):
+                print(f"\t\t\t|--->{input_list[i]}")
+            if len(input_list) > 2:
+                print(f"\t\t\t|---> ...")
+            print("\t\t|--->out/")
+
     else:
         raise FileNotFoundError(f"Invalid input path {input_path}")
+    sleep(2)
     ans = ''
     while ans.casefold() != 'y'.casefold() and ans.casefold() != 'n'.casefold():
-        ans = input('Are you sure you want to make there changes? [Y/N]:')
+        ans = input('Are you sure you want to make these changes? [Y/N]:')
     if ans.casefold() == 'n'.casefold():
         sys.exit(1)
 
     # Create mounting hierarchy
-    if isfile(input_path):
-        # single input path
-        print("[NOTE]: You are running the pipeline with single input.")
-        mnt_path = join(mnt_path.removesuffix(basename(input_path)), 'mnt')
-        Path(mnt_path).mkdir(parents=False, exist_ok=False)
-        Path(join(mnt_path, "in")).mkdir(parents=False, exist_ok=True)
-        shutil.move(input_path, join(mnt_path, "in", basename(input_path)))
-    elif isdir(input_path):
-        # input directory path
-        print("[NOTE]: You are running the pipeline with a input folder.")
-        # mnt_path already set
-        input_list = [f for f in os.listdir(mnt_path) if f[-4:] == '.tif']
-        Path(join(mnt_path, "in")).mkdir(parents=False, exist_ok=True)
-        for f in input_list:
-            shutil.move(join(mnt_path, f), join(mnt_path, "in", f))
-    Path(join(mnt_path, "out")).mkdir(parents=False, exist_ok=True)
+    try:
+        if isfile(input_path):
+            mnt_path = join(mnt_path.removesuffix(basename(input_path)), 'mnt')
+            Path(mnt_path).mkdir(parents=False, exist_ok=False)
+            Path(join(mnt_path, "in")).mkdir(parents=False, exist_ok=True)
+            shutil.move(input_path, join(mnt_path, "in", basename(input_path)))
+        elif isdir(input_path):
+            # mnt_path already set
+            input_list = [f for f in os.listdir(mnt_path) if f[-4:] == '.tif']
+            Path(join(mnt_path, "in")).mkdir(parents=False, exist_ok=True)
+            for f in input_list:
+                shutil.move(join(mnt_path, f), join(mnt_path, "in", f))
+        Path(join(mnt_path, "out")).mkdir(parents=False, exist_ok=True)
+    except:
+        print(f"{sys.exc_info()[0]} occurred during changing hierarchy. Program exiting.")
+        sys.exit(1)
     # Handle other parameters
     args_dict = vars(arguments)
     arg = ''
