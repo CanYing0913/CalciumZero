@@ -236,12 +236,12 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
     denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
     denoised.save(fname_out)
     # Save the estimates to local to save time for later processing
-    fname = os.path.join(work_dir, "npy_files")
-    Path(fname).mkdir(parents=False, exist_ok=False)
-    for i in range(92):
-        fname_i = os.path.join(fname, "slice_" + str(i) + '.npy')
-        roi = np.reshape(cnm.estimates.A[:, i].toarray(), dims, order='F')
-        np.save(fname_i, roi)
+#     fname = os.path.join(work_dir, "npy_files")
+#     Path(fname).mkdir(parents=False, exist_ok=False)
+#     for i in range(92):
+#         fname_i = os.path.join(fname, "slice_" + str(i) + '.npy')
+#         roi = np.reshape(cnm.estimates.A[:, i].toarray(), dims, order='F')
+#         np.save(fname_i, roi)
     if save:
         path = os.path.join(work_dir, "cmn_obj")
         with open(path, "wb") as f:
