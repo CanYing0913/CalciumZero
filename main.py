@@ -15,11 +15,11 @@ def main():
     Main pipeline function.
     """
     pipeline = pipe.pipeline()
-    try:
-        pipeline.parse()
-        pipeline.run()
-    except:
-        print(f"{sys.exc_info()[0]} occurred.")
+#     try:
+    pipeline.parse()
+    pipeline.run()
+#     except:
+#         print(f"{sys.exc_info()[0]} occurred.")
     # Upon exceptions, update log so user can inspect
     if pipeline.log is not None:
         print("[INFO] Closing log...")
