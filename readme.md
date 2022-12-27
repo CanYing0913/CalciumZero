@@ -7,6 +7,7 @@
 - test docker container / try Linux container(systemd)  
 # Notes on performance  
 - In cropping part, detecting bounding box of three images (shape `1500, 1038, 1376`) takes `6m16s`. Applying bb takes `15s`.  
+- A notable thing is caiman requires same size if multiple images are passed in. Generate cropped results on multiple input will require cropping to do them at the same time instead of pipeline.
 ## In this project, we provide several ways for you to run the pipeline:  
 1. You can directly run it on Google Colab [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing). See [Colab Instructions](#part-i-running-on-colab) to run it within Colab.  
 2. You can run it using our Docker container [still during testing].
