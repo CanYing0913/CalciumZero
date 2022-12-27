@@ -1,6 +1,6 @@
 """
-Source file for Section 0 - Dense Segmentation and object detection
-Last edited on Dec.8 2022
+Source file for Section 0 - Dense Segmentation , object detection, and cropping.
+Last edited on Dec.22 2022
 Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 from math import sqrt
@@ -9,56 +9,10 @@ from random import randint
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import tifffile
+from tqdm import tqdm
 
 
-def prints0(text: str):
-    print(f"  *  [S0 - detection]: {text}")
-
-
-def s0(work_dir: str, fname_in: str, margin=200, fname_out=None, save=True, debug=False):
-    """
-    A handy main function for cropping. It will save both segmented and cropped images to designated location.
-
-    Parameters:
-        work_dir: Path to folder where every output results are saved.
-        fname_in: Input tiff file name.
-        margin: Margin (in pixels) when to perform the cropping.
-        fname_out: Output result path. If None, we will use input name as a starting point and save to work_dir.
-                    You can force to save to other location by assigning absolute path to fname_out
-        save: Whether to save the output results. Only True, will the output specified by fname_out get saved.
-                Default to be True.
-        debug: Used by debug purpose. Default to be False.
-    Returns:
-        image_crop_o: The cropped image in numpy array.
-        fname_crop_out: Filename of the cropped image if saved to file.
-    """
-    image_i = tifffile.imread(fname_in)
-    image_seg_o, th_l = denseSegmentation(image_i, debug)
-
-    x1, y1, x2, y2 = find_bb_3D_dense(image_seg_o, debug)
-    image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), margin)
-    if fname_out is None:
-        temp = fname_in[fname_in.rfind("/") + 1: fname_in.rfind(".tif")]
-        fname_seg_out = temp + "_seg.tif"
-        fname_crop_out = temp + "_crop.tif"
-        fname_seg_out = os.path.join(work_dir, fname_seg_out)
-        fname_crop_out = os.path.join(work_dir, fname_crop_out)
-    else:
-        temp = fname_out[: fname_out.rfind(".tif")]
-        fname_seg_out = temp + "_seg.tif"
-        fname_crop_out = temp + "_crop.tif"
-        fname_seg_out = os.path.join(work_dir, fname_seg_out)
-        fname_crop_out = os.path.join(work_dir, fname_crop_out)
-    prints0(f"Using output name: {fname_seg_out} and {fname_crop_out}")
-    if save:
-        tifffile.imwrite(fname_seg_out, image_seg_o)
-        tifffile.imwrite(fname_crop_out, image_crop_o)
-    return image_crop_o, fname_crop_out
-
-
-def denseSegmentation(image: np.ndarray, debug_mode=False):
+def dense_segmentation(image: np.ndarray, debug_mode=False):
     """
     Apply the segmentation based on threshold on a frame-by-frame basis.
 
@@ -71,7 +25,9 @@ def denseSegmentation(image: np.ndarray, debug_mode=False):
     """
     result = np.zeros_like(image)
     th_l = []
-    for i in range(len(image)):
+    pbar = tqdm(range(len(image)))
+    for i in pbar:
+        pbar.set_description(f"Segmenting image_{i}")
         th = find_threshold(image[i]) * 2
         if debug_mode:
             th_l.append(th * 2)
@@ -79,6 +35,7 @@ def denseSegmentation(image: np.ndarray, debug_mode=False):
         temp[temp <= th] = 0
         temp[temp > th] = 255
         result[i] = temp
+    del temp
     return result, th_l
 
 
@@ -102,15 +59,17 @@ def find_threshold(image) -> int:
         m2 = np.mean(bg)
         T_prime = T
         T = (m1 + m2) // 2
+    del bg, ob, m1, m2, T_prime
     return T
 
 
-def find_bb(image: np.ndarray, debug_mode=False) -> tuple:
+def find_bb(image: np.ndarray, debug=False) -> tuple:
     """
     Find coordinates of segmentation bounding box given the segmentation image.
 
     Parameters:
         image: Segmentation 2D image. Note that the object should be near the center.
+        debug: used for debugging purposes.
     Return:
         tuple: return x, y coordinates for upper-left and bottom-right corners of the bounding box.
     """
@@ -153,14 +112,14 @@ def find_bb(image: np.ndarray, debug_mode=False) -> tuple:
             y1 = np.min(xcnt_y)
             y2 = np.max(xcnt_y)
 
-    if debug_mode:
+    if debug:
         cv2.drawContours(image_t, finalxcnt, -1, (0, 255, 0), 3)
 
     x1 = 0 if x1 < 0 else x1
     y1 = 0 if y1 < 0 else y1
     x2 = w - 1 if x1 >= w else x2
     y2 = h - 1 if y1 >= h else y2
-    if debug_mode:
+    if debug:
         cv2.rectangle(image_t, (x1, y1), (x2, y2), (0, 255, 0), 5)
         plt.figure()
         plt.imshow(image_t, cmap="gray")
@@ -171,7 +130,9 @@ def find_bb(image: np.ndarray, debug_mode=False) -> tuple:
 def find_bb_3D_dense(image: np.ndarray, debug_mode=False) -> tuple:
     sliceNum, h, w = image.shape
     x1, y1, x2, y2 = find_bb(image[0, ...], debug_mode)
-    for i in range(1, sliceNum):
+    pbar = tqdm(range(1, sliceNum))
+    for i in pbar:
+        pbar.set_description(f"Finding bb for img_{i+1}")
         x1c, y1c, x2c, y2c = find_bb(image[i, ...], debug_mode)
         x1 = x1c if x1 > x1c else x1
         y1 = y1c if y1 > y1c else y1

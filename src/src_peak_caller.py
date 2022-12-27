@@ -391,7 +391,7 @@ class PeakCaller:
                         cor = np.sum((A - np.mean(A)) * (B - np.mean(B)) / np.std(A) / np.std(B)) / (
                                 self.length - lag - 1)
                     except:
-                        return (A, B, i, j, lag)
+                        return A, B, i, j, lag
                     max_cor = max(cor, max_cor)
                 for lag in range(1, max_lag + 1):
                     A = self.detrended_seq[i, lag:self.length]
