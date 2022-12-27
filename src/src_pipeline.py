@@ -5,8 +5,6 @@ Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 import argparse
 import os
-from math import sqrt
-from random import randint
 from time import time
 from pathlib import Path
 import numpy as np
@@ -14,11 +12,22 @@ import tifffile
 import seaborn
 import imagej
 from tqdm import tqdm
+import logging
+import caiman as cm
+import matplotlib.pyplot as plt
+from caiman.source_extraction import cnmf
+from caiman.utils.visualization import inspect_correlation_pnr, nb_inspect_correlation_pnr
+from caiman.motion_correction import MotionCorrect
+from caiman.source_extraction.cnmf import params as params
+from caiman.utils.visualization import plot_contours, nb_view_patches, nb_plot_contour
+import cv2
+import pickle
 from src.src_peak_caller import PeakCaller
 
 # Retrieve source
 from src.src_detection import dense_segmentation, find_bb_3D_dense, apply_bb_3D
 from src.src_stabilizer import print_param, run_stabilizer
+from src.src_caiman import *
 
 
 def parse():
@@ -64,8 +73,10 @@ def parse():
     parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
                         help='ImageJ stabilizer parameter - error_rolerance. You have to specify -ij_param to use '
                              'it. Default to 1E-7.')
-    parser.add_argument('-c_log', type=bool, default=False, required=False,
+    parser.add_argument('-clog', type=bool, default=False, action='store_true',
                         help='True if enable logging for caiman part. Default to be false.')
+    parser.add_argument('-csave', default=False, action='store_true',
+                        help='True if want to save denoised movie. Default to be false.')
     # Parse the arguments
     arguments = parser.parse_args()
     # Post-process arguments
@@ -127,6 +138,8 @@ class pipeline(object):
         self.imm2_list = []  # Intermediate result list 2, relative path
         # CaImAn related variables
         self.caiman_obj = None
+        self.clog = False
+        self.csave = False
         self.s2_root = ''
         # Peak Caller related
         self.pc_obj = None
@@ -161,7 +174,8 @@ class pipeline(object):
         self.s1_params = arguments.ij_params
         # CaImAn related variables
         # TODO: add caiman parameters
-        pass
+        self.clog = arguments.clog
+        self.csave = arguments.csave
         # TODO: add peak_caller parameters
         pass
         # Get control params to determine dest list
@@ -247,8 +261,166 @@ class pipeline(object):
         return
 
     def s2(self):
+        def ps2(txt: str):
+            self.pprint(f"***[S2 - caiman]: {txt}")
         # TODO: caiman
-        pass
+        if self.clog:
+            logging.basicConfig(
+                format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
+                level=logging.DEBUG)
+        fnames = self.imm2_list
+        fnames_out = [f.removesuffix('.tif')+'_caiman.tif' for f in fnames]
+        mc_dict = {
+            'fnames': fnames,
+            'fr': frate,
+            'decay_time': decay_time,
+            'pw_rigid': pw_rigid,
+            'max_shifts': max_shifts,
+            'gSig_filt': gSig_filt,
+            'strides': strides,
+            'overlaps': overlaps,
+            'max_deviation_rigid': max_deviation_rigid,
+            'border_nan': border_nan
+        }
+        opts = params.CNMFParams(params_dict=mc_dict)
+        # Motion Correction
+        if motion_correct:
+            # do motion correction rigid
+            mc = MotionCorrect(fnames, dview=None, **opts.get_group('motion'))
+            mc.motion_correct(save_movie=True)
+            fname_mc = mc.fname_tot_els if pw_rigid else mc.fname_tot_rig
+            if pw_rigid:
+                bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
+                                             np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+            else:
+                bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
+                plt.figure()
+                plt.subplot(1, 2, 1)
+                plt.imshow(mc.total_template_rig)  # % plot template
+                plt.subplot(1, 2, 2)
+                plt.plot(mc.shifts_rig)  # % plot rigid shifts
+                plt.legend(['x shifts', 'y shifts'])
+                plt.xlabel('frames')
+                plt.ylabel('pixels')
+                plt.show()
+
+            bord_px = 0 if border_nan == 'copy' else bord_px
+            fname_mmap = cm.save_memmap(fname_mc, base_name='memmap_', order='C', border_to_0=bord_px)
+        else:  # if no motion correction just memory map the file
+            bord_px = 0
+            fname_mmap = cm.save_memmap(fnames, base_name='memmap_', order='C', border_to_0=0, dview=None)
+        ps2(f"mmap file saved to {fname_mmap}")
+
+        # load memory mappable file
+        Yr, dims, T = cm.load_memmap(fname_mmap)
+        images = Yr.T.reshape((T,) + dims, order='F')
+
+        opts.change_params(params_dict={'method_init': 'corr_pnr',  # use this for 1 photon
+                                        'K': K,
+                                        'gSig': gSig,
+                                        'gSiz': gSiz,
+                                        'merge_thr': merge_thr,
+                                        'p': p,
+                                        'tsub': tsub,
+                                        'ssub': ssub,
+                                        'rf': rf,
+                                        'stride': stride_cnmf,
+                                        'only_init': True,  # set it to True to run CNMF-E
+                                        'nb': gnb,
+                                        'nb_patch': nb_patch,
+                                        'method_deconvolution': 'oasis',  # could use 'cvxpy' alternatively
+                                        'low_rank_background': low_rank_background,
+                                        'update_background_components': True,
+                                        # sometimes setting to False improve the results
+                                        'min_corr': min_corr,
+                                        'min_pnr': min_pnr,
+                                        'normalize_init': False,  # just leave as is
+                                        'center_psf': True,  # leave as is for 1 photon
+                                        'ssub_B': ssub_B,
+                                        'ring_size_factor': ring_size_factor,
+                                        }
+                           )
+        # Inspect summary images and set parameters
+        # compute some summary images (correlation and peak to noise)
+        cn_filter, pnr = cm.summary_images.correlation_pnr(images[::10], gSig=gSig[0],
+                                                           swap_dim=False)  # change swap dim if output looks weird, it is a problem with tiffile
+        # inspect the summary images and set the parameters
+        nb_inspect_correlation_pnr(cn_filter, pnr)
+
+        # Run the CNMF-E algorithm
+        start_time_cnmf = time()
+        cnm = cnmf.CNMF(n_processes=8, dview=None, Ain=Ain, params=opts)
+        cnm.fit(images)
+        exec_time_cnmf = time() - start_time_cnmf
+        ps2(f"it takes {exec_time_cnmf // 60}m, {int(exec_time_cnmf % 60)}s to complete.")
+        # ## Component Evaluation
+        # the components are evaluated in three ways:
+        #   a) the shape of each component must be correlated with the data
+        #   b) a minimum peak SNR is required over the length of a transient
+        #   c) each shape passes a CNN based classifier
+        min_SNR = 3  # adaptive way to set threshold on the transient size
+        r_values_min = 0.85  # threshold on space consistency (if you lower more components will be accepted, potentially
+        # with worst quality)
+        cnm.params.set('quality', {'min_SNR': min_SNR,
+                                   'rval_thr': r_values_min,
+                                   'use_cnn': False})
+        cnm.estimates.evaluate_components(images, cnm.params, dview=None)
+
+        prints2(' ***** ')
+        prints2(f'Number of total components:  {len(cnm.estimates.C)}')
+        prints2(f'Number of accepted components: {len(cnm.estimates.idx_components)}')
+
+        # Get alll detected spatial components
+        x, y = cnm.estimates.A.shape
+        # the index of accepted components
+        myidx = cnm.estimates.idx_components
+
+        coordinate1 = np.reshape(cnm.estimates.A[:, myidx[1]].toarray(), dims, order='F')
+        bl = coordinate1 > 0
+
+        # setup blank merge arrays. One is from merge, the other is from overlapped areas
+        merged = np.where(bl is True, 0, coordinate1)
+        mhits = np.where(bl is True, 0, coordinate1)
+        blm = merged > 0
+
+        for i in myidx:
+            coordinate2 = np.reshape(cnm.estimates.A[:, i].toarray(), dims, order='F')
+            # %% generate boolean indexing
+            bl2 = coordinate2 > 0
+            ct2 = np.sum(bl2)
+            blm = merged > 0
+            # identify the overlapped components
+            bli = np.logical_and(bl2, blm)
+            cti = np.sum(bli)
+            # calculate the portion of the overlapped
+            percent = cti / ct2
+            # print(percent)
+            if percent < 0.25:
+                # change the label of this component
+                merged = np.where(bl2 is True, i + 1, merged)
+                # exclude the overlapped areas
+                merged = np.where(bli is True, 0, merged)
+            else:
+                # put the overlapped areas here
+                mhits = np.where(bli is True, 999 + i, mhits)
+
+        np.savetxt(os.path.join(self.work_dir, "coor_merged.csv"), merged, delimiter=",")
+        np.savetxt(os.path.join(self.work_dir, "coor_mhits.csv"), mhits, delimiter=",")
+
+        # Extract DF/F values
+        (components, frames) = cnm.estimates.C.shape
+        prints2(f"frames: {frames}")
+        cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
+        self.caiman_obj = cnm
+        # reconstruct denoised movie
+        if self.csave:
+            denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose(
+                [2, 0, 1])
+            denoised.save(fnames_out)
+        path = os.path.join(self.work_dir, "cmn_obj")
+        with open(path, "wb") as f:
+            pickle.dump(cnm, f)
+            ps2(f"object cnm dumped to {path}.")
 
     def s3(self):
         # TODO: peak_caller
@@ -282,13 +454,19 @@ class pipeline(object):
             # TODO: pipeline stabilizer to make it working all the time.
             self.s1()
         # CaImAn part
+        start_time_caiman = time()
+        self.s2()
+        end_time_caiman = time()
+        exec_t = end_time_caiman - start_time_caiman
+        self.pprint(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
         pass
         # Peak_caller part
         pass
         end_time = time()
         exec_t = end_time - start_time
         self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
-        self.log.close()
+        if self.log is not None:
+            self.log.close()
 
 
 def main():

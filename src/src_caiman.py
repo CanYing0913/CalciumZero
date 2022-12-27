@@ -43,8 +43,38 @@ overlaps = (24, 24)  # overlap between pathes (size of patch strides+overlaps)
 max_deviation_rigid = 3  # maximum deviation allowed for patch with respect to rigid shifts
 border_nan = 'copy'  # replicate values along the boundaries
 
+# Parameter setting for CNMF-E
+# parameters for source extraction and deconvolution
+p = 1  # order of the autoregressive system
+K = None  # upper bound on number of components per patch, in general None
+gSig = (3, 3)  # gaussian width of a 2D gaussian kernel, which approximates a neuron
+gSiz = (13, 13)  # average diameter of a neuron, in general 4*gSig+1
+Ain = None  # possibility to seed with predetermined binary masks
+merge_thr = .7  # merging threshold, max correlation allowed
+rf = 40  # half-size of the patches in pixels. e.g., if rf=40, patches are 80x80
+stride_cnmf = 20  # amount of overlap between the patches in pixels
+#                     (keep it at least large as gSiz, i.e 4 times the neuron size gSig)
+tsub = 2  # downsampling factor in time for initialization,
+#                     increase if you have memory problems
+ssub = 1  # downsampling factor in space for initialization,
+#                     increase if you have memory problems
+#                     you can pass them here as boolean vectors
+low_rank_background = None  # None leaves background of each patch intact,
+#                     True performs global low-rank approximation if gnb>0
+gnb = 0  # number of background components (rank) if positive,
+#                     else exact ring model with following settings
+#                         gnb= 0: Return background as b and W
+#                         gnb=-1: Return full rank background B
+#                         gnb<-1: Don't return background
+nb_patch = 0  # number of background components (rank) per patch if gnb>0,
+#                     else it is set automatically
+min_corr = .8  # min peak value from correlation image
+min_pnr = 5  # min peak to noise ration from PNR image
+ssub_B = 2  # additional downsampling factor in space for background
+ring_size_factor = 1.4  # radius of ring is gSiz*ring_size_factor
 
-def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
+
+def s2(work_dir: str, fpath_in: str, fpath_out=None, save_obj=True, save_tif=False, log=False):
     if log:
         logging.basicConfig(
             format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
@@ -103,36 +133,6 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
     # load memory mappable file
     Yr, dims, T = cm.load_memmap(fname_new)
     images = Yr.T.reshape((T,) + dims, order='F')
-
-    # Parameter setting for CNMF-E
-    # parameters for source extraction and deconvolution
-    p = 1  # order of the autoregressive system
-    K = None  # upper bound on number of components per patch, in general None
-    gSig = (3, 3)  # gaussian width of a 2D gaussian kernel, which approximates a neuron
-    gSiz = (13, 13)  # average diameter of a neuron, in general 4*gSig+1
-    Ain = None  # possibility to seed with predetermined binary masks
-    merge_thr = .7  # merging threshold, max correlation allowed
-    rf = 40  # half-size of the patches in pixels. e.g., if rf=40, patches are 80x80
-    stride_cnmf = 20  # amount of overlap between the patches in pixels
-    #                     (keep it at least large as gSiz, i.e 4 times the neuron size gSig)
-    tsub = 2  # downsampling factor in time for initialization,
-    #                     increase if you have memory problems
-    ssub = 1  # downsampling factor in space for initialization,
-    #                     increase if you have memory problems
-    #                     you can pass them here as boolean vectors
-    low_rank_background = None  # None leaves background of each patch intact,
-    #                     True performs global low-rank approximation if gnb>0
-    gnb = 0  # number of background components (rank) if positive,
-    #                     else exact ring model with following settings
-    #                         gnb= 0: Return background as b and W
-    #                         gnb=-1: Return full rank background B
-    #                         gnb<-1: Don't return background
-    nb_patch = 0  # number of background components (rank) per patch if gnb>0,
-    #                     else it is set automatically
-    min_corr = .8  # min peak value from correlation image
-    min_pnr = 5  # min peak to noise ration from PNR image
-    ssub_B = 2  # additional downsampling factor in space for background
-    ring_size_factor = 1.4  # radius of ring is gSiz*ring_size_factor
 
     opts.change_params(params_dict={'method_init': 'corr_pnr',  # use this for 1 photon
                                     'K': K,
@@ -232,8 +232,9 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
     prints2(f"frames: {frames}")
     cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
     # reconstruct denoised movie
-    denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
-    denoised.save(fname_out)
+    if save_tif:
+        denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+        denoised.save(fname_out)
     # Save the estimates to local to save time for later processing
     fname = os.path.join(work_dir, "npy_files")
     Path(fname).mkdir(parents=False, exist_ok=False)
@@ -241,7 +242,7 @@ def s2(work_dir: str, fpath_in: str, fpath_out=None, save=True, log=False):
         fname_i = os.path.join(fname, "slice_" + str(i) + '.npy')
         roi = np.reshape(cnm.estimates.A[:, i].toarray(), dims, order='F')
         np.save(fname_i, roi)
-    if save:
+    if save_obj:
         path = os.path.join(work_dir, "cmn_obj")
         with open(path, "wb") as f:
             pickle.dump(cnm, f)

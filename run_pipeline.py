@@ -35,8 +35,10 @@ def parse():
     parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
                         help='ImageJ stabilizer parameter - error_rolerance. You have to specify -ij_param to use '
                              'it. Default to 1E-7.')
-    parser.add_argument('-c_log', type=bool, default=False, required=False,
+    parser.add_argument('-clog', type=bool, default=False, required=False,
                         help='True if enable logging for caiman part. Default to be false.')
+    parser.add_argument('-csave', default=False, action='store_true',
+                        help='True if want to save denoised movie. Default to be false.')
 
     return parser.parse_args()
 
@@ -70,10 +72,12 @@ def main():
         if basename(input_path) == "in" and exists(ppath_o) and isdir(ppath_o):
             mnt_path = dirname(input_path)
             pass_change = True
+            input_list = [f for f in os.listdir(input_path) if f[-4:] == ".tif"]
         else:
             # input path to mnt/
             if "in" in os.listdir(input_path) and "out" in os.listdir(input_path):
                 ppath_i = join(input_path, "in")
+                input_list = [f for f in os.listdir(ppath_i) if f[-4:] == ".tif"]
                 ppath_o = join(input_path, "out")
                 if isdir(ppath_i) and isdir(ppath_o):
                     # mnt_path already set
@@ -136,7 +140,12 @@ def main():
     args_dict = vars(arguments)
     arg = ''
     for key, value in args_dict.items():
-        arg += f"-{key} {value} "
+        if key == "input":
+            arg += "-input "
+            for f in input_list:
+                arg += f"{f} "
+        else:
+            arg += f"-{key} {value} "
 
     # TODO: get container name
     container_name = 'test'
