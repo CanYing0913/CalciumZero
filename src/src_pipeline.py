@@ -73,7 +73,7 @@ def parse():
     parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
                         help='ImageJ stabilizer parameter - error_rolerance. You have to specify -ij_param to use '
                              'it. Default to 1E-7.')
-    parser.add_argument('-clog', type=bool, default=False, action='store_true',
+    parser.add_argument('-clog', default=False, action='store_true',
                         help='True if enable logging for caiman part. Default to be false.')
     parser.add_argument('-csave', default=False, action='store_true',
                         help='True if want to save denoised movie. Default to be false.')
