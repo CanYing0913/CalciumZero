@@ -172,6 +172,8 @@ class pipeline(object):
         self.ij = imagej.init(arguments.imagej_path, mode='headless')
         self.pprint(f"ImageJ initialized with version {self.ij.getVersion()}.")
         self.s1_params = arguments.ij_params
+        # Get ImageJ Stabilizer Parameters
+        print_param(self.s1_params, self.pprint)
         # CaImAn related variables
         # TODO: add caiman parameters
         self.clog = arguments.clog
@@ -244,8 +246,6 @@ class pipeline(object):
         fname_i = os.path.join(self.s1_root, fname_i)
         ps1(f"Opening image at path {fname_i}...")
         imp = self.ij.IJ.openImage(fname_i)
-        # Get ImageJ Stabilizer Parameters
-        print_param(self.s1_params, ps1)
         # Start stabilizer
         ps1("Starting stabilizer in headless mode...")
         run_stabilizer(self.ij, imp, self.s1_params, ps1)
@@ -448,11 +448,13 @@ class pipeline(object):
         skip0, skip1 = self.skip_0, self.skip_1
         if not skip0:
             # Do cropping
+            # TODO: parallelize scanning
             self.s0(False)
         if not skip1:
             # Do stabilizer
             # TODO: pipeline stabilizer to make it working all the time.
-            self.s1()
+            while len(self.imm1_list) != 0:
+                self.s1()
         # CaImAn part
         start_time_caiman = time()
         self.s2()
