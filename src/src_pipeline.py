@@ -182,6 +182,8 @@ class pipeline(object):
         pass
         # Get control params to determine dest list
         # TODO: need extra care for caiman mmap generation
+
+        # End of parser. Start of post-parse processing.
         # Must only specify one skip
         assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
         self.s1_root = self.s2_root = self.work_dir
@@ -366,9 +368,9 @@ class pipeline(object):
                                    'use_cnn': False})
         cnm.estimates.evaluate_components(images, cnm.params, dview=None)
 
-        prints2(' ***** ')
-        prints2(f'Number of total components:  {len(cnm.estimates.C)}')
-        prints2(f'Number of accepted components: {len(cnm.estimates.idx_components)}')
+        ps2(' ***** ')
+        ps2(f'Number of total components:  {len(cnm.estimates.C)}')
+        ps2(f'Number of accepted components: {len(cnm.estimates.idx_components)}')
 
         # Get alll detected spatial components
         x, y = cnm.estimates.A.shape
@@ -409,7 +411,7 @@ class pipeline(object):
 
         # Extract DF/F values
         (components, frames) = cnm.estimates.C.shape
-        prints2(f"frames: {frames}")
+        ps2(f"frames: {frames}")
         cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
         self.caiman_obj = cnm
         # reconstruct denoised movie
@@ -417,6 +419,7 @@ class pipeline(object):
             denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose(
                 [2, 0, 1])
             denoised.save(fnames_out)
+            ps2(f"caiman denoised movie saved to {fnames_out}")
         path = os.path.join(self.work_dir, "cmn_obj")
         with open(path, "wb") as f:
             pickle.dump(cnm, f)
