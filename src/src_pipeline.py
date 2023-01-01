@@ -1,6 +1,6 @@
 """
 Source file for pipeline in general, OOP workflow
-Last edited on Dec.19 2022
+Last edited on Dec.31 2022
 Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 import argparse
@@ -22,12 +22,12 @@ from caiman.source_extraction.cnmf import params as params
 from caiman.utils.visualization import plot_contours, nb_view_patches, nb_plot_contour
 import cv2
 import pickle
-from src.src_peak_caller import PeakCaller
 
 # Retrieve source
 from src.src_detection import dense_segmentation, find_bb_3D_dense, apply_bb_3D
 from src.src_stabilizer import print_param, run_stabilizer
 from src.src_caiman import *
+from src.src_peak_caller import PeakCaller
 
 
 def parse():
