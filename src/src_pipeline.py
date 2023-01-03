@@ -120,7 +120,7 @@ def parse():
     return arguments
 
 
-class pipeline(object):
+class Pipeline(object):
     def __init__(self):
         # Control sequence
         self.skip_0 = self.skip_1 = False
@@ -475,7 +475,7 @@ class pipeline(object):
 
 
 def main():
-    testobj = pipeline()
+    testobj = Pipeline()
     testobj.parse()
 
     # Note: current testing methodology is WRONG

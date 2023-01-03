@@ -14,7 +14,7 @@ def main():
     """
     Main pipeline function.
     """
-    pipeline = pipe.pipeline()
+    pipeline = pipe.Pipeline()
 #     try:
     pipeline.parse()
     pipeline.run()
