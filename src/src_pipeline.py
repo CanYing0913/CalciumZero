@@ -11,6 +11,8 @@ import numpy as np
 import tifffile
 import seaborn
 import imagej
+from multiprocessing import Pool
+from itertools import repeat
 from tqdm import tqdm
 import logging
 import caiman as cm
@@ -24,7 +26,7 @@ import cv2
 import pickle
 
 # Retrieve source
-from src.src_detection import dense_segmentation, find_bb_3D_dense, apply_bb_3D
+from src.src_detection import *
 from src.src_stabilizer import print_param, run_stabilizer
 from src.src_caiman import *
 from src.src_peak_caller import PeakCaller
@@ -208,35 +210,42 @@ class Pipeline(object):
 
         # TODO: segmentation and cropping
         # Scanning for bounding box for multiple input
-        x1 = y1 = float('inf')
-        x2 = y2 = -1
-        for fname_i in self.input_list:
-            image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
-            ps0(f"Reading input {fname_i} with shape {image_i.shape}.")
-            # Process input
-            image_seg_o, th_l = dense_segmentation(image_i, debug)
-            x1_, y1_, x2_, y2_ = find_bb_3D_dense(image_seg_o, debug)
-            if not debug:
-                del th_l, image_seg_o
-            x1 = min(x1, x1_)
-            y1 = min(y1, y1_)
-            x2 = max(x2, x2_)
-            y2 = max(y2, y2_)
-        del x1_, y1_, x2_, y2_
-        if debug:
-            ps0(f"Bounding box found with x1,y1,x2,y2: {x1, y1, x2, y2}")
-        # Apply the uniform bb one-by-one to each input image
-        for fname_i in self.input_list:
-            image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
-            image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), self.margin)
-            # Handle output path
-            fname_crop_root = fname_i.removesuffix('.tif') + '_crop.tif'
-            fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
-            ps0(f"Using paths: {fname_crop_o} to save cropped result.")
-            # Save imm1 data to files
-            tifffile.imwrite(fname_crop_o, image_crop_o)
-            self.imm1_list.append(fname_crop_root)
-        return
+        with Pool() as pool:
+            results = pool.map(scan, self.input_list)
+        x1, y1, x2, y2 = reduce_bbs(results)
+        with Pool() as pool:
+            fnames = pool.starmap(apply_bb_parallel,
+                                  [self.input_list, repeat(x1), repeat(y1),
+                                   repeat(x2), repeat(y2), repeat(self.margin),
+                                   repeat(self.work_dir), repeat(ps0)])
+        self.imm1_list = fnames
+        # for fname_i in self.input_list:
+        #     image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
+        #     ps0(f"Reading input {fname_i} with shape {image_i.shape}.")
+        #     # Process input
+        #     image_seg_o, th_l = dense_segmentation(image_i, debug)
+        #     x1_, y1_, x2_, y2_ = find_bb_3d_dense(image_seg_o, debug)
+        #     if not debug:
+        #         del th_l, image_seg_o
+        #     x1 = min(x1, x1_)
+        #     y1 = min(y1, y1_)
+        #     x2 = max(x2, x2_)
+        #     y2 = max(y2, y2_)
+        # del x1_, y1_, x2_, y2_
+        # if debug:
+        #     ps0(f"Bounding box found with x1,y1,x2,y2: {x1, y1, x2, y2}")
+        # # Apply the uniform bb one-by-one to each input image
+        # for fname_i in self.input_list:
+        #     image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
+        #     image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin)
+        #     # Handle output path
+        #     fname_crop_root = fname_i.removesuffix('.tif') + '_crop.tif'
+        #     fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
+        #     ps0(f"Using paths: {fname_crop_o} to save cropped result.")
+        #     # Save imm1 data to files
+        #     tifffile.imwrite(fname_crop_o, image_crop_o)
+        #     self.imm1_list.append(fname_crop_root)
+        # return
 
     def s1(self):
         def ps1(text: str):
@@ -453,6 +462,43 @@ class Pipeline(object):
             # Do cropping
             # TODO: parallelize scanning
             self.s0(False)
+        if not skip1:
+            # Do stabilizer
+            # TODO: pipeline stabilizer to make it working all the time.
+            while len(self.imm1_list) != 0:
+                self.s1()
+        # CaImAn part
+        start_time_caiman = time()
+        self.s2()
+        end_time_caiman = time()
+        exec_t = end_time_caiman - start_time_caiman
+        self.pprint(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
+        pass
+        # Peak_caller part
+        pass
+        end_time = time()
+        exec_t = end_time - start_time
+        self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
+        if self.log is not None:
+            self.log.close()
+
+    def run_parallel(self):
+        # TODO: collect task report
+        self.pprint(rf"******Tasks TODO list******")
+        self.pprint(rf"")
+        start_time = time()
+        # First, decide which section to start execute
+        skip0, skip1 = self.skip_0, self.skip_1
+        if not skip0:
+            # Do cropping
+            # TODO: parallelize scanning
+            with Pool() as pool:
+                results = pool.map(scan, self.input_list)
+            x1, y1, x2, y2 = reduce_bbs(results)
+            with Pool() as pool:
+                fnames = pool.starmap(apply_bb_parallel, [self.input_list,
+                                                          repeat()])
+
         if not skip1:
             # Do stabilizer
             # TODO: pipeline stabilizer to make it working all the time.
