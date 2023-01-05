@@ -11,28 +11,8 @@ import imagej
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
+from src.src_stabilizer import print_param, run_plugin
 from src.src_peak_caller import PeakCaller
-from src.src_stabilizer import print_param
-
-
-def run_plugin(ijp, fname, s1_params):
-    ij = imagej.init(ijp, mode='headless')
-    fname_out = remove_suffix(fname, '.tif') + '_stab.tif'
-    imp = ij.IJ.openImage(fname)
-    Transformation = "Translation" if s1_params[0] == 0 else "Affine"
-    MAX_Pyramid_level = s1_params[1]
-    update_coefficient = s1_params[2]
-    MAX_iteration = s1_params[3]
-    error_tolerance = s1_params[4]
-    # f(f"Using output name {fname_out} for {fname}. Starting...")
-    ij.IJ.run(imp, "Image Stabilizer Headless",
-                   "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
-                   " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
-                   str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
-    ij.IJ.saveAs(imp, "Tiff", fname_out)
-    imp.close()
-    # f(f"{fname_out} exec finished.")
-    return fname_out
 
 
 def remove_suffix(input_string, suffix):
@@ -209,12 +189,12 @@ class Pipeline(object):
             self.imm2_list = self.input_list
         return None
 
-    def s0(self, debug=False):
+    def s0(self):
         """
         Function to run segmentation, detection and cropping.
 
         Parameters:
-            debug: Used for debugging purposes.
+
         """
 
         def ps0(text: str):
@@ -244,28 +224,15 @@ class Pipeline(object):
         def ps1(text: str):
             self.pprint(f"***[S1 - ImageJ stabilizer]: {text}")
 
-        # TODO: ImageJ Stabilizer
+        # ImageJ Stabilizer
+        ps1(f"Stabilizer Starting.")
+        start_t = time()
         with Pool(processes=2) as pool:
-            n = len(self.imm1_list)
             results = pool.starmap(run_plugin, [(self.ijp, join(self.s1_root, imm1), self.s1_params) for imm1 in self.imm1_list])
-        # TODO: select one file in self.imm_list1
-        # fname_i = self.imm1_list.pop()  # ''
-        # fname_i = os.path.join(self.s1_root, fname_i)
-        # ps1(f"Opening image at path {fname_i}...")
-        # imp = self.ij.IJ.openImage(fname_i)
-        # # Start stabilizer
-        # ps1("Starting stabilizer in headless mode...")
-        # run_stabilizer(self.ij, imp, self.s1_params, ps1)
-        # # Set output path
-        # temp = os.path.basename(fname_i)
-        # fname_o = remove_suffix(temp, '.tif') + '_stabilized.tif'
-        # fname_o = os.path.join(self.work_dir, fname_o)
-        # ps1(f"Using output name: {fname_o}")
-        # # Save output and update imm_list2
-        # self.ij.IJ.saveAs(imp, "Tiff", fname_o)
-        # imp.close()
-        # self.imm2_list.append(fname_o)
-        # return
+        end_t = time()
+        duration = end_t - start_t
+        ps1(f"Stabilizer finished. total of {int(duration)} s.")
+        self.imm2_list = results  # note here is absolute path list
 
     def s2(self):
         def ps2(txt: str):

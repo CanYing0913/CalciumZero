@@ -11,6 +11,30 @@ from time import time
 import matplotlib.pyplot as plt
 
 
+def run_plugin(ijp, fname, s1_params):
+    def remove_suffix(input_string, suffix):
+        if suffix and input_string.endswith(suffix):
+            return input_string[:-len(suffix)]
+        return input_string
+    ij = imagej.init(ijp, mode='headless')
+    fname_out = remove_suffix(fname, '.tif') + '_stab.tif'
+    imp = ij.IJ.openImage(fname)
+    Transformation = "Translation" if s1_params[0] == 0 else "Affine"
+    MAX_Pyramid_level = s1_params[1]
+    update_coefficient = s1_params[2]
+    MAX_iteration = s1_params[3]
+    error_tolerance = s1_params[4]
+    # f(f"Using output name {fname_out} for {fname}. Starting...")
+    ij.IJ.run(imp, "Image Stabilizer Headless",
+                   "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
+                   " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
+                   str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
+    ij.IJ.saveAs(imp, "Tiff", fname_out)
+    imp.close()
+    # f(f"{fname_out} exec finished.")
+    return fname_out
+
+
 def ps1(text: str):
     print(f"  *  [S1 - ImageJ stabilizer]: {text}")
 
