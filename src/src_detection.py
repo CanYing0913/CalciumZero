@@ -36,10 +36,15 @@ def reduce_bbs(results):
 
 
 def apply_bb_parallel(fname, x1, y1, x2, y2, margin, work_dir, ps0):
+    def remove_suffix(input_string, suffix):
+        if suffix and input_string.endswith(suffix):
+            return input_string[:-len(suffix)]
+        return input_string
+
     image_i = tifffile.imread(fname)
     image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), margin)
     # Handle output path
-    fname_crop_root = fname.removesuffix('.tif') + '_crop.tif'
+    fname_crop_root = remove_suffix(fname, '.tif') + '_crop.tif'
     fname_crop_o = join(work_dir, fname_crop_root)
     ps0(f"Using paths: {fname_crop_o} to save cropped result.")
     # Save imm1 data to files

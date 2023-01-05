@@ -4,32 +4,41 @@ Last edited on Dec.31 2022
 Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 import argparse
-import os
-from time import time
-from pathlib import Path
-import numpy as np
-import tifffile
-import seaborn
-import imagej
 from multiprocessing import Pool
-from itertools import repeat
-from tqdm import tqdm
-import logging
-import caiman as cm
-import matplotlib.pyplot as plt
-from caiman.source_extraction import cnmf
-from caiman.utils.visualization import inspect_correlation_pnr, nb_inspect_correlation_pnr
-from caiman.motion_correction import MotionCorrect
-from caiman.source_extraction.cnmf import params as params
-from caiman.utils.visualization import plot_contours, nb_view_patches, nb_plot_contour
-import cv2
-import pickle
 
+import imagej
+
+from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
-from src.src_stabilizer import print_param, run_stabilizer
-from src.src_caiman import *
 from src.src_peak_caller import PeakCaller
+from src.src_stabilizer import print_param
+
+
+def run_plugin(ijp, fname, s1_params):
+    ij = imagej.init(ijp, mode='headless')
+    fname_out = remove_suffix(fname, '.tif') + '_stab.tif'
+    imp = ij.IJ.openImage(fname)
+    Transformation = "Translation" if s1_params[0] == 0 else "Affine"
+    MAX_Pyramid_level = s1_params[1]
+    update_coefficient = s1_params[2]
+    MAX_iteration = s1_params[3]
+    error_tolerance = s1_params[4]
+    # f(f"Using output name {fname_out} for {fname}. Starting...")
+    ij.IJ.run(imp, "Image Stabilizer Headless",
+                   "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
+                   " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
+                   str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
+    ij.IJ.saveAs(imp, "Tiff", fname_out)
+    imp.close()
+    # f(f"{fname_out} exec finished.")
+    return fname_out
+
+
+def remove_suffix(input_string, suffix):
+    if suffix and input_string.endswith(suffix):
+        return input_string[:-len(suffix)]
+    return input_string
 
 
 def parse():
@@ -54,9 +63,9 @@ def parse():
                              'a single folder. If you only have one input, either provide direct path or the path to'
                              ' the folder containing the input(without any other files!)')
     parser.add_argument('-skip_0', default=False, action="store_true", required=False, help='Skip segmentation and '
-                                                                                             'cropping if specified.')
+                                                                                            'cropping if specified.')
     parser.add_argument('-skip_1', default=False, action="store_true", required=False, help='Skip stabilizer if '
-                                                                                             'specified.')
+                                                                                            'specified.')
     # Functional parameters
     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
                         help='Margin in terms of pixels for auto-cropping. Default to be 200.')
@@ -115,7 +124,7 @@ def parse():
             temp = os.path.basename(arguments.input)
             if temp[-4:] != ".tif":
                 raise FileNotFoundError(f"The input file {arguments.input} is not a tiff file.")
-            arguments.input_root = arguments.input.removesuffix(temp)
+            arguments.input_root = remove_suffix(arguments.input, temp)
             arguments.input = [temp]
     else:
         raise FileNotFoundError(f"[ERROR]: Input file path {arguments.input} does not exist.")
@@ -135,6 +144,7 @@ class Pipeline(object):
         self.imm1_list = []  # Intermediate result list 1, relative path
         # ImageJ stabilizer related variables
         self.ij = None
+        self.ijp = ''
         self.s1_params = []
         self.s1_root = ''
         self.imm2_list = []  # Intermediate result list 2, relative path
@@ -157,6 +167,10 @@ class Pipeline(object):
     def parse(self):
         # Retrieve calling parameters
         arguments = parse()
+
+        # Must only specify one skip
+        assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
+        self.s1_root = self.s2_root = self.work_dir
         # Use parameters to set up pipeline global info
         # Control related
         self.work_dir = arguments.work_dir
@@ -170,12 +184,13 @@ class Pipeline(object):
         self.input_root = arguments.input_root
         self.input_list = arguments.input
         self.margin = arguments.margin
-        # ImageJ stabilizer related variables
-        self.ij = imagej.init(arguments.imagej_path, mode='headless')
-        self.pprint(f"ImageJ initialized with version {self.ij.getVersion()}.")
-        self.s1_params = arguments.ij_params
-        # Get ImageJ Stabilizer Parameters
-        print_param(self.s1_params, self.pprint)
+        # ImageJ related
+        if not self.skip_1:
+            self.ij = imagej.init(arguments.imagej_path, mode='headless')
+            self.ijp = arguments.imagej_path
+            self.pprint(f"ImageJ initialized with version {self.ij.getVersion()}.")
+            self.s1_params = arguments.ij_params
+            print_param(self.s1_params, self.pprint)
         # CaImAn related variables
         # TODO: add caiman parameters
         self.clog = arguments.clog
@@ -186,9 +201,6 @@ class Pipeline(object):
         # TODO: need extra care for caiman mmap generation
 
         # End of parser. Start of post-parse processing.
-        # Must only specify one skip
-        assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
-        self.s1_root = self.s2_root = self.work_dir
         if self.skip_0:
             self.s1_root = self.input_root
             self.imm1_list = self.input_list
@@ -208,79 +220,64 @@ class Pipeline(object):
         def ps0(text: str):
             self.pprint(f"***[S0 - Detection]: {text}")
 
-        # TODO: segmentation and cropping
+        # Segmentation and cropping
         # Scanning for bounding box for multiple input
-        with Pool() as pool:
-            results = pool.map(scan, self.input_list)
+        with Pool(processes=4) as pool:
+            fnames = [join(self.input_root, fname) for fname in self.input_list]
+            results = pool.map(scan, fnames)
         x1, y1, x2, y2 = reduce_bbs(results)
-        with Pool() as pool:
-            fnames = pool.starmap(apply_bb_parallel,
-                                  [self.input_list, repeat(x1), repeat(y1),
-                                   repeat(x2), repeat(y2), repeat(self.margin),
-                                   repeat(self.work_dir), repeat(ps0)])
-        self.imm1_list = fnames
-        # for fname_i in self.input_list:
-        #     image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
-        #     ps0(f"Reading input {fname_i} with shape {image_i.shape}.")
-        #     # Process input
-        #     image_seg_o, th_l = dense_segmentation(image_i, debug)
-        #     x1_, y1_, x2_, y2_ = find_bb_3d_dense(image_seg_o, debug)
-        #     if not debug:
-        #         del th_l, image_seg_o
-        #     x1 = min(x1, x1_)
-        #     y1 = min(y1, y1_)
-        #     x2 = max(x2, x2_)
-        #     y2 = max(y2, y2_)
-        # del x1_, y1_, x2_, y2_
-        # if debug:
-        #     ps0(f"Bounding box found with x1,y1,x2,y2: {x1, y1, x2, y2}")
-        # # Apply the uniform bb one-by-one to each input image
-        # for fname_i in self.input_list:
-        #     image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
-        #     image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin)
-        #     # Handle output path
-        #     fname_crop_root = fname_i.removesuffix('.tif') + '_crop.tif'
-        #     fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
-        #     ps0(f"Using paths: {fname_crop_o} to save cropped result.")
-        #     # Save imm1 data to files
-        #     tifffile.imwrite(fname_crop_o, image_crop_o)
-        #     self.imm1_list.append(fname_crop_root)
-        # return
+
+        # Apply the uniform bb one-by-one to each input image
+        for fname_i in self.input_list:
+            image_i = tifffile.imread(join(self.input_root, fname_i))
+            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin)
+            # Handle output path
+            fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
+            fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
+            ps0(f"Using paths: {fname_crop_o} to save cropped result.")
+            # Save imm1 data to files
+            tifffile.imwrite(fname_crop_o, image_crop_o)
+            self.imm1_list.append(fname_crop_root)
+        return
 
     def s1(self):
         def ps1(text: str):
             self.pprint(f"***[S1 - ImageJ stabilizer]: {text}")
 
         # TODO: ImageJ Stabilizer
+        with Pool(processes=2) as pool:
+            n = len(self.imm1_list)
+            results = pool.starmap(run_plugin, [(self.ijp, join(self.s1_root, imm1), self.s1_params) for imm1 in self.imm1_list])
         # TODO: select one file in self.imm_list1
-        fname_i = self.imm1_list.pop()  # ''
-        fname_i = os.path.join(self.s1_root, fname_i)
-        ps1(f"Opening image at path {fname_i}...")
-        imp = self.ij.IJ.openImage(fname_i)
-        # Start stabilizer
-        ps1("Starting stabilizer in headless mode...")
-        run_stabilizer(self.ij, imp, self.s1_params, ps1)
-        # Set output path
-        temp = os.path.basename(fname_i)
-        fname_o = temp.removesuffix('.tif') + '_stabilized.tif'
-        fname_o = os.path.join(self.work_dir, fname_o)
-        ps1(f"Using output name: {fname_o}")
-        # Save output and update imm_list2
-        self.ij.IJ.saveAs(imp, "Tiff", fname_o)
-        imp.close()
-        self.imm2_list.append(fname_o)
-        return
+        # fname_i = self.imm1_list.pop()  # ''
+        # fname_i = os.path.join(self.s1_root, fname_i)
+        # ps1(f"Opening image at path {fname_i}...")
+        # imp = self.ij.IJ.openImage(fname_i)
+        # # Start stabilizer
+        # ps1("Starting stabilizer in headless mode...")
+        # run_stabilizer(self.ij, imp, self.s1_params, ps1)
+        # # Set output path
+        # temp = os.path.basename(fname_i)
+        # fname_o = remove_suffix(temp, '.tif') + '_stabilized.tif'
+        # fname_o = os.path.join(self.work_dir, fname_o)
+        # ps1(f"Using output name: {fname_o}")
+        # # Save output and update imm_list2
+        # self.ij.IJ.saveAs(imp, "Tiff", fname_o)
+        # imp.close()
+        # self.imm2_list.append(fname_o)
+        # return
 
     def s2(self):
         def ps2(txt: str):
             self.pprint(f"***[S2 - caiman]: {txt}")
+
         # TODO: caiman
         if self.clog:
             logging.basicConfig(
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
         fnames = self.imm2_list
-        fnames_out = [f.removesuffix('.tif')+'_caiman.tif' for f in fnames]
+        fnames_out = [remove_suffix(f, '.tif') + '_caiman.tif' for f in fnames]
         mc_dict = {
             'fnames': fnames,
             'fr': frate,
@@ -457,53 +454,12 @@ class Pipeline(object):
         self.pprint(rf"")
         start_time = time()
         # First, decide which section to start execute
-        skip0, skip1 = self.skip_0, self.skip_1
-        if not skip0:
+        if not self.skip_0:
             # Do cropping
-            # TODO: parallelize scanning
             self.s0(False)
-        if not skip1:
+        if not self.skip_1:
             # Do stabilizer
-            # TODO: pipeline stabilizer to make it working all the time.
-            while len(self.imm1_list) != 0:
-                self.s1()
-        # CaImAn part
-        start_time_caiman = time()
-        self.s2()
-        end_time_caiman = time()
-        exec_t = end_time_caiman - start_time_caiman
-        self.pprint(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
-        pass
-        # Peak_caller part
-        pass
-        end_time = time()
-        exec_t = end_time - start_time
-        self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
-        if self.log is not None:
-            self.log.close()
-
-    def run_parallel(self):
-        # TODO: collect task report
-        self.pprint(rf"******Tasks TODO list******")
-        self.pprint(rf"")
-        start_time = time()
-        # First, decide which section to start execute
-        skip0, skip1 = self.skip_0, self.skip_1
-        if not skip0:
-            # Do cropping
-            # TODO: parallelize scanning
-            with Pool() as pool:
-                results = pool.map(scan, self.input_list)
-            x1, y1, x2, y2 = reduce_bbs(results)
-            with Pool() as pool:
-                fnames = pool.starmap(apply_bb_parallel, [self.input_list,
-                                                          repeat()])
-
-        if not skip1:
-            # Do stabilizer
-            # TODO: pipeline stabilizer to make it working all the time.
-            while len(self.imm1_list) != 0:
-                self.s1()
+            self.s1()
         # CaImAn part
         start_time_caiman = time()
         self.s2()
