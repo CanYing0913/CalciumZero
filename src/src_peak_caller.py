@@ -1,9 +1,10 @@
 """
 Source file for Section 4 - Peak Caller
-Last edited on Dec.8 2022
-Author: Xuchen Wang (xw2747@columbia.edu), Yian Wang
-Copyright Yian Wang (canying0913@gmail.com) - 2022
+Last edited on Jan 7, 2023
+Author: Xuchen Wang (xw2747@columbia.edu), Yian Wang (canying0913@gmail.com)
+Copyright Yian Wang - 2022
 """
+import numpy as np
 from numpy.linalg import matrix_power
 import h5py
 from matplotlib.pyplot import figure
@@ -11,8 +12,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from numpy import linalg as LA
-from scipy.optimize.minpack import inf
-import numpy as np
 
 
 # The only functions a user would call(Current Version) are
@@ -89,7 +88,7 @@ class PeakCaller:
         for j in range(self.obs_num):
             self.series_std[j] = np.std(self.detrended_seq[j])
             self.series_rel_std[j] = self.series_std[j] / (
-                    np.max(self.detrended_seq[j]) - np.min(self.detrended_seq[j]))
+                        np.max(self.detrended_seq[j]) - np.min(self.detrended_seq[j]))
             self.series_rel_std_sorted[j][0] = self.series_rel_std[j]
         self.series_rel_std_sorted.sort()
 
@@ -232,8 +231,8 @@ class PeakCaller:
                 if self.filterer_peak_loc[i][j] == 1:
                     x.append(j)
                     y.append(i)
-        plt.scatter(x, y, c="blue")
-        plt.xlabel('Time')
+        plt.scatter(x, y, color=(0, 0.8, 0))
+        plt.xlabel('Time(s)')
         plt.ylabel('ROI(#)')
         plt.savefig(path)
         plt.close()
@@ -241,9 +240,9 @@ class PeakCaller:
     def Histogram_Height(self):
         path = self.filename + "_Histogram_Height"
         combined = [item for sublist in self.filterer_peak_height for item in sublist]
-        plt.hist(combined, bins=10)
-        plt.xlabel('Peak Height')
-        plt.ylabel('Counts')
+        plt.hist(combined, bins=10, edgecolor='black', color=(0.6, 0.6, 0.75))
+        plt.xlabel('height of peak')
+        plt.ylabel('number of events')
         plt.savefig(path)
         plt.close()
 
@@ -251,9 +250,11 @@ class PeakCaller:
         path = self.filename + "_Histogram_Time"
         rise_times = [item for sublist in self.filterer_peak_rise_time for item in sublist]
         fall_times = [item for sublist in self.filterer_peak_fall_time for item in sublist]
-        plt.hist([rise_times, fall_times], stacked=True, label=['rise_time', 'fall_time'])
+        plt.hist([fall_times, rise_times], stacked=True, label=['fall_time', 'rise_time'],
+                 color=[(0.6, 0.2, 0.2), (0.6, 0.6, 0.6)], edgecolor='black')
         plt.legend(prop={'size': 10})
-        plt.xlabel('Peak Height')
+        plt.xlabel('time (s)')
+        plt.ylabel('number of events')
         plt.savefig(path)
         plt.close()
 
@@ -300,7 +301,7 @@ class PeakCaller:
             freq = 0
             if len(self.filterer_peak_height[i]) >= 2:
                 interv = (self.filterer_peak_loc_2[i][-1] - self.filterer_peak_loc_2[i][0]) / (
-                        len(self.filterer_peak_height[i]) - 1)
+                            len(self.filterer_peak_height[i]) - 1)
                 freq = 1 / interv
             series_data.loc[len(series_data.index)] = [i, len(self.filterer_peak_loc_2[i]),
                                                        np.mean(self.filterer_peak_height[i]),
@@ -347,11 +348,12 @@ class PeakCaller:
         for i in range(self.obs_num):
             for j in range(i + 1):
                 SI[i][j] = np.sum(np.dot(P[i] - np.mean(P[i]), P[j] - np.mean(P[j])) / np.std(P[i]) / np.std(P[j])) / (
-                        self.length - 2)
+                            self.length - 2)
                 SI[j][i] = SI[i][j]
         SI[np.isnan(SI)] = 0
         if not cluster:
-            ax = sns.heatmap(SI)
+            ax = sns.heatmap(SI, cmap='jet', linecolor='black')
+            ax.invert_yaxis()
             plt.savefig(path + "No_Cluster")
             plt.close()
             np.savetxt(path + "No_Cluster.csv", SI, delimiter=",")
@@ -372,7 +374,8 @@ class PeakCaller:
                 temp = np.array(temp, dtype="f,f")
                 idx = np.argsort(temp)
                 SI = SI[idx].T[idx].T
-            ax = sns.heatmap(SI)
+            ax = sns.heatmap(SI, cmap='jet', linecolor='black')
+            ax.invert_yaxis()
             plt.savefig(path + "With_Cluster")
             np.savetxt(path + "With_Cluster.csv", SI, delimiter=",")
             plt.close()
@@ -389,9 +392,9 @@ class PeakCaller:
                     B = self.detrended_seq[j, lag:self.length]
                     try:
                         cor = np.sum((A - np.mean(A)) * (B - np.mean(B)) / np.std(A) / np.std(B)) / (
-                                self.length - lag - 1)
+                                    self.length - lag - 1)
                     except:
-                        return A, B, i, j, lag
+                        return (A, B, i, j, lag)
                     max_cor = max(cor, max_cor)
                 for lag in range(1, max_lag + 1):
                     A = self.detrended_seq[i, lag:self.length]
@@ -400,7 +403,8 @@ class PeakCaller:
                     max_cor = max(cor, max_cor)
                 heat_mat[i][j] = max_cor
                 heat_mat[j][i] = max_cor
-        ax = sns.heatmap(heat_mat)
+        ax = sns.heatmap(heat_mat, cmap='jet', linecolor='black')
+        ax.invert_yaxis()
         plt.savefig(path)
         np.savetxt(path + ".csv", heat_mat, delimiter=",")
         plt.close()
