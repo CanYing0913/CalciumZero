@@ -134,7 +134,7 @@ class Pipeline(object):
         self.csave = False
         self.s2_root = ''
         # Peak Caller related
-        self.pc_obj = None
+        self.pc_obj = []
 
     def pprint(self, txt: str):
         """
@@ -196,7 +196,6 @@ class Pipeline(object):
         Parameters:
 
         """
-
         def ps0(text: str):
             self.pprint(f"***[S0 - Detection]: {text}")
 
@@ -400,20 +399,24 @@ class Pipeline(object):
 
     def s3(self):
         # TODO: peak_caller
+        slice_num = _
         data = self.caiman_obj.estimates.C[:92, :]
-        filename = ''  # TODO
-        self.pc_obj = PeakCaller(data, filename)
-        self.pc_obj.Detrender_2()
-        self.pc_obj.Find_Peak()
+        # TODO: get slice number to know how many to pass to peak caller
+        filename = join(self.work_dir, '')
+        # demo: a single image
+        pc_obj = PeakCaller(data, filename)
+        pc_obj.Detrender_2()
+        pc_obj.Find_Peak()
         # The above code generates a PeakCaller object with peaks detected
-        self.pc_obj.Print_ALL_Peaks()
-        self.pc_obj.Raster_Plot()
-        self.pc_obj.Histogram_Height()
-        self.pc_obj.Histogram_Time()
-        self.pc_obj.Correlation()
+        pc_obj.Print_ALL_Peaks()
+        pc_obj.Raster_Plot()
+        pc_obj.Histogram_Height()
+        pc_obj.Histogram_Time()
+        pc_obj.Correlation()
         # To save results, do something like this:
-        self.pc_obj.Synchronization()
-        self.pc_obj.Save_Result()
+        pc_obj.Synchronization()
+        pc_obj.Save_Result()
+        self.pc_obj.append(pc_obj)
 
     def run(self):
         # TODO: collect task report
@@ -423,7 +426,7 @@ class Pipeline(object):
         # First, decide which section to start execute
         if not self.skip_0:
             # Do cropping
-            self.s0(False)
+            self.s0()
         if not self.skip_1:
             # Do stabilizer
             self.s1()
@@ -444,15 +447,32 @@ class Pipeline(object):
 
 
 def main():
-    testobj = Pipeline()
-    testobj.parse()
+    # testobj = Pipeline()
+    # testobj.parse()
 
     # Note: current testing methodology is WRONG
-    testobj.run()
+    # testobj.run()
     # testobj.s0()
     # testobj.s1()
     # testobj.s1()
     # testobj.s0()
+    filename = r'D:\CanYing\Code\Columbia\cmn_obj'
+    with open(filename, 'rb') as f:
+        cmn = pickle.load(f)
+    data = cmn.estimates.C[:92, :1500]
+    dir = r"E:/test_dir/out/result"
+    Caller_obj_1 = PeakCaller(data, dir)
+    Caller_obj_1.Detrender_2()
+    Caller_obj_1.Find_Peak()
+    # The above code generates a PeakCaller object with peaks detected
+    Caller_obj_1.Print_ALL_Peaks()
+    Caller_obj_1.Raster_Plot()
+    Caller_obj_1.Histogram_Height()
+    Caller_obj_1.Histogram_Time()
+    Caller_obj_1.Correlation()
+    # To save results, do something like this:
+    Caller_obj_1.Synchronization()
+    Caller_obj_1.Save_Result()
 
 
 if __name__ == '__main__':
