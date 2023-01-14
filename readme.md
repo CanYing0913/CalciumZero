@@ -1,22 +1,20 @@
 # Pipeline Setup Instruction  
-- Latest update on 2022.12.14, Docker is not set up yet, please follow to create conda environment.  
+- If you want to use Docker, see instructions [here](#running-on-docker).  
 # roadmap
-- update image generation to be consistent with [paper output](https://bmcneurosci.biomedcentral.com/articles/10.1186/s12868-017-0391-y/figures/7)    
-- try multiple instances in caiman && free up RAM for each instance  
-- add support for peak caller to handle multiple cmn_objs **(perhaps pipelined?)**
-- test docker container / try Linux container(systemd)  
-# Notes on performance  
-- In cropping part, detecting bounding box of three images (shape `1500, 1038, 1376`) takes `6m16s`. Applying bb takes `15s`.  
-- A notable thing is caiman requires same size if multiple images are passed in. Generate cropped results on multiple input will require cropping to do them at the same time instead of pipeline.
+- update image generation to be consistent with [paper output](https://bmcneurosci.biomedcentral.com/articles/10.1186/s12868-017-0391-y/figures/7)  
 ## In this project, we provide several ways for you to run the pipeline:  
 1. You can directly run it on Google Colab [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing). See [Colab Instructions](#part-i-running-on-colab) to run it within Colab.  
-2. You can run it using our Docker container [still during testing].
+2. You can run it using our Docker image.
 3. You can manually install all the dependencies to manually run it and further develop on it. See [Instructions on local](#part-iii-running-locally) for a detailed explanation.  
-## Part I. Running on Colab
+## Running on Colab
 You will need to follow the link [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing) to our Colab notebook. Note that our Colab notebook is lightweight, free to go. Prior to run the pipeline on Colab, you should have your input files located in your Google Drive. At the beginning of the notebook, we will ask you for permissions to mount your Google Drive on Google Colab runtime.  
-## Part II. Running on Docker  
-TODO
-## Part III. Running locally  
+## Running on Docker  
+Because I have not upload the image, you can build the image from scratch.  
+- You need to first make sure you have [Docker](https://www.docker.com/) installed on your computer.  
+- Download [DockerFile](https://raw.githubusercontent.com/CanYing0913/CaImAn/master/Dockerfile). With docker running, run `docker build -t pipeline .` to build the image. It will take about 5 minutes.
+- Download our provided [launch script](https://raw.githubusercontent.com/CanYing0913/CaImAn/master/run_pipeline.py). Use python to run this script, as it will launch a container with the image we just built.
+
+## Running locally  
 ### 1. Check System Requirement  
 It has been tested stable on Windows 10 and Linux.  
 ### 2. Create & Setup a new Python environment from Conda for this project.  
