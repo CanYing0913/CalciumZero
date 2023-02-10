@@ -1,33 +1,24 @@
 """
 Source file for pipeline in general, OOP workflow
-Last edited on Dec.19 2022
+Last edited on Dec.31 2022
 Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 import argparse
-import os
-from time import time
-from pathlib import Path
-import numpy as np
-import tifffile
-import seaborn
+from multiprocessing import Pool
+
 import imagej
-from tqdm import tqdm
-import logging
-import caiman as cm
-import matplotlib.pyplot as plt
-from caiman.source_extraction import cnmf
-from caiman.utils.visualization import inspect_correlation_pnr, nb_inspect_correlation_pnr
-from caiman.motion_correction import MotionCorrect
-from caiman.source_extraction.cnmf import params as params
-from caiman.utils.visualization import plot_contours, nb_view_patches, nb_plot_contour
-import cv2
-import pickle
+
+from src.src_caiman import *
+# Retrieve source
+from src.src_detection import *
+from src.src_stabilizer import print_param, run_plugin
 from src.src_peak_caller import PeakCaller
 
-# Retrieve source
-from src.src_detection import dense_segmentation, find_bb_3D_dense, apply_bb_3D
-from src.src_stabilizer import print_param, run_stabilizer
-from src.src_caiman import *
+
+def remove_suffix(input_string, suffix):
+    if suffix and input_string.endswith(suffix):
+        return input_string[:-len(suffix)]
+    return input_string
 
 
 def parse():
@@ -52,9 +43,9 @@ def parse():
                              'a single folder. If you only have one input, either provide direct path or the path to'
                              ' the folder containing the input(without any other files!)')
     parser.add_argument('-skip_0', default=False, action="store_true", required=False, help='Skip segmentation and '
-                                                                                             'cropping if specified.')
+                                                                                            'cropping if specified.')
     parser.add_argument('-skip_1', default=False, action="store_true", required=False, help='Skip stabilizer if '
-                                                                                             'specified.')
+                                                                                            'specified.')
     # Functional parameters
     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
                         help='Margin in terms of pixels for auto-cropping. Default to be 200.')
@@ -113,14 +104,14 @@ def parse():
             temp = os.path.basename(arguments.input)
             if temp[-4:] != ".tif":
                 raise FileNotFoundError(f"The input file {arguments.input} is not a tiff file.")
-            arguments.input_root = arguments.input.removesuffix(temp)
+            arguments.input_root = remove_suffix(arguments.input, temp)
             arguments.input = [temp]
     else:
         raise FileNotFoundError(f"[ERROR]: Input file path {arguments.input} does not exist.")
     return arguments
 
 
-class pipeline(object):
+class Pipeline(object):
     def __init__(self):
         # Control sequence
         self.skip_0 = self.skip_1 = False
@@ -133,6 +124,7 @@ class pipeline(object):
         self.imm1_list = []  # Intermediate result list 1, relative path
         # ImageJ stabilizer related variables
         self.ij = None
+        self.ijp = ''
         self.s1_params = []
         self.s1_root = ''
         self.imm2_list = []  # Intermediate result list 2, relative path
@@ -142,7 +134,7 @@ class pipeline(object):
         self.csave = False
         self.s2_root = ''
         # Peak Caller related
-        self.pc_obj = None
+        self.pc_obj = []
 
     def pprint(self, txt: str):
         """
@@ -155,6 +147,10 @@ class pipeline(object):
     def parse(self):
         # Retrieve calling parameters
         arguments = parse()
+
+        # Must only specify one skip
+        assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
+        self.s1_root = self.s2_root = self.work_dir
         # Use parameters to set up pipeline global info
         # Control related
         self.work_dir = arguments.work_dir
@@ -168,12 +164,13 @@ class pipeline(object):
         self.input_root = arguments.input_root
         self.input_list = arguments.input
         self.margin = arguments.margin
-        # ImageJ stabilizer related variables
-        self.ij = imagej.init(arguments.imagej_path, mode='headless')
-        self.pprint(f"ImageJ initialized with version {self.ij.getVersion()}.")
-        self.s1_params = arguments.ij_params
-        # Get ImageJ Stabilizer Parameters
-        print_param(self.s1_params, self.pprint)
+        # ImageJ related
+        if not self.skip_1:
+            self.ij = imagej.init(arguments.imagej_path, mode='headless')
+            self.ijp = arguments.imagej_path
+            self.pprint(f"ImageJ initialized with version {self.ij.getVersion()}.")
+            self.s1_params = arguments.ij_params
+            print_param(self.s1_params, self.pprint)
         # CaImAn related variables
         # TODO: add caiman parameters
         self.clog = arguments.clog
@@ -182,9 +179,8 @@ class pipeline(object):
         pass
         # Get control params to determine dest list
         # TODO: need extra care for caiman mmap generation
-        # Must only specify one skip
-        assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
-        self.s1_root = self.s2_root = self.work_dir
+
+        # End of parser. Start of post-parse processing.
         if self.skip_0:
             self.s1_root = self.input_root
             self.imm1_list = self.input_list
@@ -193,42 +189,29 @@ class pipeline(object):
             self.imm2_list = self.input_list
         return None
 
-    def s0(self, debug=False):
+    def s0(self):
         """
         Function to run segmentation, detection and cropping.
 
         Parameters:
-            debug: Used for debugging purposes.
-        """
 
+        """
         def ps0(text: str):
             self.pprint(f"***[S0 - Detection]: {text}")
 
-        # TODO: segmentation and cropping
+        # Segmentation and cropping
         # Scanning for bounding box for multiple input
-        x1 = y1 = float('inf')
-        x2 = y2 = -1
-        for fname_i in self.input_list:
-            image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
-            ps0(f"Reading input {fname_i} with shape {image_i.shape}.")
-            # Process input
-            image_seg_o, th_l = dense_segmentation(image_i, debug)
-            x1_, y1_, x2_, y2_ = find_bb_3D_dense(image_seg_o, debug)
-            if not debug:
-                del th_l, image_seg_o
-            x1 = min(x1, x1_)
-            y1 = min(y1, y1_)
-            x2 = max(x2, x2_)
-            y2 = max(y2, y2_)
-        del x1_, y1_, x2_, y2_
-        if debug:
-            ps0(f"Bounding box found with x1,y1,x2,y2: {x1, y1, x2, y2}")
+        with Pool(processes=4) as pool:
+            fnames = [join(self.input_root, fname) for fname in self.input_list]
+            results = pool.map(scan, fnames)
+        x1, y1, x2, y2 = reduce_bbs(results)
+
         # Apply the uniform bb one-by-one to each input image
         for fname_i in self.input_list:
-            image_i = tifffile.imread(os.path.join(self.input_root, fname_i))
-            image_crop_o = apply_bb_3D(image_i, (x1, y1, x2, y2), self.margin)
+            image_i = tifffile.imread(join(self.input_root, fname_i))
+            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin)
             # Handle output path
-            fname_crop_root = fname_i.removesuffix('.tif') + '_crop.tif'
+            fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
             fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
             ps0(f"Using paths: {fname_crop_o} to save cropped result.")
             # Save imm1 data to files
@@ -240,36 +223,27 @@ class pipeline(object):
         def ps1(text: str):
             self.pprint(f"***[S1 - ImageJ stabilizer]: {text}")
 
-        # TODO: ImageJ Stabilizer
-        # TODO: select one file in self.imm_list1
-        fname_i = self.imm1_list.pop()  # ''
-        fname_i = os.path.join(self.s1_root, fname_i)
-        ps1(f"Opening image at path {fname_i}...")
-        imp = self.ij.IJ.openImage(fname_i)
-        # Start stabilizer
-        ps1("Starting stabilizer in headless mode...")
-        run_stabilizer(self.ij, imp, self.s1_params, ps1)
-        # Set output path
-        temp = os.path.basename(fname_i)
-        fname_o = temp.removesuffix('.tif') + '_stabilized.tif'
-        fname_o = os.path.join(self.work_dir, fname_o)
-        ps1(f"Using output name: {fname_o}")
-        # Save output and update imm_list2
-        self.ij.IJ.saveAs(imp, "Tiff", fname_o)
-        imp.close()
-        self.imm2_list.append(fname_o)
-        return
+        # ImageJ Stabilizer
+        ps1(f"Stabilizer Starting.")
+        start_t = time()
+        with Pool(processes=2) as pool:
+            results = pool.starmap(run_plugin, [(self.ijp, join(self.s1_root, imm1), self.s1_params) for imm1 in self.imm1_list])
+        end_t = time()
+        duration = end_t - start_t
+        ps1(f"Stabilizer finished. total of {int(duration)} s.")
+        self.imm2_list = results  # note here is absolute path list
 
     def s2(self):
         def ps2(txt: str):
             self.pprint(f"***[S2 - caiman]: {txt}")
+
         # TODO: caiman
         if self.clog:
             logging.basicConfig(
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
         fnames = self.imm2_list
-        fnames_out = [f.removesuffix('.tif')+'_caiman.tif' for f in fnames]
+        fnames_out = [remove_suffix(f, '.tif') + '_caiman.tif' for f in fnames]
         mc_dict = {
             'fnames': fnames,
             'fr': frate,
@@ -366,9 +340,9 @@ class pipeline(object):
                                    'use_cnn': False})
         cnm.estimates.evaluate_components(images, cnm.params, dview=None)
 
-        prints2(' ***** ')
-        prints2(f'Number of total components:  {len(cnm.estimates.C)}')
-        prints2(f'Number of accepted components: {len(cnm.estimates.idx_components)}')
+        ps2(' ***** ')
+        ps2(f'Number of total components:  {len(cnm.estimates.C)}')
+        ps2(f'Number of accepted components: {len(cnm.estimates.idx_components)}')
 
         # Get alll detected spatial components
         x, y = cnm.estimates.A.shape
@@ -409,7 +383,7 @@ class pipeline(object):
 
         # Extract DF/F values
         (components, frames) = cnm.estimates.C.shape
-        prints2(f"frames: {frames}")
+        ps2(f"frames: {frames}")
         cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
         self.caiman_obj = cnm
         # reconstruct denoised movie
@@ -417,6 +391,7 @@ class pipeline(object):
             denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose(
                 [2, 0, 1])
             denoised.save(fnames_out)
+            ps2(f"caiman denoised movie saved to {fnames_out}")
         path = os.path.join(self.work_dir, "cmn_obj")
         with open(path, "wb") as f:
             pickle.dump(cnm, f)
@@ -424,20 +399,24 @@ class pipeline(object):
 
     def s3(self):
         # TODO: peak_caller
+        slice_num = _
         data = self.caiman_obj.estimates.C[:92, :]
-        filename = ''  # TODO
-        self.pc_obj = PeakCaller(data, filename)
-        self.pc_obj.Detrender_2()
-        self.pc_obj.Find_Peak()
+        # TODO: get slice number to know how many to pass to peak caller
+        filename = join(self.work_dir, '')
+        # demo: a single image
+        pc_obj = PeakCaller(data, filename)
+        pc_obj.Detrender_2()
+        pc_obj.Find_Peak()
         # The above code generates a PeakCaller object with peaks detected
-        self.pc_obj.Print_ALL_Peaks()
-        self.pc_obj.Raster_Plot()
-        self.pc_obj.Histogram_Height()
-        self.pc_obj.Histogram_Time()
-        self.pc_obj.Correlation()
+        pc_obj.Print_ALL_Peaks()
+        pc_obj.Raster_Plot()
+        pc_obj.Histogram_Height()
+        pc_obj.Histogram_Time()
+        pc_obj.Correlation()
         # To save results, do something like this:
-        self.pc_obj.Synchronization()
-        self.pc_obj.Save_Result()
+        pc_obj.Synchronization()
+        pc_obj.Save_Result()
+        self.pc_obj.append(pc_obj)
 
     def run(self):
         # TODO: collect task report
@@ -445,16 +424,12 @@ class pipeline(object):
         self.pprint(rf"")
         start_time = time()
         # First, decide which section to start execute
-        skip0, skip1 = self.skip_0, self.skip_1
-        if not skip0:
+        if not self.skip_0:
             # Do cropping
-            # TODO: parallelize scanning
-            self.s0(False)
-        if not skip1:
+            self.s0()
+        if not self.skip_1:
             # Do stabilizer
-            # TODO: pipeline stabilizer to make it working all the time.
-            while len(self.imm1_list) != 0:
-                self.s1()
+            self.s1()
         # CaImAn part
         start_time_caiman = time()
         self.s2()
@@ -472,15 +447,32 @@ class pipeline(object):
 
 
 def main():
-    testobj = pipeline()
-    testobj.parse()
+    # testobj = Pipeline()
+    # testobj.parse()
 
     # Note: current testing methodology is WRONG
-    testobj.run()
+    # testobj.run()
     # testobj.s0()
     # testobj.s1()
     # testobj.s1()
     # testobj.s0()
+    filename = r'D:\CanYing\Code\Columbia\cmn_obj'
+    with open(filename, 'rb') as f:
+        cmn = pickle.load(f)
+    data = cmn.estimates.C[:92, :1500]
+    dir = r"E:/test_dir/out/result"
+    Caller_obj_1 = PeakCaller(data, dir)
+    Caller_obj_1.Detrender_2()
+    Caller_obj_1.Find_Peak()
+    # The above code generates a PeakCaller object with peaks detected
+    Caller_obj_1.Print_ALL_Peaks()
+    Caller_obj_1.Raster_Plot()
+    Caller_obj_1.Histogram_Height()
+    Caller_obj_1.Histogram_Time()
+    Caller_obj_1.Correlation()
+    # To save results, do something like this:
+    Caller_obj_1.Synchronization()
+    Caller_obj_1.Save_Result()
 
 
 if __name__ == '__main__':

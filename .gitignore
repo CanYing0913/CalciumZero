@@ -3,4 +3,5 @@ __pycache__/
 java/
 .idea/
 .vscode/
+venv/
 *.csv

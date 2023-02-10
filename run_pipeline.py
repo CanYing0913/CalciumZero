@@ -35,10 +35,10 @@ def parse():
     parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
                         help='ImageJ stabilizer parameter - error_rolerance. You have to specify -ij_param to use '
                              'it. Default to 1E-7.')
-    parser.add_argument('-clog', default=False, required=False,
+    parser.add_argument('-clog', default=False, action='store_true',
                         help='True if enable logging for caiman part. Default to be false.')
     parser.add_argument('-csave', default=False, action='store_true',
-                        help='True if want to save denoised movie. Default to be false.')
+                        help='True if want to save caiman output movie.')
 
     return parser.parse_args()
 
@@ -48,6 +48,7 @@ def main():
     print("[INFO]: Do NOT place your input file(s) under a disk on your computer otherwise mounting will fail.")
     arguments = parse()
     sleep(2)
+    print(f"input is {arguments.input}")
     if not exists(arguments.input):
         raise FileNotFoundError(f"input path {arguments.input} does not exist.")
     mnt_path = input_path = arguments.input
@@ -72,12 +73,10 @@ def main():
         if basename(input_path) == "in" and exists(ppath_o) and isdir(ppath_o):
             mnt_path = dirname(input_path)
             pass_change = True
-            input_list = [f for f in os.listdir(input_path) if f[-4:] == ".tif"]
         else:
             # input path to mnt/
             if "in" in os.listdir(input_path) and "out" in os.listdir(input_path):
                 ppath_i = join(input_path, "in")
-                input_list = [f for f in os.listdir(ppath_i) if f[-4:] == ".tif"]
                 ppath_o = join(input_path, "out")
                 if isdir(ppath_i) and isdir(ppath_o):
                     # mnt_path already set
@@ -140,21 +139,17 @@ def main():
     args_dict = vars(arguments)
     arg = ''
     for key, value in args_dict.items():
-        if key == "input":
-            arg += "-input "
-            for f in input_list:
-                arg += f"{f} "
-        else:
-            arg += f"-{key} {value} "
+        arg += f"-{key} {value} "
 
     # TODO: get container name
     container_name = 'test'
     # TODO: get image name
     pass
-    cmd = f'docker run --name {container_name} -v "{mnt_path}":/tmp/mnt -i -t pipeline {arg}'
+    img_name='pipeline_oop'
+    cmd = f'docker run --name {container_name} -v "{mnt_path}":/tmp/mnt -i -t {img_name} {arg}'
     print(cmd)
-    # input("press enter to start docker run")
-    # os.system(cmd)
+    input("press enter to start docker run")
+    os.system(cmd)
 
 
 if __name__ == "__main__":

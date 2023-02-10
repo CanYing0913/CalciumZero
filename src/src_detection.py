@@ -7,9 +7,49 @@ from math import sqrt
 from random import randint
 
 import cv2
+import tifffile
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+from os.path import join
+
+
+def scan(fname):
+    # Scanning for bounding box for single input
+    image_i = tifffile.imread(fname)
+    # Process input
+    image_seg_o, th_l = dense_segmentation(image_i)
+    x1_, y1_, x2_, y2_ = find_bb_3d_dense(image_seg_o)
+    return x1_, y1_, x2_, y2_
+
+
+def reduce_bbs(results):
+    x1 = y1 = float('inf')
+    x2 = y2 = -1
+    for single_result in results:
+        x1_, y1_, x2_, y2_ = single_result
+        x1 = min(x1, x1_)
+        y1 = min(y1, y1_)
+        x2 = max(x2, x2_)
+        y2 = max(y2, y2_)
+    return x1, y1, x2, y2
+
+
+def apply_bb_parallel(fname, x1, y1, x2, y2, margin, work_dir, ps0):
+    def remove_suffix(input_string, suffix):
+        if suffix and input_string.endswith(suffix):
+            return input_string[:-len(suffix)]
+        return input_string
+
+    image_i = tifffile.imread(fname)
+    image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), margin)
+    # Handle output path
+    fname_crop_root = remove_suffix(fname, '.tif') + '_crop.tif'
+    fname_crop_o = join(work_dir, fname_crop_root)
+    ps0(f"Using paths: {fname_crop_o} to save cropped result.")
+    # Save imm1 data to files
+    tifffile.imwrite(fname_crop_o, image_crop_o)
+    return fname_crop_root
 
 
 def dense_segmentation(image: np.ndarray, debug_mode=False):
@@ -127,10 +167,10 @@ def find_bb(image: np.ndarray, debug=False) -> tuple:
     return tuple([x1, y1, x2, y2])
 
 
-def find_bb_3D_dense(image: np.ndarray, debug_mode=False) -> tuple:
-    sliceNum, h, w = image.shape
+def find_bb_3d_dense(image: np.ndarray, debug_mode=False) -> tuple:
+    slice_num, h, w = image.shape
     x1, y1, x2, y2 = find_bb(image[0, ...], debug_mode)
-    pbar = tqdm(range(1, sliceNum))
+    pbar = tqdm(range(1, slice_num))
     for i in pbar:
         pbar.set_description(f"Finding bb for img_{i+1}")
         x1c, y1c, x2c, y2c = find_bb(image[i, ...], debug_mode)
@@ -143,7 +183,7 @@ def find_bb_3D_dense(image: np.ndarray, debug_mode=False) -> tuple:
     return tuple([x1, y1, x2, y2])
 
 
-def apply_bb_3D(image: np.ndarray, bb: tuple, margin: int) -> np.ndarray:
+def apply_bb_3d(image: np.ndarray, bb: tuple, margin: int) -> np.ndarray:
     x1, y1, x2, y2 = bb
     s, h, w = image.shape
     x1 = x1 - margin if x1 - margin >= 0 else 0
