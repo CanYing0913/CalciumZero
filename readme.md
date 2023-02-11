@@ -11,8 +11,8 @@ You will need to follow the link [here](https://colab.research.google.com/drive/
 ## Running on Docker  
 Because I have not upload the image, you can build the image from scratch.  
 - You need to first make sure you have [Docker](https://www.docker.com/) installed on your computer.  
-- Download [DockerFile](https://raw.githubusercontent.com/CanYing0913/CaImAn/master/Dockerfile). With docker running, run `docker build -t pipeline .` to build the image. It will take about 5 minutes.
-- Download our provided [launch script](https://raw.githubusercontent.com/CanYing0913/CaImAn/master/run_pipeline.py). Use python to run this script, as it will launch a container with the image we just built.
+- Pull the docker image using the command `docker image pull canying0913/caiman_pipeline:0.1`.  
+- Download our provided [launch script](https://raw.githubusercontent.com/CanYing0913/CaImAn/master/run_pipeline.py). Use python to run this script, as it will launch a container with the image we just pulled. If you need help with using the launcher script, you can run `python3 run_pipeline.py -h` to have a detailed explanation on its parameters.
 
 ## Running locally  
 ### 1. Check System Requirement  
