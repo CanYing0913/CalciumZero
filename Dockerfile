@@ -18,9 +18,10 @@ RUN micromamba install -y -n base -c conda-forge \
 # RUN micromamba update --all
 ENV JAVA_HOME="/usr/local"
 WORKDIR "/tmp"
+RUN echo ""
 # Retrieve ImageJ and source code
 RUN git clone https://github.com/CanYing0913/CaImAn.git
-RUN wget https://downloads.imagej.net/fiji/latest/fiji-linux64.zip &> /dev/null
+RUN wget https://downloads.imagej.net/fiji/latest/fiji-linux64.zip
 RUN unzip fiji-linux64.zip > /dev/null
 RUN rm fiji-linux64.zip
 RUN cp CaImAn/resource/Image_Stabilizer_Headless.class Fiji.app/plugins/Examples
