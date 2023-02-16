@@ -3,5 +3,6 @@ __pycache__/
 java/
 .idea/
 .vscode/
+test/
 venv/
 *.csv
