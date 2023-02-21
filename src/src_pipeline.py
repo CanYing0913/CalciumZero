@@ -189,6 +189,10 @@ class Pipeline(object):
             self.imm2_list = self.input_list
         return None
 
+    def update(self, **kwargs):
+        # TODO: manually update attributes for GUI
+        pass
+
     def s0(self):
         """
         Function to run segmentation, detection and cropping.

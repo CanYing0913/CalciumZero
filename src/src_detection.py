@@ -214,3 +214,23 @@ def examine_segmentation(image_i: np.ndarray, image_o: np.ndarray, idx: int):
     plt.subplot(1, 2, 2)
     plt.imshow(image_o[idx, ...], cmap='gray')
     plt.title("After")
+
+
+def examine_generic(image_i: np.ndarray, image_o: np.ndarray, idx: int, func):
+    """
+    QC function to visualize the denseSegmentation() result
+
+    Parameters:
+        image_i: 3D image prior to segmentation
+        image_o: 3D image after segmentation
+        idx: index to access
+    """
+    assert image_i.shape == image_o.shape and 0 <= idx < image_i.shape[0]
+    plt.figure(figsize=(16, 6))
+    plt.title("Visualization of Dense Segmentation")
+    plt.subplot(1, 2, 1)
+    plt.imshow(image_i[idx, ...], cmap='gray')
+    plt.title("Before")
+    plt.subplot(1, 2, 2)
+    plt.imshow(image_o[idx, ...], cmap='gray')
+    plt.title("After")
