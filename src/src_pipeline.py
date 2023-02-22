@@ -190,8 +190,13 @@ class Pipeline(object):
         return None
 
     def update(self, **kwargs):
-        # TODO: manually update attributes for GUI
-        pass
+        for key, value in kwargs.items():
+            if not hasattr(self, key):
+                continue
+            if key == 'ijp':
+                ij = imagej.init(value, mode='headless')
+                setattr(self, 'ij', ij)
+            setattr(self, key, value)
 
     def s0(self):
         """
