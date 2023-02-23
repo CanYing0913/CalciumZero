@@ -122,6 +122,7 @@ class Pipeline(object):
         self.input_list = []
         self.margin = 0
         self.imm1_list = []  # Intermediate result list 1, relative path
+        self.s0_done = False
         # ImageJ stabilizer related variables
         self.ij = None
         self.ijp = ''
@@ -192,6 +193,7 @@ class Pipeline(object):
     def update(self, **kwargs):
         for key, value in kwargs.items():
             if not hasattr(self, key):
+                print(f'the requested key {key} does not exist.')
                 continue
             if key == 'ijp':
                 ij = imagej.init(value, mode='headless')
@@ -226,6 +228,7 @@ class Pipeline(object):
             # Save imm1 data to files
             tifffile.imwrite(fname_crop_o, image_crop_o)
             self.imm1_list.append(fname_crop_root)
+        self.s0_done = True
         return
 
     def s1(self):
