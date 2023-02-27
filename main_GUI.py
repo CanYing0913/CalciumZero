@@ -4,6 +4,7 @@ import pandas as pd
 import time
 import os
 import src.src_pipeline as pipe
+import tifffile
 
 
 def main():
@@ -34,7 +35,7 @@ def main():
             st.error('path not exist.')
         if os.path.isdir(raw_input):
             # TODO: add input support for other format, such as .obj pickle file
-            input_list = [f for f in os.listdir(raw_input) if f[-5:] == '.tiff']
+            input_list = [f for f in os.listdir(raw_input) if f[-4:] == '.tif']
             pipeline.update(input_root=raw_input, input_list=input_list)
         else:
             pipeline.update(input_list=[raw_input])
@@ -76,18 +77,30 @@ def main():
 
     # section 0 - Segmentation and Cropping
     s0 = st.empty()
-    if s0_visible and pipeline.s0_done:
+    if s0_visible and not pipeline.s0_done:
         with s0.container():
             st.header('Auto crop')
             # TODO: a possible future improvement: for multiple input files, select which to QC
-            s0_idx = st.selectbox('Which image you want to examine?', pipeline.input_list)
-            crop_idx = st.slider('Which slice you want to examine?', 0, 100)  # TODO: modify max index by input file
+            s0_idx = st.selectbox('Which image you want to examine?', pipeline.input_list, key='s0_idx')
             # TODO: add QC windows
-            col1, col2 = st.columns(2)
-            with col1:
-                st.image(np.random.rand(10,10))
-            with col2:
-                st.image(np.random.rand(10,10))
+            try:
+                QC_in_0 = os.path.join(pipeline.input_root, s0_idx)
+                QC_crop = os.path.join(wd_dir, s0_idx.removesuffix('.tif')+'_crop.tif')
+            except TypeError:
+                st.error(f'Please specify input and output folders first.')
+                QC_in_0 = 'NULL'
+                QC_crop = 'NULL'
+            try:
+                f_in_0 = tifffile.imread(QC_in_0)
+                f_crop = tifffile.imread(QC_crop)
+                crop_idx = st.slider('Which slice you want to examine?', 0, f_in_0.shape[0])
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.image(f_in_0[crop_idx])
+                with col2:
+                    st.image(f_crop[crop_idx])
+            except Exception as e:
+                st.error(f'path {QC_in_0} or {QC_crop} not exist.')
 
     # section 2: ImageJ Stabilizer
     s1 = st.empty()
@@ -95,7 +108,34 @@ def main():
         with s1.container():
             st.header('ImageJ Stabilizer')
             # TODO: add QC windows
-            pass
+            # TODO: a possible future improvement: for multiple input files, select which to QC
+            if section_start == 'Crop':
+                s1_idx = st.selectbox('Which image you want to examine?', pipeline.imm1_list, key='s1_idx')
+            else:
+                s1_idx = st.selectbox('Which image you want to examine?', pipeline.input_list, key='s1_idx')
+            # TODO: add QC windows
+            try:
+                if section_start == 'Crop':
+                    QC_in_1 = os.path.join(pipeline.work_dir, s1_idx)
+                    QC_stab = os.path.join(wd_dir, s1_idx.removesuffix('.tif') + '_stab.tif')
+                else:
+                    QC_in_1 = os.path.join(pipeline.input_root, s1_idx)
+                    QC_stab = os.path.join(wd_dir, s1_idx.removesuffix('.tif') + '_stab.tif')
+            except TypeError:
+                st.error(f'Please specify input and output folders first.')
+                QC_in_1 = 'NULL'
+                QC_stab = 'NULL'
+            try:
+                f_in_1 = tifffile.imread(QC_in_1)
+                f_stab = tifffile.imread(QC_stab)
+                stab_idx = st.slider('Which slice you want to examine?', 0, f_in_1.shape[0])
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.image(f_in_1[stab_idx])
+                with col2:
+                    st.image(f_stab[stab_idx])
+            except Exception as e:
+                st.error(f'path {QC_in_1} or {QC_stab} not exist.')
 
     # section 3: CaImAn
     s2 = st.empty()
