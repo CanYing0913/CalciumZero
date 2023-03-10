@@ -1,0 +1,467 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  EXCEPTION_UNCAUGHT_CXX_EXCEPTION (0xe06d7363) at pc=0x00007ffe65164fd9, pid=13524, tid=0x0000000000002dd0
+#
+# JRE version: OpenJDK Runtime Environment (Zulu 8.58.0.13-CA-win64) (8.0_312-b07) (build 1.8.0_312-b07)
+# Java VM: OpenJDK 64-Bit Server VM (25.312-b07 mixed mode windows-amd64 compressed oops)
+# Problematic frame:
+# C  [KERNELBASE.dll+0x34fd9]
+#
+# Failed to write core dump. Minidumps are not enabled by default on client versions of Windows
+#
+# If you would like to submit a bug report, please visit:
+#   http://www.azul.com/support/
+# The crash happened outside the Java Virtual Machine in native code.
+# See problematic frame for where to report the bug.
+#
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x000002cc10394000):  JavaThread "Run$_main" [_thread_in_native, id=11728, stack(0x000000f725e00000,0x000000f725ff0000)]
+
+siginfo: ExceptionCode=0xe06d7363, ExceptionInformation=0x0000000019930520 0x000000f725fed770 0x00007ffdfc695cd8 0x00007ffdfc630000 
+
+Registers:
+RAX=0x0000000019930520, RBX=0x00007ffdfc695cd8, RCX=0x000000f725fece00, RDX=0x00007ffdfc695cd8
+RSP=0x000000f725fed510, RBP=0x000000f725fed750, RSI=0x000000f725fed770, RDI=0x0000000019930520
+R8 =0x000002cc0d3d4430, R9 =0x000002cc0d3d4430, R10=0x0000000000000001, R11=0x000000f725fecdc0
+R12=0x000002cc4330b880, R13=0x000000f725fed840, R14=0x000002cc3c6a1e90, R15=0x000002cc3866a880
+RIP=0x00007ffe65164fd9, EFLAGS=0x0000000000000202
+
+Top of Stack: (sp=0x000000f725fed510)
+0x000000f725fed510:   0000000000000001 00007ffdfc695cd8
+0x000000f725fed520:   000000f725fed770 000000f725fed750
+0x000000f725fed530:   00000001e06d7363 0000000000000000
+0x000000f725fed540:   00007ffe65164fd9 0000000000000004
+0x000000f725fed550:   0000000019930520 000000f725fed770
+0x000000f725fed560:   00007ffdfc695cd8 00007ffdfc630000
+0x000000f725fed570:   000000f725fed840 000002cc4330b880
+0x000000f725fed580:   000000f725fed770 000000f725fed750
+0x000000f725fed590:   000000f725fed610 00007ffe677c4a5f
+0x000000f725fed5a0:   0000000019930520 000002cc00000000
+0x000000f725fed5b0:   0000000000000000 00007ffdfc64ba9a
+0x000000f725fed5c0:   00007ffdfc69d000 00007ffdfc630000
+0x000000f725fed5d0:   0000a7f61d0f4d4c 0000000000000000
+0x000000f725fed5e0:   00007ffdfc695cd8 00007ffe5ecd6480
+0x000000f725fed5f0:   0000000000000000 000002cc0aebf250
+0x000000f725fed600:   000000f725fed770 00007ffdfc648290 
+
+Instructions: (pc=0x00007ffe65164fd9)
+0x00007ffe65164fb9:   8b d1 44 0f 47 c0 44 89 44 24 38 49 c1 e0 03 e8
+0x00007ffe65164fc9:   da 1c 06 00 48 8d 4c 24 20 48 ff 15 57 e1 18 00
+0x00007ffe65164fd9:   0f 1f 44 00 00 48 8b 8c 24 c0 00 00 00 48 33 cc
+0x00007ffe65164fe9:   e8 52 96 05 00 48 81 c4 d8 00 00 00 c3 cc 83 64 
+
+
+Register to memory mapping:
+
+RAX=0x0000000019930520 is an unknown value
+RBX=0x00007ffdfc695cd8 is an unknown value
+RCX=0x000000f725fece00 is pointing into the stack for thread: 0x000002cc10394000
+RDX=0x00007ffdfc695cd8 is an unknown value
+RSP=0x000000f725fed510 is pointing into the stack for thread: 0x000002cc10394000
+RBP=0x000000f725fed750 is pointing into the stack for thread: 0x000002cc10394000
+RSI=0x000000f725fed770 is pointing into the stack for thread: 0x000002cc10394000
+RDI=0x0000000019930520 is an unknown value
+R8 =0x000002cc0d3d4430 is an unknown value
+R9 =0x000002cc0d3d4430 is an unknown value
+R10=0x0000000000000001 is an unknown value
+R11=0x000000f725fecdc0 is pointing into the stack for thread: 0x000002cc10394000
+R12=0x000002cc4330b880 is an unknown value
+R13=0x000000f725fed840 is pointing into the stack for thread: 0x000002cc10394000
+R14=0x000002cc3c6a1e90 is an unknown value
+R15=0x000002cc3866a880 is an unknown value
+
+
+Stack: [0x000000f725e00000,0x000000f725ff0000],  sp=0x000000f725fed510,  free space=1973k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+C  [KERNELBASE.dll+0x34fd9]
+C  [VCRUNTIME140.dll+0x6480]
+C  [_jpype.cp39-win_amd64.pyd+0x3be14]
+C  [_jpype.cp39-win_amd64.pyd+0x2ae2b]
+C  0x000002cc122b9d8e
+
+Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
+j  org.jpype.manager.TypeFactoryNative.newWrapper(JJ)V+0
+j  org.jpype.JPypeContext.newWrapper(J)V+16
+v  ~StubRoutines::call_stub
+j  org.jpype.manager.TypeFactoryNative.newWrapper(JJ)V+0
+j  org.jpype.JPypeContext.newWrapper(J)V+16
+v  ~StubRoutines::call_stub
+
+---------------  P R O C E S S  ---------------
+
+Java Threads: ( => current thread )
+  0x000002cc43c96000 JavaThread "Thread-0" [_thread_in_native, id=3956, stack(0x000000f72a7a0000,0x000000f72a990000)]
+  0x000002cc43c9d800 JavaThread "Thread-1" daemon [_thread_in_native, id=10324, stack(0x000000f72a1d0000,0x000000f72a3c0000)]
+  0x000002cc43c9a000 JavaThread "Scale..." [_thread_blocked, id=6920, stack(0x000000f729fe0000,0x000000f72a1d0000)]
+  0x000002cc10a78000 JavaThread "Paste" [_thread_in_native, id=5544, stack(0x000000f729c00000,0x000000f729df0000)]
+  0x000002cc10a76800 JavaThread "Show Info..." [_thread_in_native, id=11520, stack(0x000000f728e70000,0x000000f729060000)]
+  0x000002cc10a6a800 JavaThread "Image Fetcher 0" daemon [_thread_blocked, id=18524, stack(0x000000f729a10000,0x000000f729c00000)]
+  0x000002cc10a71800 JavaThread "AWT-EventQueue-0" [_thread_blocked, id=9348, stack(0x000000f729820000,0x000000f729a10000)]
+  0x000002cc3a73d800 JavaThread "Java2D Disposer" daemon [_thread_blocked, id=15848, stack(0x000000f729060000,0x000000f729250000)]
+  0x000002cc107f9000 JavaThread "Service Thread" daemon [_thread_blocked, id=13916, stack(0x000000f7288a0000,0x000000f728a90000)]
+  0x000002cc0d438000 JavaThread "C1 CompilerThread3" daemon [_thread_blocked, id=1520, stack(0x000000f7286b0000,0x000000f7288a0000)]
+  0x000002cc1075c800 JavaThread "C2 CompilerThread2" daemon [_thread_blocked, id=12036, stack(0x000000f7284c0000,0x000000f7286b0000)]
+  0x000002cc10759800 JavaThread "C2 CompilerThread1" daemon [_thread_blocked, id=4876, stack(0x000000f7282d0000,0x000000f7284c0000)]
+  0x000002cc10759000 JavaThread "C2 CompilerThread0" daemon [_thread_blocked, id=19236, stack(0x000000f7280e0000,0x000000f7282d0000)]
+  0x000002cc10727000 JavaThread "Attach Listener" daemon [_thread_blocked, id=7392, stack(0x000000f727ef0000,0x000000f7280e0000)]
+  0x000002cc10726000 JavaThread "Signal Dispatcher" daemon [_thread_blocked, id=11412, stack(0x000000f727d00000,0x000000f727ef0000)]
+  0x000002cc10709800 JavaThread "Finalizer" daemon [_thread_blocked, id=16532, stack(0x000000f727b10000,0x000000f727d00000)]
+  0x000002cc106fd800 JavaThread "Reference Handler" daemon [_thread_blocked, id=12224, stack(0x000000f727920000,0x000000f727b10000)]
+=>0x000002cc10394000 JavaThread "Run$_main" [_thread_in_native, id=11728, stack(0x000000f725e00000,0x000000f725ff0000)]
+
+Other Threads:
+  0x000002cc106fb000 VMThread [stack: 0x000000f727730000,0x000000f727920000] [id=22532]
+  0x000002cc107fe000 WatcherThread [stack: 0x000000f728a90000,0x000000f728c80000] [id=11568]
+
+VM state:not at safepoint (normal execution)
+
+VM Mutex/Monitor currently owned by a thread: None
+
+heap address: 0x00000005c2c00000, size: 8148 MB, Compressed Oops mode: Zero based, Oop shift amount: 3
+Narrow klass base: 0x0000000000000000, Narrow klass shift: 3
+Compressed class space size: 1073741824 Address: 0x00000007c0000000
+
+Heap:
+ PSYoungGen      total 961536K, used 83579K [0x0000000716400000, 0x0000000753e00000, 0x00000007c0000000)
+  eden space 914944K, 9% used [0x0000000716400000,0x000000071b59ee00,0x000000074e180000)
+  from space 46592K, 0% used [0x0000000750f80000,0x0000000750f80000,0x0000000753d00000)
+  to   space 47104K, 0% used [0x000000074e180000,0x000000074e180000,0x0000000750f80000)
+ ParOldGen       total 4035584K, used 3750745K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a7ad6658,0x00000006b9100000)
+ Metaspace       used 53030K, capacity 54093K, committed 54528K, reserved 1095680K
+  class space    used 7172K, capacity 7641K, committed 7680K, reserved 1048576K
+
+Card table byte_map: [0x000002cc21660000,0x000002cc22650000] byte_map_base: 0x000002cc1e84a000
+
+Marking Bits: (ParMarkBitMap*) 0x000000005f69b510
+ Begin Bits: [0x000002cc230f0000, 0x000002cc2b040000)
+ End Bits:   [0x000002cc2b040000, 0x000002cc32f90000)
+
+Polling page: 0x000002cc12270000
+
+CodeCache: size=245760Kb used=15449Kb max_used=16092Kb free=230310Kb
+ bounds [0x000002cc122a0000, 0x000002cc132b0000, 0x000002cc212a0000]
+ total_blobs=5254 nmethods=4531 adapters=632
+ compilation: enabled
+
+Compilation events (10 events):
+Event: 13.358 Thread 0x000002cc0d438000 nmethod 5548 0x000002cc12da5c50 code [0x000002cc12da5da0, 0x000002cc12da5f58]
+Event: 13.359 Thread 0x000002cc10759000 nmethod 5549 0x000002cc12694490 code [0x000002cc126945c0, 0x000002cc12694658]
+Event: 13.359 Thread 0x000002cc0d438000 5550       3       java.util.logging.LogManager$LoggerContext::ensureDefaultLogger (70 bytes)
+Event: 13.360 Thread 0x000002cc0d438000 nmethod 5550 0x000002cc12ce5450 code [0x000002cc12ce5600, 0x000002cc12ce5eb0]
+Event: 13.363 Thread 0x000002cc0d438000 5551       3       java.lang.Character::isWhitespace (5 bytes)
+Event: 13.363 Thread 0x000002cc0d438000 nmethod 5551 0x000002cc12ce4f10 code [0x000002cc12ce5080, 0x000002cc12ce5320]
+Event: 13.363 Thread 0x000002cc0d438000 5553       3       java.lang.ClassLoader::getSystemClassLoader (32 bytes)
+Event: 13.364 Thread 0x000002cc0d438000 nmethod 5553 0x000002cc12ce3f90 code [0x000002cc12ce4180, 0x000002cc12ce4af0]
+Event: 13.364 Thread 0x000002cc0d438000 5552       3       java.awt.datatransfer.MimeTypeParameterList::isTokenChar (27 bytes)
+Event: 13.364 Thread 0x000002cc0d438000 nmethod 5552 0x000002cc12ce3990 code [0x000002cc12ce3b00, 0x000002cc12ce3eb0]
+
+GC Heap History (10 events):
+Event: 12.259 GC heap before
+{Heap before GC invocations=203 (full 101):
+ PSYoungGen      total 957952K, used 22573K [0x0000000716400000, 0x0000000753600000, 0x00000007c0000000)
+  eden space 915456K, 0% used [0x0000000716400000,0x0000000716400000,0x000000074e200000)
+  from space 42496K, 53% used [0x0000000750c80000,0x000000075228b550,0x0000000753600000)
+  to   space 43008K, 0% used [0x000000074e200000,0x000000074e200000,0x0000000750c00000)
+ ParOldGen       total 4035584K, used 3720108K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a5ceb350,0x00000006b9100000)
+ Metaspace       used 50169K, capacity 51151K, committed 51584K, reserved 1093632K
+  class space    used 6754K, capacity 7219K, committed 7296K, reserved 1048576K
+Event: 12.301 GC heap after
+Heap after GC invocations=203 (full 101):
+ PSYoungGen      total 957952K, used 0K [0x0000000716400000, 0x0000000753600000, 0x00000007c0000000)
+  eden space 915456K, 0% used [0x0000000716400000,0x0000000716400000,0x000000074e200000)
+  from space 42496K, 0% used [0x0000000750c80000,0x0000000750c80000,0x0000000753600000)
+  to   space 43008K, 0% used [0x000000074e200000,0x000000074e200000,0x0000000750c00000)
+ ParOldGen       total 4035584K, used 3742425K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a72b6790,0x00000006b9100000)
+ Metaspace       used 50169K, capacity 51151K, committed 51584K, reserved 1093632K
+  class space    used 6754K, capacity 7219K, committed 7296K, reserved 1048576K
+}
+Event: 12.321 GC heap before
+{Heap before GC invocations=204 (full 101):
+ PSYoungGen      total 957952K, used 11914K [0x0000000716400000, 0x0000000753600000, 0x00000007c0000000)
+  eden space 915456K, 1% used [0x0000000716400000,0x0000000716fa2b80,0x000000074e200000)
+  from space 42496K, 0% used [0x0000000750c80000,0x0000000750c80000,0x0000000753600000)
+  to   space 43008K, 0% used [0x000000074e200000,0x000000074e200000,0x0000000750c00000)
+ ParOldGen       total 4035584K, used 3742425K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a72b6790,0x00000006b9100000)
+ Metaspace       used 50169K, capacity 51151K, committed 51584K, reserved 1093632K
+  class space    used 6754K, capacity 7219K, committed 7296K, reserved 1048576K
+Event: 12.324 GC heap after
+Heap after GC invocations=204 (full 101):
+ PSYoungGen      total 958464K, used 96K [0x0000000716400000, 0x0000000753d00000, 0x00000007c0000000)
+  eden space 915456K, 0% used [0x0000000716400000,0x0000000716400000,0x000000074e200000)
+  from space 43008K, 0% used [0x000000074e200000,0x000000074e218000,0x0000000750c00000)
+  to   space 46592K, 0% used [0x0000000750f80000,0x0000000750f80000,0x0000000753d00000)
+ ParOldGen       total 4035584K, used 3742425K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a72b6790,0x00000006b9100000)
+ Metaspace       used 50169K, capacity 51151K, committed 51584K, reserved 1093632K
+  class space    used 6754K, capacity 7219K, committed 7296K, reserved 1048576K
+}
+Event: 12.324 GC heap before
+{Heap before GC invocations=205 (full 102):
+ PSYoungGen      total 958464K, used 96K [0x0000000716400000, 0x0000000753d00000, 0x00000007c0000000)
+  eden space 915456K, 0% used [0x0000000716400000,0x0000000716400000,0x000000074e200000)
+  from space 43008K, 0% used [0x000000074e200000,0x000000074e218000,0x0000000750c00000)
+  to   space 46592K, 0% used [0x0000000750f80000,0x0000000750f80000,0x0000000753d00000)
+ ParOldGen       total 4035584K, used 3742425K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a72b6790,0x00000006b9100000)
+ Metaspace       used 50169K, capacity 51151K, committed 51584K, reserved 1093632K
+  class space    used 6754K, capacity 7219K, committed 7296K, reserved 1048576K
+Event: 12.575 GC heap after
+Heap after GC invocations=205 (full 102):
+ PSYoungGen      total 958464K, used 0K [0x0000000716400000, 0x0000000753d00000, 0x00000007c0000000)
+  eden space 915456K, 0% used [0x0000000716400000,0x0000000716400000,0x000000074e200000)
+  from space 43008K, 0% used [0x000000074e200000,0x000000074e200000,0x0000000750c00000)
+  to   space 46592K, 0% used [0x0000000750f80000,0x0000000750f80000,0x0000000753d00000)
+ ParOldGen       total 4035584K, used 3742383K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a72abe10,0x00000006b9100000)
+ Metaspace       used 50169K, capacity 51151K, committed 51584K, reserved 1093632K
+  class space    used 6754K, capacity 7219K, committed 7296K, reserved 1048576K
+}
+Event: 12.934 GC heap before
+{Heap before GC invocations=206 (full 102):
+ PSYoungGen      total 958464K, used 95868K [0x0000000716400000, 0x0000000753d00000, 0x00000007c0000000)
+  eden space 915456K, 10% used [0x0000000716400000,0x000000071c19f010,0x000000074e200000)
+  from space 43008K, 0% used [0x000000074e200000,0x000000074e200000,0x0000000750c00000)
+  to   space 46592K, 0% used [0x0000000750f80000,0x0000000750f80000,0x0000000753d00000)
+ ParOldGen       total 4035584K, used 3742383K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a72abe10,0x00000006b9100000)
+ Metaspace       used 52840K, capacity 53869K, committed 54272K, reserved 1095680K
+  class space    used 7162K, capacity 7609K, committed 7680K, reserved 1048576K
+Event: 12.940 GC heap after
+Heap after GC invocations=206 (full 102):
+ PSYoungGen      total 961536K, used 8754K [0x0000000716400000, 0x0000000753e00000, 0x00000007c0000000)
+  eden space 914944K, 0% used [0x0000000716400000,0x0000000716400000,0x000000074e180000)
+  from space 46592K, 18% used [0x0000000750f80000,0x000000075180c980,0x0000000753d00000)
+  to   space 47104K, 0% used [0x000000074e180000,0x000000074e180000,0x0000000750f80000)
+ ParOldGen       total 4035584K, used 3742391K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a72ade10,0x00000006b9100000)
+ Metaspace       used 52840K, capacity 53869K, committed 54272K, reserved 1095680K
+  class space    used 7162K, capacity 7609K, committed 7680K, reserved 1048576K
+}
+Event: 12.940 GC heap before
+{Heap before GC invocations=207 (full 103):
+ PSYoungGen      total 961536K, used 8754K [0x0000000716400000, 0x0000000753e00000, 0x00000007c0000000)
+  eden space 914944K, 0% used [0x0000000716400000,0x0000000716400000,0x000000074e180000)
+  from space 46592K, 18% used [0x0000000750f80000,0x000000075180c980,0x0000000753d00000)
+  to   space 47104K, 0% used [0x000000074e180000,0x000000074e180000,0x0000000750f80000)
+ ParOldGen       total 4035584K, used 3742391K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a72ade10,0x00000006b9100000)
+ Metaspace       used 52840K, capacity 53869K, committed 54272K, reserved 1095680K
+  class space    used 7162K, capacity 7609K, committed 7680K, reserved 1048576K
+Event: 13.353 GC heap after
+Heap after GC invocations=207 (full 103):
+ PSYoungGen      total 961536K, used 0K [0x0000000716400000, 0x0000000753e00000, 0x00000007c0000000)
+  eden space 914944K, 0% used [0x0000000716400000,0x0000000716400000,0x000000074e180000)
+  from space 46592K, 0% used [0x0000000750f80000,0x0000000750f80000,0x0000000753d00000)
+  to   space 47104K, 0% used [0x000000074e180000,0x000000074e180000,0x0000000750f80000)
+ ParOldGen       total 4035584K, used 3750745K [0x00000005c2c00000, 0x00000006b9100000, 0x0000000716400000)
+  object space 4035584K, 92% used [0x00000005c2c00000,0x00000006a7ad6658,0x00000006b9100000)
+ Metaspace       used 52840K, capacity 53869K, committed 54272K, reserved 1095680K
+  class space    used 7162K, capacity 7609K, committed 7680K, reserved 1048576K
+}
+
+Deoptimization events (10 events):
+Event: 12.762 Thread 0x000002cc3bf2b800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc12e91930 method=java.lang.String.toLowerCase(Ljava/util/Locale;)Ljava/lang/String; @ 37
+Event: 12.829 Thread 0x000002cc10a76800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc130697a0 method=java.lang.String.lastIndexOf([CII[CIII)I @ 135
+Event: 12.843 Thread 0x000002cc10a76800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc12a07e74 method=sun.nio.ch.Util$BufferCache.get(I)Ljava/nio/ByteBuffer; @ 25
+Event: 12.844 Thread 0x000002cc10a75800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc12989c44 method=java.util.concurrent.locks.ReentrantLock$Sync.tryRelease(I)Z @ 28
+Event: 12.904 Thread 0x000002cc10a76800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc126d6940 method=sun.nio.cs.UnicodeDecoder.decode(II)C @ 5
+Event: 12.934 Thread 0x000002cc10394000 Uncommon trap: reason=null_check action=make_not_entrant pc=0x000002cc12e4bd64 method=org.jpype.manager.MethodResolution.isAssignableTo(Ljava/lang/Class;Ljava/lang/Class;)Z @ 9
+Event: 13.353 Thread 0x000002cc106fd800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc130c1170 method=java.lang.ref.Reference.tryHandlePending(Z)Z @ 20
+Event: 13.353 Thread 0x000002cc10709800 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc12bea6b4 method=java.util.HashMap$HashIterator.<init>(Ljava/util/HashMap;)V @ 45
+Event: 13.363 Thread 0x000002cc10a78000 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc1313e728 method=java.lang.CharacterDataLatin1.isWhitespace(I)Z @ 14
+Event: 13.363 Thread 0x000002cc10a78000 Uncommon trap: reason=unstable_if action=reinterpret pc=0x000002cc1283c77c method=java.lang.CharacterDataLatin1.isWhitespace(I)Z @ 14
+
+Classes redefined (0 events):
+No events
+
+Internal exceptions (10 events):
+Event: 3.343 Thread 0x000002cc10394000 Implicit null exception at 0x000002cc128763ec to 0x000002cc12876565
+Event: 3.365 Thread 0x000002cc10a6a800 Exception <a 'java/lang/IncompatibleClassChangeError': Found class java.lang.Object, but interface was expected> (0x000000072071be90) thrown at [C:\jenkins\workspace\zulu8-build-win64\zulu-src\hotspot\src\share\vm\interpreter\linkResolver.cpp, line 653]
+Event: 3.366 Thread 0x000002cc10a6a800 Exception <a 'java/lang/IncompatibleClassChangeError': Found class java.lang.Object, but interface was expected> (0x0000000720742378) thrown at [C:\jenkins\workspace\zulu8-build-win64\zulu-src\hotspot\src\share\vm\interpreter\linkResolver.cpp, line 653]
+Event: 3.412 Thread 0x000002cc10a6a800 Exception <a 'java/security/PrivilegedActionException'> (0x00000007217f1548) thrown at [C:\jenkins\workspace\zulu8-build-win64\zulu-src\hotspot\src\share\vm\prims\jvm.cpp, line 1529]
+Event: 3.412 Thread 0x000002cc10a6a800 Exception <a 'java/security/PrivilegedActionException'> (0x00000007217f1b28) thrown at [C:\jenkins\workspace\zulu8-build-win64\zulu-src\hotspot\src\share\vm\prims\jvm.cpp, line 1529]
+Event: 3.566 Thread 0x000002cc10394000 Exception <a 'java/lang/NoClassDefFoundError': jupyter/Displayer> (0x000000071652b0f0) thrown at [C:\jenkins\workspace\zulu8-build-win64\zulu-src\hotspot\src\share\vm\classfile\systemDictionary.cpp, line 209]
+Event: 3.764 Thread 0x000002cc10394000 Implicit null exception at 0x000002cc12718828 to 0x000002cc12718c05
+Event: 12.639 Thread 0x000002cc10394000 Exception <a 'java/lang/NullPointerException'> (0x00000007188981b8) thrown at [C:\jenkins\workspace\zulu8-build-win64\zulu-src\hotspot\src\share\vm\interpreter\linkResolver.cpp, line 1185]
+Event: 13.366 Thread 0x000002cc43c9a000 Exception <a 'java/lang/InterruptedException'> (0x0000000719970a58) thrown at [C:\jenkins\workspace\zulu8-build-win64\zulu-src\hotspot\src\share\vm\runtime\objectMonitor.cpp, line 1692]
+Event: 13.366 Thread 0x000002cc397c6000 Exception <a 'java/lang/InterruptedException'> (0x000000071afa9f68) thrown at [C:\jenkins\workspace\zulu8-build-win64\zulu-src\hotspot\src\share\vm\runtime\objectMonitor.cpp, line 1692]
+
+Events (10 events):
+Event: 13.363 Thread 0x000002cc10a78000 DEOPT PACKING pc=0x000002cc1283c77c sp=0x000000f729dedd00
+Event: 13.363 Thread 0x000002cc10a78000 DEOPT UNPACKING pc=0x000002cc122e5683 sp=0x000000f729dedc78 mode 2
+Event: 13.363 loading class sun/awt/windows/WDataTransferer
+Event: 13.364 loading class sun/awt/windows/WDataTransferer done
+Event: 13.366 Executing VM operation: ThreadDump
+Event: 13.366 Executing VM operation: ThreadDump done
+Event: 13.366 Executing VM operation: RevokeBias
+Event: 13.366 Executing VM operation: RevokeBias done
+Event: 13.366 Thread 0x000002cc397c6000 Thread exited: 0x000002cc397c6000
+Event: 13.376 Thread 0x000002cc373db800 Thread exited: 0x000002cc373db800
+
+
+Dynamic libraries:
+0x00007ff715690000 - 0x00007ff7156ac000 	C:\Users\wyari\.conda\envs\caiman\python.exe
+0x00007ffe67790000 - 0x00007ffe67987000 	C:\Windows\SYSTEM32\ntdll.dll
+0x00007ffe65d30000 - 0x00007ffe65ded000 	C:\Windows\System32\KERNEL32.DLL
+0x00007ffe65130000 - 0x00007ffe653fd000 	C:\Windows\System32\KERNELBASE.dll
+0x00007ffe64eb0000 - 0x00007ffe64fb0000 	C:\Windows\System32\ucrtbase.dll
+0x00007ffe5ecd0000 - 0x00007ffe5eceb000 	C:\Users\wyari\.conda\envs\caiman\VCRUNTIME140.dll
+0x00007ffdf5760000 - 0x00007ffdf5cb7000 	C:\Users\wyari\.conda\envs\caiman\python39.dll
+0x00007ffe670e0000 - 0x00007ffe6714b000 	C:\Windows\System32\WS2_32.dll
+0x00007ffe67150000 - 0x00007ffe67275000 	C:\Windows\System32\RPCRT4.dll
+0x00007ffe66e70000 - 0x00007ffe66f1e000 	C:\Windows\System32\ADVAPI32.dll
+0x00007ffe676b0000 - 0x00007ffe6774e000 	C:\Windows\System32\msvcrt.dll
+0x00007ffe5e150000 - 0x00007ffe5e15a000 	C:\Windows\SYSTEM32\VERSION.dll
+0x00007ffe66f20000 - 0x00007ffe66fbc000 	C:\Windows\System32\sechost.dll
+0x00007ffe5e8c0000 - 0x00007ffe5e8d9000 	C:\Users\wyari\.conda\envs\caiman\zlib.dll
+0x00007ffe647b0000 - 0x00007ffe647c8000 	C:\Windows\SYSTEM32\CRYPTSP.dll
+0x00007ffe63ee0000 - 0x00007ffe63f14000 	C:\Windows\system32\rsaenh.dll
+0x00007ffe65100000 - 0x00007ffe65127000 	C:\Windows\System32\bcrypt.dll
+0x00007ffe647d0000 - 0x00007ffe647dc000 	C:\Windows\SYSTEM32\CRYPTBASE.dll
+0x00007ffe64fb0000 - 0x00007ffe65032000 	C:\Windows\System32\bcryptPrimitives.dll
+0x00007ffe5ed50000 - 0x00007ffe5ed5f000 	C:\Users\wyari\.conda\envs\caiman\python3.DLL
+0x00007ffe5e940000 - 0x00007ffe5e94b000 	C:\Users\wyari\.conda\envs\caiman\DLLs\_bz2.pyd
+0x00007ffe1bed0000 - 0x00007ffe1bf02000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\LIBBZ2.dll
+0x00007ffe4e090000 - 0x00007ffe4e09e000 	C:\Users\wyari\.conda\envs\caiman\DLLs\_lzma.pyd
+0x00007ffe31730000 - 0x00007ffe3175a000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\liblzma.dll
+0x00007ffdfcf70000 - 0x00007ffdfd1bc000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\core\_multiarray_umath.cp39-win_amd64.pyd
+0x00007ffdeeff0000 - 0x00007ffdf06c8000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\libcblas.dll
+0x00007ffe3b250000 - 0x00007ffe3b264000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\core\_multiarray_tests.cp39-win_amd64.pyd
+0x00007ffe32d80000 - 0x00007ffe32d97000 	C:\Users\wyari\.conda\envs\caiman\DLLs\_socket.pyd
+0x00007ffe64250000 - 0x00007ffe6428b000 	C:\Windows\SYSTEM32\IPHLPAPI.DLL
+0x00007ffe4d880000 - 0x00007ffe4d88a000 	C:\Users\wyari\.conda\envs\caiman\DLLs\select.pyd
+0x00007ffe2f5b0000 - 0x00007ffe2f5d5000 	C:\Users\wyari\.conda\envs\caiman\DLLs\_ctypes.pyd
+0x00007ffe65ef0000 - 0x00007ffe6601a000 	C:\Windows\System32\ole32.dll
+0x00007ffe66840000 - 0x00007ffe66b94000 	C:\Windows\System32\combase.dll
+0x00007ffe4d640000 - 0x00007ffe4d64c000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\ffi-8.dll
+0x00007ffe66050000 - 0x00007ffe6607a000 	C:\Windows\System32\GDI32.dll
+0x00007ffe65660000 - 0x00007ffe65682000 	C:\Windows\System32\win32u.dll
+0x00007ffe654a0000 - 0x00007ffe655ab000 	C:\Windows\System32\gdi32full.dll
+0x00007ffe65400000 - 0x00007ffe6549d000 	C:\Windows\System32\msvcp_win.dll
+0x00007ffe67280000 - 0x00007ffe67420000 	C:\Windows\System32\USER32.dll
+0x00007ffe657f0000 - 0x00007ffe658bd000 	C:\Windows\System32\OLEAUT32.dll
+0x00007ffe66020000 - 0x00007ffe66050000 	C:\Windows\System32\IMM32.DLL
+0x00007ffe4a180000 - 0x00007ffe4a189000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\linalg\lapack_lite.cp39-win_amd64.pyd
+0x00007ffded910000 - 0x00007ffdeefe8000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\liblapack.dll
+0x00007ffe32260000 - 0x00007ffe3227b000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\linalg\_umath_linalg.cp39-win_amd64.pyd
+0x00007ffdeaf80000 - 0x00007ffdec658000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\libblas.dll
+0x00007ffe31fb0000 - 0x00007ffe31fce000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\fft\_pocketfft_internal.cp39-win_amd64.pyd
+0x00007ffe168c0000 - 0x00007ffe1694a000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\mtrand.cp39-win_amd64.pyd
+0x00007ffe1e1f0000 - 0x00007ffe1e215000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\bit_generator.cp39-win_amd64.pyd
+0x00007ffe1b730000 - 0x00007ffe1b75e000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\_common.cp39-win_amd64.pyd
+0x00007ffe31230000 - 0x00007ffe31242000 	C:\Users\wyari\.conda\envs\caiman\DLLs\_hashlib.pyd
+0x00007ffdf5e20000 - 0x00007ffdf616c000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\libcrypto-1_1-x64.dll
+0x00007ffe1b180000 - 0x00007ffe1b1bc000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\_bounded_integers.cp39-win_amd64.pyd
+0x00007ffe2db70000 - 0x00007ffe2db85000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\_mt19937.cp39-win_amd64.pyd
+0x00007ffe2cd20000 - 0x00007ffe2cd33000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\_philox.cp39-win_amd64.pyd
+0x00007ffe2be10000 - 0x00007ffe2be27000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\_pcg64.cp39-win_amd64.pyd
+0x00007ffe46fa0000 - 0x00007ffe46fb0000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\_sfc64.cp39-win_amd64.pyd
+0x00007ffe10e70000 - 0x00007ffe10f0f000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\numpy\random\_generator.cp39-win_amd64.pyd
+0x00007ffdcd840000 - 0x00007ffdd0c97000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\mkl_intel_thread.2.dll
+0x00007ffdbac10000 - 0x00007ffdbf6c9000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\mkl_core.2.dll
+0x00007ffdb8290000 - 0x00007ffdbac05000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\mkl_avx2.2.dll
+0x00007ffde77d0000 - 0x00007ffde86ab000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\mkl_vml_avx2.2.dll
+0x00007ffe439f0000 - 0x00007ffe439f9000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\matplotlib\_c_internal_utils.cp39-win_amd64.pyd
+0x00007ffe660e0000 - 0x00007ffe66824000 	C:\Windows\System32\SHELL32.dll
+0x00007ffe1b050000 - 0x00007ffe1b087000 	C:\Users\wyari\.conda\envs\caiman\DLLs\pyexpat.pyd
+0x00007ffe181d0000 - 0x00007ffe1820c000 	C:\Users\wyari\.conda\envs\caiman\DLLs\_elementtree.pyd
+0x00007ffe10730000 - 0x00007ffe107d2000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\PIL\_imaging.cp39-win_amd64.pyd
+0x00007ffe025b0000 - 0x00007ffe0265f000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\tiff.dll
+0x00007ffe12ac0000 - 0x00007ffe12b11000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\openjp2.dll
+0x00007ffe1beb0000 - 0x00007ffe1bec4000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\libdeflate.dll
+0x00007ffe181b0000 - 0x00007ffe181c3000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\jbig.dll
+0x00007ffe106c0000 - 0x00007ffe10723000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\Lerc.dll
+0x00007ffe02520000 - 0x00007ffe025a2000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\zstd.dll
+0x00007ffdfcee0000 - 0x00007ffdfcf6d000 	C:\Users\wyari\.conda\envs\caiman\MSVCP140.dll
+0x00007ffe43920000 - 0x00007ffe4392c000 	C:\Users\wyari\.conda\envs\caiman\VCRUNTIME140_1.dll
+0x00007ffe171d0000 - 0x00007ffe171f6000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\matplotlib\_path.cp39-win_amd64.pyd
+0x00007ffe16c30000 - 0x00007ffe16c4a000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\matplotlib\ft2font.cp39-win_amd64.pyd
+0x00007ffdfce40000 - 0x00007ffdfcedf000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\freetype.dll
+0x00007ffe16430000 - 0x00007ffe16464000 	C:\Users\wyari\.conda\envs\caiman\Library\bin\libpng16.dll
+0x00007ffe16890000 - 0x00007ffe168b3000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\kiwisolver\_cext.cp39-win_amd64.pyd
+0x00007ffe16c10000 - 0x00007ffe16c25000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\psutil\_psutil_windows.cp39-win_amd64.pyd
+0x00007ffe65ee0000 - 0x00007ffe65ee8000 	C:\Windows\System32\PSAPI.DLL
+0x00007ffe402c0000 - 0x00007ffe40309000 	C:\Windows\SYSTEM32\pdh.dll
+0x00007ffe64640000 - 0x00007ffe6468b000 	C:\Windows\SYSTEM32\POWRPROF.dll
+0x00007ffe64620000 - 0x00007ffe64632000 	C:\Windows\SYSTEM32\UMPDC.dll
+0x00007ffe60760000 - 0x00007ffe60774000 	C:\Windows\SYSTEM32\wtsapi32.dll
+0x00007ffdfc630000 - 0x00007ffdfc6a3000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\_jpype.cp39-win_amd64.pyd
+0x00007ffe3f120000 - 0x00007ffe3f12a000 	C:\Users\wyari\.conda\envs\caiman\DLLs\_queue.pyd
+0x00007ffe10e10000 - 0x00007ffe10e66000 	C:\Users\wyari\.conda\envs\caiman\DLLs\_decimal.pyd
+0x00007ffdfc550000 - 0x00007ffdfc62d000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\interval.cp39-win_amd64.pyd
+0x00007ffdf8b30000 - 0x00007ffdf8c40000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\hashtable.cp39-win_amd64.pyd
+0x00007ffe135d0000 - 0x00007ffe135f7000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\missing.cp39-win_amd64.pyd
+0x00007ffe15fc0000 - 0x00007ffe15fdc000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\dtypes.cp39-win_amd64.pyd
+0x00007ffe024e0000 - 0x00007ffe02514000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\conversion.cp39-win_amd64.pyd
+0x00007ffe3e320000 - 0x00007ffe3e32d000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\base.cp39-win_amd64.pyd
+0x00007ffe12a90000 - 0x00007ffe12abd000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\nattype.cp39-win_amd64.pyd
+0x00007ffe3ba80000 - 0x00007ffe3ba8d000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\np_datetime.cp39-win_amd64.pyd
+0x00007ffdffcf0000 - 0x00007ffdffd1d000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\timezones.cp39-win_amd64.pyd
+0x000002cc0ee70000 - 0x000002cc0ee73000 	C:\Windows\SYSTEM32\tzres.dll
+0x00007ffdfc510000 - 0x00007ffdfc543000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\tzconversion.cp39-win_amd64.pyd
+0x00007ffe3b970000 - 0x00007ffe3b980000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\ccalendar.cp39-win_amd64.pyd
+0x00007ffdf8ae0000 - 0x00007ffdf8b2b000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\parsing.cp39-win_amd64.pyd
+0x00007ffdf8a20000 - 0x00007ffdf8ad5000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\offsets.cp39-win_amd64.pyd
+0x00007ffdf89c0000 - 0x00007ffdf8a15000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\timedeltas.cp39-win_amd64.pyd
+0x00007ffdf94d0000 - 0x00007ffdf9508000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\fields.cp39-win_amd64.pyd
+0x00007ffdf8490000 - 0x00007ffdf84d4000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\strptime.cp39-win_amd64.pyd
+0x00007ffdf8430000 - 0x00007ffdf8490000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\timestamps.cp39-win_amd64.pyd
+0x00007ffe3ac90000 - 0x00007ffe3aca0000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\properties.cp39-win_amd64.pyd
+0x00007ffdf83e0000 - 0x00007ffdf842f000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\period.cp39-win_amd64.pyd
+0x00007ffdf8830000 - 0x00007ffdf885b000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslibs\vectorized.cp39-win_amd64.pyd
+0x00007ffe3a820000 - 0x00007ffe3a82f000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\ops_dispatch.cp39-win_amd64.pyd
+0x00007ffdf7640000 - 0x00007ffdf7777000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\algos.cp39-win_amd64.pyd
+0x00007ffdf8370000 - 0x00007ffdf83e0000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\lib.cp39-win_amd64.pyd
+0x00007ffdf79b0000 - 0x00007ffdf79d3000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\tslib.cp39-win_amd64.pyd
+0x00007ffdf7610000 - 0x00007ffdf7634000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\hashing.cp39-win_amd64.pyd
+0x00007ffdf75e0000 - 0x00007ffdf760b000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\ops.cp39-win_amd64.pyd
+0x00007ffe024c0000 - 0x00007ffe024d4000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\arrays.cp39-win_amd64.pyd
+0x00007ffdf5640000 - 0x00007ffdf5755000 	C:\Users\wyari\.conda\envs\caiman\DLLs\unicodedata.pyd
+0x00007ffdf7580000 - 0x00007ffdf75d8000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\index.cp39-win_amd64.pyd
+0x00007ffdf5460000 - 0x00007ffdf5633000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\join.cp39-win_amd64.pyd
+0x00007ffdf72c0000 - 0x00007ffdf7365000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\sparse.cp39-win_amd64.pyd
+0x00007ffe3a6b0000 - 0x00007ffe3a6bc000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\reduction.cp39-win_amd64.pyd
+0x00007ffe33960000 - 0x00007ffe3396e000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\indexing.cp39-win_amd64.pyd
+0x00007ffdf5de0000 - 0x00007ffdf5e1c000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\internals.cp39-win_amd64.pyd
+0x00007ffdf5430000 - 0x00007ffdf545a000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\writers.cp39-win_amd64.pyd
+0x00007ffdf53e0000 - 0x00007ffdf5426000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\window\aggregations.cp39-win_amd64.pyd
+0x00007ffdf53b0000 - 0x00007ffdf53d2000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\window\indexers.cp39-win_amd64.pyd
+0x00007ffdf5370000 - 0x00007ffdf53a4000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\reshape.cp39-win_amd64.pyd
+0x00007ffdf5270000 - 0x00007ffdf5364000 	C:\Users\wyari\.conda\envs\caiman\lib\site-packages\pandas\_libs\groupby.cp39-win_amd64.pyd
+
+VM Arguments:
+jvm_args: -Dplugins.dir=D:\CanYing\Fiji.app\plugins 
+java_command: <unknown>
+java_class_path (initial): D:\CanYing\Fiji.app\jars\ahocorasick-0.2.4.jar;D:\CanYing\Fiji.app\jars\alphanumeric-comparator-1.4.1.jar;D:\CanYing\Fiji.app\jars\annotations-13.0.jar;D:\CanYing\Fiji.app\jars\ant-1.9.7.jar;D:\CanYing\Fiji.app\jars\ant-launcher-1.9.7.jar;D:\CanYing\Fiji.app\jars\antlr-3.5.2.jar;D:\CanYing\Fiji.app\jars\antlr-runtime-3.5.2.jar;D:\CanYing\Fiji.app\jars\api-common-1.9.0.jar;D:\CanYing\Fiji.app\jars\args4j-2.0.25.jar;D:\CanYing\Fiji.app\jars\asm-7.1.jar;D:\CanYing\Fiji.app\jars\asm-analysis-7.1.jar;D:\CanYing\Fiji.app\jars\asm-commons-7.1.jar;D:\CanYing\Fiji.app\jars\asm-tree-7.1.jar;D:\CanYing\Fiji.app\jars\asm-util-7.1.jar;D:\CanYing\Fiji.app\jars\auto-value-annotations-1.7.jar;D:\CanYing\Fiji.app\jars\autocomplete-3.1.0.jar;D:\CanYing\Fiji.app\jars\aws-java-sdk-core-1.11.796.jar;D:\CanYing\Fiji.app\jars\aws-java-sdk-kms-1.11.796.jar;D:\CanYing\Fiji.app\jars\aws-java-sdk-s3-1.11.796.jar;D:\CanYing\Fiji.app\jars\base64-2.3.8.jar;D:\CanYing\Fiji.app\jars\batch-processor-0.4.1.jar;D:\CanYing\Fiji.app\jars\batik-anim-1.13.jar;D:\CanYing\Fiji.app\jars\batik-awt-util-1.13.jar;D:\CanYing\Fiji.app\jars\batik-bridge-1.13.jar;D:\CanYing\Fiji.app\jars\batik-constants-1.13.jar;D:\CanYing\Fiji.app\jars\batik-css-1.13.jar;D:\CanYing\Fiji.app\jars\batik-dom-1.13.jar;D:\CanYing\Fiji.app\jars\batik-ext-1.13.jar;D:\CanYing\Fiji.app\jars\batik-gvt-1.13.jar;D:\CanYing\Fiji.app\jars\batik-i18n-1.13.jar;D:\CanYing\Fiji.app\jars\batik-parser-1.13.jar;D:\CanYing\Fiji.app\jars\batik-script-1.13.jar;D:\CanYing\Fiji.app\jars\batik-shared-resources-1.13.jar;D:\CanYing\Fiji.app\jars\batik-svg-dom-1.13.jar;D:\CanYing\Fiji.app\jars\batik-svggen-1.13.jar;D:\CanYing\Fiji.app\jars\batik-util-1.13.jar;D:\CanYing\Fiji.app\jars\batik-xml-1.13.jar;D:\CanYing\Fiji.app\jars\bcpkix-jdk15on-1.62.jar;D:\CanYing\Fiji.app\jars\bcprov-jdk15on-1.62.jar;D:\CanYing\Fiji.app\jars\bigdataviewer-core-10.2.2.jar;D:\CanYing\Fiji.app\jars\bigdataviewer-vistools-1.0.0-beta-29.jar;D:\CanYing\Fi
+Launcher Type: generic
+
+Environment Variables:
+JAVA_HOME=C:\Users\wyari\.conda\envs\caiman\Library
+USERNAME=CanYing
+OS=Windows_NT
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 158 Stepping 13, GenuineIntel
+
+
+
+---------------  S Y S T E M  ---------------
+
+OS: Windows 10.0 , 64 bit Build 19041 (10.0.19041.1741)
+HyperV virtualization detected
+
+CPU:total 8 (initial active 8) (8 cores per cpu, 1 threads per core) family 6 model 158 stepping 13, cmov, cx8, fxsr, mmx, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, avx, avx2, aes, clmul, erms, 3dnowpref, lzcnt, tsc, tscinvbit, bmi1, bmi2, adx
+
+Memory: 4k page, physical 33372612k(16992320k free), swap 35469764k(15657708k free)
+
+vm_info: OpenJDK 64-Bit Server VM (25.312-b07) for windows-amd64 JRE (Zulu 8.58.0.13-CA-win64) (1.8.0_312-b07), built on Oct  9 2021 07:08:12 by "tester" with MS VC++ 15.9 (VS2017)
+
+time: Fri Jun 17 23:08:15 2022
+timezone: Central Daylight Time
+elapsed time: 13.416101 seconds (0d 0h 0m 13s)
+
