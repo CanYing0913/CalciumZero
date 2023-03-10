@@ -32,7 +32,7 @@ def reduce_bbs(results):
         y1 = min(y1, y1_)
         x2 = max(x2, x2_)
         y2 = max(y2, y2_)
-    return x1, y1, x2, y2
+    return int(x1), int(y1), int(x2), int(y2)
 
 
 def apply_bb_parallel(fname, x1, y1, x2, y2, margin, work_dir, ps0):
@@ -186,10 +186,10 @@ def find_bb_3d_dense(image: np.ndarray, debug_mode=False) -> tuple:
 def apply_bb_3d(image: np.ndarray, bb: tuple, margin: int) -> np.ndarray:
     x1, y1, x2, y2 = bb
     s, h, w = image.shape
-    x1 = x1 - margin if x1 - margin >= 0 else 0
-    y1 = y1 - margin if y1 - margin >= 0 else 0
-    x2 = x2 + margin if x2 + margin < w else w - 1
-    y2 = y2 + margin if y2 + margin < h else h - 1
+    x1 = int(x1 - margin) if x1 - margin >= 0 else 0
+    y1 = int(y1 - margin) if y1 - margin >= 0 else 0
+    x2 = int(x2 + margin) if x2 + margin < w else w - 1
+    y2 = int(y2 + margin) if y2 + margin < h else h - 1
 
     result = image.copy()
     result = result[:, y1:y2, x1:x2]

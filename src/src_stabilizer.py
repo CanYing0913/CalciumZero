@@ -19,6 +19,8 @@ def run_plugin(ijp, fname, s1_params):
     ij = imagej.init(ijp, mode='headless')
     fname_out = remove_suffix(fname, '.tif') + '_stab.tif'
     imp = ij.IJ.openImage(fname)
+    if type(imp) is None:
+        raise TypeError(f'imp failed to initialize with path {fname}')
     Transformation = "Translation" if s1_params[0] == 0 else "Affine"
     MAX_Pyramid_level = s1_params[1]
     update_coefficient = s1_params[2]

@@ -42,10 +42,11 @@ def parse():
                         help='Path to input/inputs folder. If you have multiple inputs file, please place them inside '
                              'a single folder. If you only have one input, either provide direct path or the path to'
                              ' the folder containing the input(without any other files!)')
-    parser.add_argument('-skip_0', default=False, action="store_true", required=False, help='Skip segmentation and '
-                                                                                            'cropping if specified.')
-    parser.add_argument('-skip_1', default=False, action="store_true", required=False, help='Skip stabilizer if '
-                                                                                            'specified.')
+    parser.add_argument('-do_s0', default=True, action="store_false", required=False, help='Skip cropping if specified')
+    parser.add_argument('-do_s1', default=True, action="store_false", required=False,
+                        help='Skip Stabilizer if specified.')
+    parser.add_argument('-do_s2', default=True, action="store_false", required=False,
+                        help='Skip CaImAn if specified.')
     # Functional parameters
     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
                         help='Margin in terms of pixels for auto-cropping. Default to be 200.')
@@ -118,22 +119,27 @@ class Pipeline(object):
         self.work_dir = ''
         self.log = None
         # Segmentation and cropping related variables
+        self.do_s0 = False
         self.input_root = ''
         self.input_list = []
-        self.margin = 0
+        self.margin = 200
         self.imm1_list = []  # Intermediate result list 1, relative path
-        self.s0_done = False
+        self.done_s0 = False
         # ImageJ stabilizer related variables
+        self.do_s1 = False
         self.ij = None
         self.ijp = ''
         self.s1_params = []
         self.s1_root = ''
         self.imm2_list = []  # Intermediate result list 2, relative path
+        self.done_s1 = False
         # CaImAn related variables
+        self.do_s2 = False
         self.caiman_obj = None
         self.clog = False
         self.csave = False
         self.s2_root = ''
+        self.done_s2 = False
         # Peak Caller related
         self.pc_obj = []
 
@@ -195,10 +201,30 @@ class Pipeline(object):
             if not hasattr(self, key):
                 print(f'the requested key {key} does not exist.')
                 continue
-            if key == 'ijp':
-                ij = imagej.init(value, mode='headless')
-                setattr(self, 'ij', ij)
+            # if key == 'ijp':
+
+                # ij = imagej.init(value, mode='headless')
+                # setattr(self, 'ij', ij)
             setattr(self, key, value)
+
+    def ready(self):
+        if not self.input_list:
+            return False, 'Input not specified'
+        if self.work_dir == '':
+            return False, 'Output folder not set'
+        if self.do_s0:
+            for input_file in self.input_list:
+                if '.tif' not in input_file:
+                    return False, f'Wrong input format for crop: {input_file}'
+        if self.do_s1:
+            if self.ijp == '' or self.s1_params == []:
+                return False, 'ImageJ not ready'
+            for input_file in self.input_list:
+                if '.tif' not in input_file:
+                    return False, f'Wrong input format for Stabilizer: {input_file}'
+        if self.do_s2:
+            pass
+        return True, ''
 
     def s0(self):
         """
@@ -228,7 +254,7 @@ class Pipeline(object):
             # Save imm1 data to files
             tifffile.imwrite(fname_crop_o, image_crop_o)
             self.imm1_list.append(fname_crop_root)
-        self.s0_done = True
+        self.done_s0 = True
         return
 
     def s1(self):
@@ -432,22 +458,26 @@ class Pipeline(object):
 
     def run(self):
         # TODO: collect task report
-        self.pprint(rf"******Tasks TODO list******")
-        self.pprint(rf"")
+        # self.pprint(rf"******Tasks TODO list******")
+        # self.pprint(rf"")
         start_time = time()
         # First, decide which section to start execute
-        if not self.skip_0:
+        if self.do_s0:
             # Do cropping
             self.s0()
-        if not self.skip_1:
+            self.done_s0 = True
+        if self.do_s1:
             # Do stabilizer
             self.s1()
-        # CaImAn part
-        start_time_caiman = time()
-        self.s2()
-        end_time_caiman = time()
-        exec_t = end_time_caiman - start_time_caiman
-        self.pprint(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
+            self.done_s1 = True
+        if self.do_s2:
+            # CaImAn part
+            start_time_caiman = time()
+            self.s2()
+            end_time_caiman = time()
+            exec_t = end_time_caiman - start_time_caiman
+            self.pprint(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
+            self.done_s2 = True
         pass
         # Peak_caller part
         pass

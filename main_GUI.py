@@ -77,7 +77,7 @@ def main():
 
     # section 0 - Segmentation and Cropping
     s0 = st.empty()
-    if s0_visible and not pipeline.s0_done:
+    if s0_visible and not pipeline.done_s0:
         with s0.container():
             st.header('Auto crop')
             # TODO: a possible future improvement: for multiple input files, select which to QC

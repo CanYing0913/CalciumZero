@@ -13,10 +13,11 @@ def parse():
     # pass param to main pipeline function
     parser.add_argument('-no_log', default=False, action='store_true',
                         help='Specified if do not want to have terminal printouts saved to a separate file.')
-    parser.add_argument('-skip_0', default=False, action="store_true", required=False, help='Skip segmentation and '
-                                                                                            'cropping if specified.')
-    parser.add_argument('-skip_1', default=False, action="store_true", required=False, help='Skip stabilizer if '
-                                                                                            'specified.')
+    parser.add_argument('-do_s0', default=True, action="store_false", required=False, help='Skip cropping if specified')
+    parser.add_argument('-do_s1', default=True, action="store_false", required=False,
+                        help='Skip Stabilizer if specified.')
+    parser.add_argument('-do_s2', default=True, action="store_false", required=False,
+                        help='Skip CaImAn if specified.')
     # Functional parameters
     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
                         help='Margin in terms of pixels for auto-cropping. Default to be 200.')
