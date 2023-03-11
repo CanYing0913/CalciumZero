@@ -1,6 +1,6 @@
 """
 Source file for Section 1 - ImageJ Stabilizer
-Last edited on Dec.19 2022
+Last edited on March.11 2023
 Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 import imagej

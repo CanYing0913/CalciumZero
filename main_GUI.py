@@ -1,7 +1,6 @@
 from pathlib import Path
 import PySimpleGUI as sg
 from threading import Thread
-from PIL import Image, ImageSequence
 import src.src_pipeline as pipe
 
 section_start = 'Crop'

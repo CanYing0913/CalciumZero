@@ -270,7 +270,7 @@ class Pipeline(object):
         while idx < len(self.imm1_list):
             imm1_list = [self.imm1_list[idx+i] for i in range(self.process) if idx+i < len(self.imm1_list)]
             idx += self.process
-            with Pool(processes=self.process) as pool:
+            with Pool(processes=len(imm1_list)) as pool:
                 results = pool.starmap(run_plugin, [(self.ijp, join(self.s1_root, imm1), self.work_dir, self.s1_params) for imm1 in imm1_list])
         end_t = time()
         duration = end_t - start_t
