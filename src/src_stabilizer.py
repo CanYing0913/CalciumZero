@@ -9,15 +9,17 @@ import tifffile
 import os
 from time import time
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 
-def run_plugin(ijp, fname, s1_params):
+def run_plugin(ijp, fname, work_dir, s1_params):
     def remove_suffix(input_string, suffix):
         if suffix and input_string.endswith(suffix):
             return input_string[:-len(suffix)]
         return input_string
     ij = imagej.init(ijp, mode='headless')
-    fname_out = remove_suffix(fname, '.tif') + '_stab.tif'
+    fname_out = Path(fname).stem + '_stab.tif'
+    fname_out = Path(work_dir).joinpath(fname_out)
     imp = ij.IJ.openImage(fname)
     if type(imp) is None:
         raise TypeError(f'imp failed to initialize with path {fname}')
@@ -31,7 +33,7 @@ def run_plugin(ijp, fname, s1_params):
                    "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
                    " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
                    str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
-    ij.IJ.saveAs(imp, "Tiff", fname_out)
+    ij.IJ.saveAs(imp, "Tiff", str(fname_out))
     imp.close()
     # f(f"{fname_out} exec finished.")
     return fname_out

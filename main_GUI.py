@@ -34,14 +34,19 @@ def init_sg(settings):
             sg.FolderBrowse('Choose output')
         ],
         [
-            sg.Text('Which section you want to start with?', justification='center'),
-            sg.Listbox(
-                ['Crop', 'Stabilizer', 'CaImAn', 'Peak caller'],
-                default_values=['Crop'], enable_events=True, key='-META-SECTION-START-LIST-'
-            )
+            sg.Text('Which section you want to run?', justification='center'),
+            # sg.Listbox(
+            #     ['Crop', 'Stabilizer', 'CaImAn', 'Peak caller'],
+            #     default_values=['Crop'], enable_events=True, key='-META-SECTION-START-LIST-'
+            # )
+        ],
+        [
+            sg.Checkbox('Crop', enable_events=True, key='-META-START-crop-'),
+            sg.Checkbox('Stabilizer', enable_events=True, key='-META-START-stabilizer-'),
+            sg.Checkbox('CaImAn', enable_events=True, key='-META-START-caiman-'),
+            sg.Checkbox('Peak Caller', enable_events=True, key='-META-START-peakcaller-')
         ],
         [sg.Button('start', key='-META-start', enable_events=True)]
-        # [sg.Text(f"You choose to start with {section_start}", key='-META-start-msg-', justification='center')]
     ]
     opts_s0 = [
         [sg.Text('Crop Image')],
@@ -50,12 +55,12 @@ def init_sg(settings):
                    orientation='h')]
     ]
     opts_s1 = [
+        [sg.Text('ImageJ Stabilizer')],
         [
             sg.Text('ImageJ path:'),
             sg.Input(size=(10, 2), key='-OPTION-ijp-', enable_events=True),
             sg.FolderBrowse('Browse')
         ],
-        [sg.Text('ImageJ Stabilizer')],
         [
             sg.Text('Transformation'),
             sg.Listbox(('Translation', 'Affine'), default_values=['Translation'],
@@ -97,7 +102,7 @@ def init_sg(settings):
         [
             sg.Column(opts_s0, size=(275, 175), justification='center'),
             sg.VSeparator(),
-            sg.Column(opts_s1, size=(325, 225), justification='center'),
+            sg.Column(opts_s1, size=(325, 250), justification='center'),
         ],
         [
             sg.Column(QC_s0),
@@ -115,7 +120,6 @@ def init_sg(settings):
 def main():
     # Initialize pipeline and GUI
     pipe_obj = pipe.Pipeline()
-    pipe_obj.update(do_s0=True, do_s1=True)  # testing purpose
     settings = load_config()
     window = init_sg(settings)
 
@@ -125,6 +129,9 @@ def main():
                 float(settings['ImageJ']['upco']),
                 int(settings['ImageJ']['maxiter']),
                 float(settings['ImageJ']['errtol'])]
+
+    run_th = Thread(target=pipe_obj.run, args=())
+
     try:
         while True:
             event, values = window.read()
@@ -133,7 +140,6 @@ def main():
             if event == sg.WIN_CLOSED:
                 # TODO add a confirmation window
                 break
-            # handle options
             if '-META-' in event:
                 if event == '-META-FIN-' or event == '-META-FOUT-':
                     if event == '-META-FIN-':
@@ -149,19 +155,29 @@ def main():
                         pipe_obj.update(s1_root=values['-META-FOUT-'])  # for testing
                         # print(pipe_obj.work_dir)
                 # handle starting section
-                elif event == '-META-SECTION-START-LIST-':
-                    # window['-META-start-msg-'].update(value=f"You choose to start with {values[event][0]}")
-                    section_start = values[event][0]
-                    # TODO update to pipeline.
+                elif '-META-START-' in event:
+                    # print(event)
+                    if 'crop' in event:
+                        pipe_obj.update(do_s0=values[event])
+                    elif 'stabilizer' in event:
+                        pipe_obj.update(do_s1=values[event])
+                    elif 'caiman' in event:
+                        pipe_obj.update(do_s2=values[event])
+                    elif 'peakcaller' in event:
+                        pipe_obj.update(do_s3=values[event])
+                    else:
+                        sg.popup_error('NotImplementedError')
                 elif event == '-META-start':
                     status, msg = pipe_obj.ready()
                     if status:
-                        pipe_obj.run()
+                        run_th.start()
+                        run_th = Thread(target=pipe_obj.run, args=())
                     else:
                         sg.popup_error(msg)
                 else:
-                    raise NotImplementedError
-            # s0 related
+                    sg.popup_error('NotImplementedError')
+                    # raise NotImplementedError
+            # handle options
             if '-OPTION-' in event:
                 if '-margin-' in event:
                     pipe_obj.update(margin=values[event])
@@ -179,6 +195,7 @@ def main():
                     elif '-errtol-' in event:
                         idx = 4
                     else:
+                        sg.popup_error('NotImplementedError')
                         raise NotImplementedError
                     s1_param[idx] = values[event]
                     pipe_obj.update(s1_params=s1_param)

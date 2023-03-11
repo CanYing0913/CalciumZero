@@ -118,6 +118,7 @@ class Pipeline(object):
         self.skip_0 = self.skip_1 = False
         self.work_dir = ''
         self.log = None
+        self.process = 2
         # Segmentation and cropping related variables
         self.do_s0 = False
         self.input_root = ''
@@ -263,9 +264,14 @@ class Pipeline(object):
 
         # ImageJ Stabilizer
         ps1(f"Stabilizer Starting.")
+        results = []
         start_t = time()
-        with Pool(processes=2) as pool:
-            results = pool.starmap(run_plugin, [(self.ijp, join(self.s1_root, imm1), self.s1_params) for imm1 in self.imm1_list])
+        idx = 0
+        while idx < len(self.imm1_list):
+            imm1_list = [self.imm1_list[idx+i] for i in range(self.process) if idx+i < len(self.imm1_list)]
+            idx += self.process
+            with Pool(processes=self.process) as pool:
+                results = pool.starmap(run_plugin, [(self.ijp, join(self.s1_root, imm1), self.work_dir, self.s1_params) for imm1 in imm1_list])
         end_t = time()
         duration = end_t - start_t
         ps1(f"Stabilizer finished. total of {int(duration)} s.")
@@ -457,9 +463,12 @@ class Pipeline(object):
         self.pc_obj.append(pc_obj)
 
     def run(self):
-        # TODO: collect task report
-        # self.pprint(rf"******Tasks TODO list******")
-        # self.pprint(rf"")
+        # TODO: need to adjust imm1_list, imm2_list, according to which section is the first section
+        if not self.do_s0:
+            self.s1_root = self.input_root
+            self.imm1_list = self.input_list
+        if not self.do_s1:
+            self.imm2_list = self.input_list
         start_time = time()
         # First, decide which section to start execute
         if self.do_s0:
