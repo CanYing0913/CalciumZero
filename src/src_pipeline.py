@@ -130,7 +130,13 @@ class Pipeline(object):
         self.do_s1 = False
         self.ij = None
         self.ijp = ''
-        self.s1_params = []
+        self.s1_params = [
+            'Translation',
+            '1.0',
+            '0.90',
+            '200',
+            '1E-7'
+        ]
         self.s1_root = ''
         self.imm2_list = []  # Intermediate result list 2, relative path
         self.done_s1 = False
@@ -239,7 +245,7 @@ class Pipeline(object):
 
         # Segmentation and cropping
         # Scanning for bounding box for multiple input
-        with Pool(processes=4) as pool:
+        with Pool(processes=self.process) as pool:
             fnames = [join(self.input_root, fname) for fname in self.input_list]
             results = pool.map(scan, fnames)
         x1, y1, x2, y2 = reduce_bbs(results)

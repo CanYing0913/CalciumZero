@@ -1,6 +1,6 @@
 from pathlib import Path
 import PySimpleGUI as sg
-from threading import Thread
+from multiprocessing import Process
 import src.src_pipeline as pipe
 
 section_start = 'Crop'
@@ -10,7 +10,7 @@ start_0 = start_1 = start_2 = False
 def load_config():
     SETTINGS_PATH = Path.cwd()
     settings = sg.UserSettings(
-        path=SETTINGS_PATH, filename='config.ini', use_config_file=True, convert_bools_and_none=True
+        path=str(SETTINGS_PATH), filename='config.ini', use_config_file=True, convert_bools_and_none=True
     )
     return settings
 
@@ -45,7 +45,12 @@ def init_sg(settings):
             sg.Checkbox('CaImAn', enable_events=True, key='-META-START-caiman-'),
             sg.Checkbox('Peak Caller', enable_events=True, key='-META-START-peakcaller-')
         ],
-        [sg.Button('start', key='-META-start', enable_events=True)]
+        [
+            sg.Button('start', key='-META-start-', enable_events=True),
+            sg.Button('stop', key='-META-stop-', enable_events=True),
+            sg.Text('# of processes:'),
+            sg.Input('2', key='-META-process-', enable_events=True)
+        ]
     ]
     opts_s0 = [
         [sg.Text('Crop Image')],
@@ -123,13 +128,7 @@ def main():
     window = init_sg(settings)
 
     # Get variables from config for user-input purpose
-    s1_param = [settings['ImageJ']['transform'],
-                float(settings['ImageJ']['maxpl']),
-                float(settings['ImageJ']['upco']),
-                int(settings['ImageJ']['maxiter']),
-                float(settings['ImageJ']['errtol'])]
-
-    run_th = Thread(target=pipe_obj.run, args=())
+    run_th = Process(target=pipe_obj.run, args=())
 
     try:
         while True:
@@ -153,6 +152,8 @@ def main():
                         pipe_obj.update(work_dir=values['-META-FOUT-'])
                         pipe_obj.update(s1_root=values['-META-FOUT-'])  # for testing
                         # print(pipe_obj.work_dir)
+                elif '-process-' in event:
+                    pipe_obj.update(process=int(values[event]))
                 # handle starting section
                 elif '-META-START-' in event:
                     # print(event)
@@ -166,13 +167,19 @@ def main():
                         pipe_obj.update(do_s3=values[event])
                     else:
                         sg.popup_error('NotImplementedError')
-                elif event == '-META-start':
+                elif event == '-META-start-':
                     status, msg = pipe_obj.ready()
-                    if status:
+                    if status and not run_th.is_alive():
                         run_th.start()
-                        run_th = Thread(target=pipe_obj.run, args=())
+                        run_th = Process(target=pipe_obj.run, args=())
                     else:
-                        sg.popup_error(msg)
+                        sg.popup_error(msg + f". process live status: {str(run_th.is_alive())}")
+                elif event == '-META-stop-':
+                    if run_th.is_alive():
+                        run_th.kill()
+                    else:
+                        sg.popup_error(f'Execution not running - Cannot stop')
+
                 else:
                     sg.popup_error('NotImplementedError')
                     # raise NotImplementedError
@@ -196,8 +203,7 @@ def main():
                     else:
                         sg.popup_error('NotImplementedError')
                         raise NotImplementedError
-                    s1_param[idx] = values[event]
-                    pipe_obj.update(s1_params=s1_param)
+                    pipe_obj.s1_params[idx] = values[event]
     finally:
         window.close()
 

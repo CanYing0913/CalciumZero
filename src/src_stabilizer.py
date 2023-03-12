@@ -113,18 +113,3 @@ def print_param(ij_params, f):
     f(f"update_coefficient: {update_coefficient};")
     f(f"MAX_iteration: {MAX_iteration};")
     f(f"error_tolerance: {error_tolerance};")
-    del Transformation, MAX_Pyramid_level, update_coefficient, MAX_iteration, error_tolerance
-
-
-def run_stabilizer(ij, imp, ij_params, f):
-    Transformation = "Translation" if ij_params[0] == 0 else "Affine"
-    MAX_Pyramid_level = ij_params[1]
-    update_coefficient = ij_params[2]
-    MAX_iteration = ij_params[3]
-    error_tolerance = ij_params[4]
-    st = time()
-    ij.IJ.run(imp, "Image Stabilizer Headless",
-                   "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
-                   " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
-                   str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
-    f(f"Task finishes. Total of {(time() - st) // 60}m {int((time() - st) % 60)}s.")
