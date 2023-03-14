@@ -1,6 +1,8 @@
 from pathlib import Path
 import PySimpleGUI as sg
 from multiprocessing import Process
+from tifffile import imread
+from cv2 import imwrite, resize
 import src.src_pipeline as pipe
 
 section_start = 'Crop'
@@ -89,14 +91,16 @@ def init_sg(settings):
         ]
     ]
     QC_s0 = [
-        # [sg.Text('Crop Image via histogram segmentation')],
-        # [sg.Slider(range=(0, 1000), default_value=200, resolution=10, orientation='h', key='-S0-margin-')],
-        [sg.Text('QC for crop & segmentation')],
-        [sg.Listbox([], key='-S0-img-select-', enable_events=True)],
-        [sg.Text('Which slice you want to examine?')],
-        [sg.Slider((0, 200), key='-S0-img-slider-', orientation='h', enable_events=True)],
-        # [sg.Image(filename_QC0_1)] if filename_QC0_1 else [],
-        # [sg.Image(filename_QC0_2)] if filename_QC0_2 else []
+        sg.Column([
+            [sg.Text('QC for crop')],
+            [sg.Listbox([], key='-QC-S0-img-select-', enable_events=True)],
+            [sg.Text('Which slice you want to examine?')],
+            [sg.Slider((0, 200), key='-QC-S0-img-slider-', orientation='h', enable_events=True)]
+        ]),
+        sg.VSeparator(),
+        sg.Column([[sg.Image(key='-QC-S0-img-raw-')]]),
+        sg.VSeparator(),
+        sg.Column([[sg.Image(key='-QC-S0-img-s0-')]])
     ]
     QC_s1 = [
 
@@ -108,9 +112,8 @@ def init_sg(settings):
             sg.VSeparator(),
             sg.Column(opts_s1, size=(325, 250), justification='center'),
         ],
+        [QC_s0],
         [
-            sg.Column(QC_s0),
-            sg.VSeparator(),
             sg.Column(QC_s1)
         ]
     ]
@@ -121,15 +124,9 @@ def init_sg(settings):
     return window
 
 
-def main():
-    # Initialize pipeline and GUI
-    pipe_obj = pipe.Pipeline()
-    settings = load_config()
-    window = init_sg(settings)
-
+def handle_events(pipe_obj, window, settings):
     # Get variables from config for user-input purpose
     run_th = Process(target=pipe_obj.run, args=())
-
     try:
         while True:
             event, values = window.read()
@@ -145,7 +142,7 @@ def main():
                             FIN = values['-META-FIN-'].split(';')
                             input_root = FIN[0][:-len(Path(FIN[0]).name)]
                             FIN = [Path(f).name for f in FIN]
-                            window['-S0-img-select-'].update(values=FIN)
+                            window['-QC-S0-img-select-'].update(values=FIN)
                             pipe_obj.update(input_root=input_root, input_list=FIN)
                             # print(pipe_obj.input_root, pipe_obj.input_list)
                     else:  # -FOUT-
@@ -204,8 +201,57 @@ def main():
                         sg.popup_error('NotImplementedError')
                         raise NotImplementedError
                     pipe_obj.s1_params[idx] = values[event]
+            if '-QC-' in event:
+                if '-S0-img-select-' in event:
+                    filename = values[event][0]
+                    filename_raw = str(Path(pipe_obj.input_root).joinpath(filename))
+                    if pipe_obj.work_dir == '':
+                        sg.popup_error('Please select output folder first.')
+                        continue
+                    filename_s0 = str(Path(pipe_obj.work_dir).joinpath(Path(filename).stem + '_crop.tif'))
+                    QCimage_raw = imread(filename_raw)
+                    QCimage_s0 = imread(filename_s0)
+                    raw_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_input']))
+                    s0_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_output']))
+                    pipe_obj.update(QCimage_s0_raw=QCimage_raw, QCimage_s0=QCimage_s0)
+                    s, w, h = QCimage_raw.shape
+                    s_, w_, h_ = QCimage_s0.shape
+                    new_w = int(200 * h / w)
+                    new_w_ = int(200 * h_ / w_)
+                    QCimage_raw = resize(QCimage_raw[0], (new_w, 200))
+                    QCimage_s0 = resize(QCimage_s0[0], (new_w_, 200))
+                    imwrite(raw_path, QCimage_raw)
+                    imwrite(s0_path, QCimage_s0)
+                    window['-QC-S0-img-slider-'].update(range=(0, s-1))
+                    window['-QC-S0-img-raw-'].update(filename=raw_path)
+                    window['-QC-S0-img-s0-'].update(filename=s0_path)
+
+                elif '-S0-img-slider-' in event:
+                    slice = int(values[event])
+                    if pipe_obj.QCimage_s0_raw is not None:
+                        raw_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_input']))
+                        s0_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_output']))
+                        s, w, h = pipe_obj.QCimage_s0_raw.shape
+                        s_, w_, h_ = pipe_obj.QCimage_s0.shape
+                        new_w = int(200 * h / w)
+                        new_w_ = int(200 * h_ / w_)
+                        QCimage_raw = resize(pipe_obj.QCimage_s0_raw[slice], (new_w, 200))
+                        QCimage_s0 = resize(pipe_obj.QCimage_s0[slice], (new_w_, 200))
+                        imwrite(raw_path, QCimage_raw)
+                        imwrite(s0_path, QCimage_s0)
+                        window['-QC-S0-img-raw-'].update(filename=raw_path)
+                        window['-QC-S0-img-s0-'].update(filename=s0_path)
+
     finally:
         window.close()
+
+
+def main():
+    # Initialize pipeline and GUI
+    pipe_obj = pipe.Pipeline()
+    settings = load_config()
+    window = init_sg(settings)
+    handle_events(pipe_obj, window, settings)
 
 
 if __name__ == '__main__':

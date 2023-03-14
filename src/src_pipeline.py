@@ -5,9 +5,8 @@ Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 import argparse
 from multiprocessing import Pool
-
 import imagej
-
+from pathlib import Path
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
@@ -119,6 +118,7 @@ class Pipeline(object):
         self.work_dir = ''
         self.log = None
         self.process = 2
+        self.cache = Path(__file__).parent.parent.joinpath('cache')
         # Segmentation and cropping related variables
         self.do_s0 = False
         self.input_root = ''
@@ -126,6 +126,8 @@ class Pipeline(object):
         self.margin = 200
         self.imm1_list = []  # Intermediate result list 1, relative path
         self.done_s0 = False
+        self.QCimage_s0_raw = None
+        self.QCimage_s0 = None
         # ImageJ stabilizer related variables
         self.do_s1 = False
         self.ij = None
@@ -140,6 +142,8 @@ class Pipeline(object):
         self.s1_root = ''
         self.imm2_list = []  # Intermediate result list 2, relative path
         self.done_s1 = False
+        self.QCimage_s1_raw = None
+        self.QCimage_s1 = None
         # CaImAn related variables
         self.do_s2 = False
         self.caiman_obj = None
@@ -246,13 +250,13 @@ class Pipeline(object):
         # Segmentation and cropping
         # Scanning for bounding box for multiple input
         with Pool(processes=self.process) as pool:
-            fnames = [join(self.input_root, fname) for fname in self.input_list]
+            fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.input_list]
             results = pool.map(scan, fnames)
         x1, y1, x2, y2 = reduce_bbs(results)
 
         # Apply the uniform bb one-by-one to each input image
         for fname_i in self.input_list:
-            image_i = tifffile.imread(join(self.input_root, fname_i))
+            image_i = tifffile.imread(str(Path(self.input_root).joinpath(fname_i)))
             image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin)
             # Handle output path
             fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
@@ -277,7 +281,9 @@ class Pipeline(object):
             imm1_list = [self.imm1_list[idx+i] for i in range(self.process) if idx+i < len(self.imm1_list)]
             idx += self.process
             with Pool(processes=len(imm1_list)) as pool:
-                results = pool.starmap(run_plugin, [(self.ijp, join(self.s1_root, imm1), self.work_dir, self.s1_params) for imm1 in imm1_list])
+                results = pool.starmap(run_plugin,
+                                       [(self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir, self.s1_params)
+                                        for imm1 in imm1_list])
         end_t = time()
         duration = end_t - start_t
         ps1(f"Stabilizer finished. total of {int(duration)} s.")
