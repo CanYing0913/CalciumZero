@@ -18,29 +18,16 @@ def load_config():
 
 
 def init_sg(settings):
+    win_width, win_height = sg.Window.get_screen_size()
+    win_width = int(win_width * float(settings['GUI']['ratio']))
+    win_height = int(win_height * float(settings['GUI']['ratio']))
     theme = settings['GUI']['theme']
     font_family, font_size = settings['GUI']['font_family'], int(settings['GUI']['font_size'])
     sg.theme(theme)
 
     row_meta = [
         [sg.Text('Welcome to CaImAn pipeline GUI', font='italic 16 bold', justification='center')],
-        [
-            sg.Text('Input File(s):'),
-            sg.Input(size=(10, 2), key='-META-FIN-', enable_events=True),
-            sg.FilesBrowse('Choose input', file_types=[('TIFF', '*.tif'), ])
-        ],
-        [
-            sg.Text('Output Folder:'),
-            sg.Input(size=(10, 2), key='-META-FOUT-', enable_events=True),
-            sg.FolderBrowse('Choose output')
-        ],
-        [
-            sg.Text('Which section you want to run?', justification='center'),
-            # sg.Listbox(
-            #     ['Crop', 'Stabilizer', 'CaImAn', 'Peak caller'],
-            #     default_values=['Crop'], enable_events=True, key='-META-SECTION-START-LIST-'
-            # )
-        ],
+        [sg.Text('Which section you want to run?', justification='center')],
         [
             sg.Checkbox('Crop', enable_events=True, key='-META-START-crop-'),
             sg.Checkbox('Stabilizer', enable_events=True, key='-META-START-stabilizer-'),
@@ -48,6 +35,16 @@ def init_sg(settings):
             sg.Checkbox('Peak Caller', enable_events=True, key='-META-START-peakcaller-')
         ],
         [
+            sg.Text('Input File(s):'),
+            sg.Input(size=(10, 2), key='-META-FIN-', enable_events=True),
+            sg.FilesBrowse('Choose input', file_types=[('TIFF', '*.tif'), ], key='-META-FIN-SELECT-')
+        ],
+        [
+            sg.Text('Output Folder:'),
+            sg.Input(size=(10, 2), key='-META-FOUT-', enable_events=True),
+            sg.FolderBrowse('Choose output')
+        ],
+       [
             sg.Button('start', key='-META-start-', enable_events=True),
             sg.Button('stop', key='-META-stop-', enable_events=True),
             sg.Text('# of processes:'),
@@ -90,6 +87,13 @@ def init_sg(settings):
                      size=5, justification='center', disabled=True, enable_events=True)
         ]
     ]
+    row1 = [
+        sg.Column(row_meta, size=(400, 250), justification='center'),
+        sg.VSeparator(),
+        sg.Column(opts_s0,  size=(275, 175), justification='center'),
+        sg.VSeparator(),
+        sg.Column(opts_s1, size=(325, 250), justification='center')
+    ]
     QC_s0 = [
         sg.Column([
             [sg.Text('QC for crop')],
@@ -103,23 +107,34 @@ def init_sg(settings):
         sg.Column([[sg.Image(key='-QC-S0-img-s0-')]])
     ]
     QC_s1 = [
-
+        sg.Column([
+            [sg.Text('QC for stabilizer')],
+            [sg.Listbox([], key='-QC-S1-img-select-', enable_events=True)],
+            [sg.Text('Which slice you want to examine?')],
+            [sg.Slider((0, 200), key='-QC-S1-img-slider-', orientation='h', enable_events=True)]
+        ]),
+        sg.VSeparator(),
+        sg.Column([[sg.Image(key='-QC-S1-img-raw-')]]),
+        sg.VSeparator(),
+        sg.Column([[sg.Image(key='-QC-S1-img-s0-')]])
     ]
+    row_QC = sg.Column([
+        QC_s0,
+        QC_s1
+    ], scrollable=True, vertical_scroll_only=True)
     layout = [
-        [sg.Column(layout=row_meta, size=(400, 250), justification='center')],
-        [
-            sg.Column(opts_s0, size=(275, 175), justification='center'),
-            sg.VSeparator(),
-            sg.Column(opts_s1, size=(325, 250), justification='center'),
-        ],
-        [QC_s0],
-        [
-            sg.Column(QC_s1)
-        ]
+        # [sg.Column(layout=row_meta, size=(400, 250), justification='center')],
+        # [
+        #     sg.Column(opts_s0, size=(275, 175), justification='center'),
+        #     sg.VSeparator(),
+        #     sg.Column(opts_s1, size=(325, 250), justification='center'),
+        # ],
+        [row1],
+        [row_QC]
     ]
 
     sg.set_options(font=(font_family, font_size))
-    window = sg.Window(title='Pipeline', layout=layout, size=(1280, 720), font=(font_family, font_size),
+    window = sg.Window(title='Pipeline', layout=layout, size=(win_width, win_height), font=(font_family, font_size),
                        text_justification='center', element_justification='center')
     return window
 
@@ -133,8 +148,10 @@ def handle_events(pipe_obj, window, settings):
             # print(event)
             # handle exit
             if event == sg.WIN_CLOSED:
-                # TODO add a confirmation window
-                break
+                if sg.popup_yes_no('Do you want to exit?') == 'Yes':
+                    break
+                else:
+                    continue
             if '-META-' in event:
                 if event == '-META-FIN-' or event == '-META-FOUT-':
                     if event == '-META-FIN-':
@@ -153,7 +170,6 @@ def handle_events(pipe_obj, window, settings):
                     pipe_obj.update(process=int(values[event]))
                 # handle starting section
                 elif '-META-START-' in event:
-                    # print(event)
                     if 'crop' in event:
                         pipe_obj.update(do_s0=values[event])
                     elif 'stabilizer' in event:
@@ -164,6 +180,13 @@ def handle_events(pipe_obj, window, settings):
                         pipe_obj.update(do_s3=values[event])
                     else:
                         sg.popup_error('NotImplementedError')
+                    # at the end, sanitize input file types
+                    do_s0, do_s1, do_s2, do_s3 = pipe_obj.do_s0, pipe_obj.do_s1, pipe_obj.do_s2, pipe_obj.do_s3
+                    if do_s0 or do_s1 or do_s2:
+                        window('-META-FIN-SELECT-').update(file_types=[('TIFF', '*.tif'), ])
+                    elif do_s3:
+                        window('-META-FIN-SELECT-').update(file_types=[('TIFF', '*.cmnobj'), ('HDF5 file', '*.hdf5')])
+
                 elif event == '-META-start-':
                     status, msg = pipe_obj.ready()
                     if status and not run_th.is_alive():
