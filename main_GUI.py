@@ -44,7 +44,7 @@ def init_sg(settings):
             sg.Input(size=(10, 2), key='-META-FOUT-', enable_events=True),
             sg.FolderBrowse('Choose output')
         ],
-       [
+        [
             sg.Button('start', key='-META-start-', enable_events=True),
             sg.Button('stop', key='-META-stop-', enable_events=True),
             sg.Text('# of processes:'),
@@ -90,7 +90,7 @@ def init_sg(settings):
     row1 = [
         sg.Column(row_meta, size=(400, 250), justification='center'),
         sg.VSeparator(),
-        sg.Column(opts_s0,  size=(275, 175), justification='center'),
+        sg.Column(opts_s0, size=(275, 175), justification='center'),
         sg.VSeparator(),
         sg.Column(opts_s1, size=(325, 250), justification='center')
     ]
@@ -118,24 +118,24 @@ def init_sg(settings):
         sg.VSeparator(),
         sg.Column([[sg.Image(key='-QC-S1-img-s0-')]])
     ]
+    QC_tb = sg.TabGroup(
+        [[
+            sg.Tab('Crop', [QC_s0]),
+            sg.Tab('Stabilizer', [QC_s1]),
+        ]], key='-QC-window-'
+    )
     row_QC = sg.Column([
-        QC_s0,
-        QC_s1
-    ], scrollable=True, vertical_scroll_only=True)
+        [sg.Text('Quality Checks')],
+        [QC_tb],
+    ])
     layout = [
-        # [sg.Column(layout=row_meta, size=(400, 250), justification='center')],
-        # [
-        #     sg.Column(opts_s0, size=(275, 175), justification='center'),
-        #     sg.VSeparator(),
-        #     sg.Column(opts_s1, size=(325, 250), justification='center'),
-        # ],
         [row1],
         [row_QC]
     ]
 
     sg.set_options(font=(font_family, font_size))
     window = sg.Window(title='Pipeline', layout=layout, size=(win_width, win_height), font=(font_family, font_size),
-                       text_justification='center', element_justification='center')
+                       text_justification='center', element_justification='center', enable_close_attempted_event=True)
     return window
 
 
@@ -147,7 +147,7 @@ def handle_events(pipe_obj, window, settings):
             event, values = window.read()
             # print(event)
             # handle exit
-            if event == sg.WIN_CLOSED:
+            if event == '-WINDOW CLOSE ATTEMPTED-':
                 if sg.popup_yes_no('Do you want to exit?') == 'Yes':
                     break
                 else:
@@ -245,7 +245,7 @@ def handle_events(pipe_obj, window, settings):
                     QCimage_s0 = resize(QCimage_s0[0], (new_w_, 200))
                     imwrite(raw_path, QCimage_raw)
                     imwrite(s0_path, QCimage_s0)
-                    window['-QC-S0-img-slider-'].update(range=(0, s-1))
+                    window['-QC-S0-img-slider-'].update(range=(0, s - 1))
                     window['-QC-S0-img-raw-'].update(filename=raw_path)
                     window['-QC-S0-img-s0-'].update(filename=s0_path)
 
@@ -264,7 +264,10 @@ def handle_events(pipe_obj, window, settings):
                         imwrite(s0_path, QCimage_s0)
                         window['-QC-S0-img-raw-'].update(filename=raw_path)
                         window['-QC-S0-img-s0-'].update(filename=s0_path)
-
+                elif event == '-QC-select-':
+                    pass
+                else:
+                    sg.popup_error('NotImplementError')
     finally:
         window.close()
 
