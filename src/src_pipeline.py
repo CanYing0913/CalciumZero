@@ -212,10 +212,6 @@ class Pipeline(object):
             if not hasattr(self, key):
                 print(f'the requested key {key} does not exist.')
                 continue
-            # if key == 'ijp':
-
-                # ij = imagej.init(value, mode='headless')
-                # setattr(self, 'ij', ij)
             setattr(self, key, value)
 
     def ready(self):
@@ -507,37 +503,3 @@ class Pipeline(object):
         self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
         if self.log is not None:
             self.log.close()
-
-
-def main():
-    # testobj = Pipeline()
-    # testobj.parse()
-
-    # Note: current testing methodology is WRONG
-    # testobj.run()
-    # testobj.s0()
-    # testobj.s1()
-    # testobj.s1()
-    # testobj.s0()
-    filename = r'D:\CanYing\Code\Columbia\cmn_obj'
-    with open(filename, 'rb') as f:
-        cmn = pickle.load(f)
-    data = cmn.estimates.C[:92, :1500]
-    dir = r"E:/test_dir/out/result"
-    Caller_obj_1 = PeakCaller(data, dir)
-    Caller_obj_1.Detrender_2()
-    Caller_obj_1.Find_Peak()
-    # The above code generates a PeakCaller object with peaks detected
-    Caller_obj_1.Print_ALL_Peaks()
-    Caller_obj_1.Raster_Plot()
-    Caller_obj_1.Histogram_Height()
-    Caller_obj_1.Histogram_Time()
-    Caller_obj_1.Correlation()
-    # To save results, do something like this:
-    Caller_obj_1.Synchronization()
-    Caller_obj_1.Save_Result()
-
-
-if __name__ == '__main__':
-    main()
-    exit(0)
