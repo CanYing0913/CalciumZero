@@ -61,7 +61,8 @@ def init_sg(settings):
         [sg.Text('ImageJ Stabilizer')],
         [
             sg.Text('ImageJ path:'),
-            sg.Input(size=(10, 2), key='-OPTION-ijp-', enable_events=True),
+            sg.Input(size=(10, 2), default_text=f'{Path(__file__).parent.joinpath("Fiji.app")}',
+                     key='-OPTION-ijp-', enable_events=True),
             sg.FolderBrowse('Browse')
         ],
         [
