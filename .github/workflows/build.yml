@@ -3,8 +3,10 @@ name: Build Apps
 on:
   push:
     branches: [ master, GUI_dev ]
-  pull_request:
-    branches: [ master ]
+    paths-ignore:
+      - '.github/**'
+      - 'cache/**'
+      - 'Fiji.app/**'
 
 jobs:
   build:
