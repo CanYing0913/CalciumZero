@@ -27,6 +27,7 @@ jobs:
             caiman
             pyimagej
             openjdk=8
+            seaborn
             pysimplegui
       - name: Install cx_Freeze
         run: |
