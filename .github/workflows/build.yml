@@ -9,7 +9,7 @@ on:
       - 'Fiji.app/**'
 
 jobs:
-  build-linux:
+  build-env:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -31,11 +31,10 @@ jobs:
       - name: Install cx_Freeze
         run: |
           micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-      # Linux and macOS
-      - name: Run Python
-        shell: bash -l {0}
+      - name: test
         run: |
-          python setup.py
+          ls -al
+    
 
 #jobs:
 #  build:
