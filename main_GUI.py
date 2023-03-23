@@ -184,9 +184,9 @@ def handle_events(pipe_obj, window, settings):
                     # at the end, sanitize input file types
                     do_s0, do_s1, do_s2, do_s3 = pipe_obj.do_s0, pipe_obj.do_s1, pipe_obj.do_s2, pipe_obj.do_s3
                     if do_s0 or do_s1 or do_s2:
-                        window('-META-FIN-SELECT-').update(file_types=[('TIFF', '*.tif'), ])
+                        window['-META-FIN-SELECT-'].FileTypes = [('TIFF', '*.tif'), ]
                     elif do_s3:
-                        window('-META-FIN-SELECT-').update(file_types=[('TIFF', '*.cmnobj'), ('HDF5 file', '*.hdf5')])
+                        window['-META-FIN-SELECT-'].FileTypes = [('caiman obj', '*.cmnobj'), ('HDF5 file', '*.hdf5'), ]
 
                 elif event == '-META-start-':
                     status, msg = pipe_obj.ready()
