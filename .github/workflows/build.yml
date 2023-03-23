@@ -1,0 +1,33 @@
+name: Build Apps
+
+on:
+  push:
+    branches: [ master, GUI_dev ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: [ubuntu-latest, windows-latest]
+
+    strategy:
+      matrix:
+        python-version: [3.8]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: x64
+    - name: Install dependencies
+      run: |
+        conda install mamba -n base -c conda-forge
+        mamba env create -n pipeline -c conda-forge caiman pyimagej openjdk=8 numpy=1.21 pysimplegui
+        conda activate pipeline
+        conda install -y --no-channel-priority -S -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+    - name: Run setup.py
+      run: |
+        python setup.py
