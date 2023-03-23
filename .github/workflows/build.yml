@@ -30,7 +30,7 @@ jobs:
             pysimplegui
       - name: Install cx_Freeze
         run: |
-          micromamba install -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+          micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
       # Linux and macOS
       - name: Run Python
         shell: bash -l {0}
