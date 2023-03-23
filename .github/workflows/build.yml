@@ -4,14 +4,14 @@ on:
   push:
     branches: [ master, GUI_dev ]
     paths-ignore:
-      - '.github/**'
+#      - '.github/**'
       - 'cache/**'
       - 'Fiji.app/**'
 
 jobs:
   build:
 
-    runs-on: [ ubuntu-latest, windows-latest ]
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
