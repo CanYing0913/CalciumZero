@@ -152,6 +152,7 @@ class Pipeline(object):
         self.s2_root = ''
         self.done_s2 = False
         # Peak Caller related
+        self.do_s3 = False
         self.pc_obj = []
 
     def pprint(self, txt: str):
