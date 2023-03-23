@@ -33,6 +33,7 @@ jobs:
           micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
       - name: build
         run: |
+          micromamba activate pipeline
           python setup.py build
     
 
