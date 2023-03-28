@@ -23,9 +23,9 @@ jobs:
           channel-priority: disabled
           extra-specs: |
             cx_Freeze=6.15.0.dev2
-            python=3.9
+            python=3.8
             numpy=1.21
-            caiman=1.9.13
+            caiman=1.9.12
             pyimagej
             openjdk=8
             seaborn
