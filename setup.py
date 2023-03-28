@@ -5,7 +5,8 @@ from cx_Freeze import setup, Executable
 build_exe_options = {
     "excludes": ['PyQt5'],
     'packages': ['imagej', 'PySimpleGUI', 'caiman', 'ipyparallel', 'skimage', 'seaborn'],
-    'include_files': ['config.ini', 'Fiji.app', 'cache']
+    'include_files': ['config.ini', 'Fiji.app', 'cache'],
+    'silent_level': ['1']
 }
 
 # base="Win32GUI" should be used only for Windows GUI app
