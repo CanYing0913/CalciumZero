@@ -6,7 +6,7 @@ java/
 venv/
 # for testing
 test/
-build/
+build/exe.win-amd64-3.8/
 .eggs/
 *.csv
 cmn_obj
