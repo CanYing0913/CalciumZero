@@ -1,17 +1,23 @@
-# Pipeline Setup Instruction  
-- If you want to use Docker, see instructions [here](#running-on-docker).  
-# roadmap
-- update image generation to be consistent with [paper output](https://bmcneurosci.biomedcentral.com/articles/10.1186/s12868-017-0391-y/figures/7)  
 ## In this project, we provide several ways for you to run the pipeline:  
-1. You can directly run it on Google Colab [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing). See [Colab Instructions](#part-i-running-on-colab) to run it within Colab.  
-2. You can run it using our Docker image.
-3. You can manually install all the dependencies to manually run it and further develop on it. See [Instructions on local](#part-iii-running-locally) for a detailed explanation.  
+1. You can use our pre-built GUI application [here](#running-locally-throught-our-distribution).
+2. If you encounter problems for our GUI application, you can refer here for instructions to export our pipeline to application.
+3. You can directly run it on Google Colab [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing). See [Colab Instructions](#part-i-running-on-colab) to run it within Colab.  
+4. You can run it using our Docker image.
+5. You can manually install all the dependencies to manually run it and further develop on it. See [Instructions on local](#part-iii-running-locally) for a detailed explanation.  
+## Running locally throught our distribution
+If you just want to interact and use this work, the **best** way is to launch our provided application package across platorm.  
+
+| System  | platform |                                                download link                                                |
+|:-------:|:--------:|:-----------------------------------------------------------------------------------------------------------:|
+| Windows |  amd64   | [link](https://media.githubusercontent.com/media/CanYing0913/CaImAn/GUI_dev/resource/exe.win-amd64-3.8.zip) |
+|  Linux  |  amd64   |                                                                                                             |
+|  Apple  |          |                                                                                                             |
 ## Running on Colab
 You will need to follow the link [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing) to our Colab notebook. Note that our Colab notebook is lightweight, free to go. Prior to run the pipeline on Colab, you should have your input files located in your Google Drive. At the beginning of the notebook, we will ask you for permissions to mount your Google Drive on Google Colab runtime.  
 ## Running on Docker  
-Because I have not upload the image, you can build the image from scratch.  
-- You need to first make sure you have [Docker](https://www.docker.com/) installed on your computer.  
-- Pull the docker image using the command `docker image pull canying0913/caiman_pipeline:0.1`.  
+Docker Image is already on DockerHub. Current version: `0.1`.  
+- First make sure you have [Docker](https://www.docker.com/) installed on your computer.  
+- Pull the docker image using command `docker image pull canying0913/caiman_pipeline:0.1`.  
 - Download our provided [launch script](https://raw.githubusercontent.com/CanYing0913/CaImAn/master/run_pipeline.py). Use python to run this script, as it will launch a container with the image we just pulled. If you need help with using the launcher script, you can run `python3 run_pipeline.py -h` to have a detailed explanation on its parameters.
 
 ## Running locally  
