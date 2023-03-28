@@ -29,9 +29,11 @@ jobs:
             openjdk=8
             seaborn
             pysimplegui
-      - name: Install cx_Freeze
-        run: |
-          micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+          run: |
+            micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+#      - name: Install cx_Freeze
+#        run: |
+#          micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
       - name: Run Python
         shell: bash -l {0}
         run: |
