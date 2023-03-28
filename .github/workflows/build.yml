@@ -28,7 +28,7 @@ jobs:
         run: |
           mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
       - name: build
-      - shell: powershell
+        shell: powershell
         run: |
           python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
           ls -la dist/
