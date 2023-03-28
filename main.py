@@ -2,9 +2,6 @@ import sys
 from time import time
 
 import src.src_pipeline
-# from src import src_detection as s0
-# from src import src_stabilizer as s1
-# from src import src_caiman as s2
 import src.src_pipeline as pipe
 import os
 from pathlib import Path

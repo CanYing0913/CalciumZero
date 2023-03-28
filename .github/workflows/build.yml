@@ -35,5 +35,7 @@ jobs:
       - name: Run Python
         shell: bash -l {0}
         run: |
-          python setup.py build
-          ls -la
+          python setup.py bdist_msi bdist_mac
+          ls -la dist/
+          ls -la build/
+          git status
