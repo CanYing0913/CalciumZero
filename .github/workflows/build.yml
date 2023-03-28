@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-env:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -35,7 +35,7 @@ jobs:
       - name: Run Python
         shell: bash -l {0}
         run: |
-          python setup.py bdist_msi bdist_mac
+          python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
           ls -la dist/
           ls -la build/
           git status

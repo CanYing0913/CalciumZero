@@ -1,7 +1,6 @@
 import sys
 from time import time
 
-import src.src_pipeline
 import src.src_pipeline as pipe
 import os
 from pathlib import Path
