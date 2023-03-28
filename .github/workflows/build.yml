@@ -9,7 +9,7 @@ on:
       - 'Fiji.app/**'
 
 jobs:
-  ENV_setup:
+  Build-Windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
@@ -21,7 +21,7 @@ jobs:
           channel-priority: true
           mamba-version: "*"
           activate-environment: pipeline
-      - name: Install conda dependencies
+      - name: Install dependencies
         run: |
           mamba install -n pipeline -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn pysimplegui
       - name: Install cx_Freeze
@@ -31,8 +31,8 @@ jobs:
         shell: powershell
         run: |
           python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
-          ls -la dist/
-          ls -la build/
+          dir dist/
+          dir build/
           git status
 
 #  build-env:
