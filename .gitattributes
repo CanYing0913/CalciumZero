@@ -1,1 +1,1 @@
-build/*.zip filter=lfs diff=lfs merge=lfs -text
+build/exe.win-amd64-3.8.msi filter=lfs diff=lfs merge=lfs -text

@@ -9,7 +9,7 @@ If you just want to interact and use this work, the **best** way is to launch ou
 
 | System  | platform |                                     download link                                     |
 |:-------:|:--------:|:-------------------------------------------------------------------------------------:|
-| Windows |  amd64   | [link](https://github.com/CanYing0913/CaImAn/raw/GUI_dev/build/exe.win-amd64-3.8.zip) |
+| Windows |  amd64   | [link](https://github.com/CanYing0913/CaImAn/raw/GUI_dev/build/exe.win-amd64-3.8.msi) |
 |  Linux  |  amd64   |                                                                                       |
 |  Apple  |          |                                                                                       |
 ## Running on Colab
