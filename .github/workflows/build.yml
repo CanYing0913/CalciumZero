@@ -9,7 +9,7 @@ on:
       - 'Fiji.app/**'
 
 jobs:
-  ENV setup:
+  ENV_setup:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
