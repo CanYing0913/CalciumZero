@@ -31,6 +31,9 @@ jobs:
         shell: powershell
         run: |
           python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
+      - name: examine output
+        shell: powershell
+        run: |
           dir dist/
           dir build/
           git status
