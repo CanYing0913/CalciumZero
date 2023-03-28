@@ -16,19 +16,14 @@ jobs:
       - name: Setup conda
         uses: conda-incubator/setup-miniconda@v2
         with:
+          auto-update-conda: true
           channels: conda-forge, defaults
-#          channel-priority: strict
+          channel-priority: true
           mamba-version: "*"
           activate-environment: pipeline
       - name: Install conda dependencies
         run: |
-          mamba install -n pipeline -c conda-forge \
-            numpy=1.21 \
-            caiman \
-            pyimagej \
-            openjdk=8 \
-            seaborn \
-            pysimplegui
+          mamba install -n pipeline -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn pysimplegui
       - name: Install cx_Freeze
         run: |
           mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
