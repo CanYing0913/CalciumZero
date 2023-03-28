@@ -19,11 +19,10 @@ jobs:
         with:
           environment-file: false
           environment-name: pipeline
-          channels: |
-            
-            conda-forge
+          channels: https://marcelotduarte.github.io/packages/conda, conda-forge
           channel-priority: disabled
           extra-specs: |
+            cx_Freeze=6.15.0.dev2
             python=3.8
             numpy=1.21
             caiman
@@ -31,9 +30,9 @@ jobs:
             openjdk=8
             seaborn
             pysimplegui
-      - name: Install cx_Freeze
-        run: |
-          micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+#      - name: Install cx_Freeze
+#        run: |
+#          micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
 #      - name: Run Python
 #        shell: bash -l {0}
 #        run: |
