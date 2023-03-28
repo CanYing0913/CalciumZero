@@ -24,7 +24,7 @@ jobs:
             conda-forge
           channel-priority: disabled
           extra-specs: |
-            python=3.9
+            python=3.8
             numpy=1.21
             caiman
             pyimagej
