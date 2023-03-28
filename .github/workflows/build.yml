@@ -9,43 +9,58 @@ on:
       - 'Fiji.app/**'
 
 jobs:
-  build-env:
+  ENV setup:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
-
-      - name: Configure environment using micromamba
-        uses: mamba-org/provision-with-micromamba@main
+      - name: Setup conda
+        uses: conda-incubator/setup-miniconda@v2
         with:
-          environment-file: false
-          environment-name: pipeline
-          channels:  conda-forge, bioconda, https://marcelotduarte.github.io/packages/conda
-          channel-priority: disabled
-          extra-specs: |
-            cx_Freeze=6.15.0.dev2
-            python
-            numpy=1.21
-            caiman
-            pyimagej
-            openjdk=8
-            seaborn
+          channels: conda-forge, defaults
+#          channel-priority: strict
+          mamba-version: "*"
+          activate-environment: pipeline
+      - name: Install conda dependencies
+        run: |
+          mamba install -n pipeline -c conda-forge \
+            numpy=1.21 \
+            caiman \
+            pyimagej \
+            openjdk=8 \
+            seaborn \
             pysimplegui
+      - name: Install cx_Freeze
+        run: |
+          mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+#  build-env:
+#    runs-on: windows-latest
+#    steps:
+#      - uses: actions/checkout@v3
+#
+#      - name: Configure environment using micromamba
+#        uses: mamba-org/provision-with-micromamba@main
+#        with:
+#          environment-file: false
+#          environment-name: pipeline
+#          channels:  conda-forge, bioconda
+#          channel-priority: disabled
+#          extra-specs: |
+#            python
+#            numpy=1.21
+#            caiman
+#            pyimagej
+#            openjdk=8
+#            seaborn
+#            pysimplegui
 #      - name: Install cx_Freeze
 #        run: |
 #          micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+##     # Windows
+#      # With Powershell:
 #      - name: Run Python
-#        shell: bash -l {0}
+#        shell: powershell
 #        run: |
 #          python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
 #          ls -la dist/
 #          ls -la build/
 #          git status
-      # Windows
-      # With Powershell:
-      - name: Run Python
-        shell: powershell
-        run: |
-          python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
-          ls -la dist/
-          ls -la build/
-          git status
