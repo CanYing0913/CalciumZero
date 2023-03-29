@@ -57,6 +57,7 @@ jobs:
           git status
           git checkout distribution
           dir
+          echo separator
           mv -Path dist/exe.win-amd64-3.8.msi -Destination exe.win-amd64-3.8.msi
           Remove-Item -Path dist -Recurse
           Remove-Item -Path build -Recurse
