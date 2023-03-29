@@ -12,7 +12,10 @@ jobs:
   Build-Windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
       - name: Setup conda
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -37,36 +40,15 @@ jobs:
           dir dist/
           dir build/
           git status
-
-#  build-env:
-#    runs-on: windows-latest
-#    steps:
-#      - uses: actions/checkout@v3
-#
-#      - name: Configure environment using micromamba
-#        uses: mamba-org/provision-with-micromamba@main
-#        with:
-#          environment-file: false
-#          environment-name: pipeline
-#          channels:  conda-forge, bioconda
-#          channel-priority: disabled
-#          extra-specs: |
-#            python
-#            numpy=1.21
-#            caiman
-#            pyimagej
-#            openjdk=8
-#            seaborn
-#            pysimplegui
-#      - name: Install cx_Freeze
-#        run: |
-#          micromamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-##     # Windows
-#      # With Powershell:
-#      - name: Run Python
-#        shell: powershell
-#        run: |
-#          python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
-#          ls -la dist/
-#          ls -la build/
-#          git status
+      - name: Commit files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com""
+          git config --local user.name "github-actions[bot]"
+          git rm build/*.msi
+          git add build/*.msi
+          git commit -m "Pushing new Windows installer"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+#          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: GUI_dev
