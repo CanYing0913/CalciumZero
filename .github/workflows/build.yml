@@ -38,6 +38,10 @@ jobs:
 #          python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
       - name: fake test
         run: |
+          ls -l
+          echo separate
+          mkdir dist
+          mkdir build
           touch dist/exe.win-amd64-3.8.msi
           touch build/exe.win-amd64-3.8
       - name: examine output
