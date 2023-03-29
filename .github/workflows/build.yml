@@ -44,6 +44,9 @@ jobs:
         run: |
           git config --local user.email "deploy-bot@users.noreply.github.com"
           git config --local user.name "deploy-bot"
+          git lfs install
+          git lfs track "dist/exe.win-amd64-3.8.msi"
+          git add .gitattributes
           git add dist/exe.win-amd64-3.8.msi
           git commit -m "Pushing new Windows installer"
       - name: Push changes
