@@ -1,17 +1,17 @@
 ## In this project, we provide several ways for you to run the pipeline:  
-1. You can use our pre-built GUI application [here](#running-locally-throught-our-distribution).
-2. If you encounter problems for our GUI application, you can refer here for instructions to export our pipeline to application.
-3. You can directly run it on Google Colab [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing). See [Colab Instructions](#part-i-running-on-colab) to run it within Colab.  
-4. You can run it using our Docker image.
-5. You can manually install all the dependencies to manually run it and further develop on it. See [Instructions on local](#part-iii-running-locally) for a detailed explanation.  
+- You can use our pre-built GUI application. Download based on your platform [here](#running-locally-throught-our-distribution).
+  - If you encounter problems for our GUI application, you can refer here for instructions to export our pipeline to application from source.
+- You can directly run it on Google Colab. See [Colab Instructions](#part-i-running-on-colab) to run it within Colab.  
+- You can run it using our Docker image.
+- **[Discouraged]** You can manually install all the dependencies to manually run it and further develop on it. See [Instructions on local](#part-iii-running-locally) for a detailed explanation.  
 ## Running locally throught our distribution
 If you just want to interact and use this work, the **best** way is to launch our provided application package across platorm.  
 
-| System  | platform |                                    download link                                     |
-|:-------:|:--------:|:------------------------------------------------------------------------------------:|
-| Windows |  amd64   | [link](https://github.com/CanYing0913/CaImAn/raw/GUI_dev/dist/exe.win-amd64-3.8.msi) |
-|  Linux  |  amd64   |                                                                                      |
-|  Apple  |          |      [link](https://github.com/CanYing0913/CaImAn/raw/GUI_dev/dist/install.dmg)      |
+| System  | platform |                                    download link                                    |
+|:-------:|:--------:|:-----------------------------------------------------------------------------------:|
+| Windows |  amd64   | [link](https://github.com/CanYing0913/CaImAn/raw/master/dist/exe.win-amd64-3.8.msi) |
+|  Linux  |  amd64   |                                                                                     |
+|  Apple  |  arm64   |      [link](https://github.com/CanYing0913/CaImAn/raw/mastr/dist/install.dmg)       |
 ## Running on Colab
 You will need to follow the link [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing) to our Colab notebook. Note that our Colab notebook is lightweight, free to go. Prior to run the pipeline on Colab, you should have your input files located in your Google Drive. At the beginning of the notebook, we will ask you for permissions to mount your Google Drive on Google Colab runtime.  
 ## Running on Docker  
