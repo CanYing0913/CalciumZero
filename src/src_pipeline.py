@@ -5,9 +5,8 @@ Copyright Yian Wang (canying0913@gmail.com) - 2022
 """
 import argparse
 from multiprocessing import Pool
-
 import imagej
-
+from pathlib import Path
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
@@ -118,6 +117,8 @@ class Pipeline(object):
         self.skip_0 = self.skip_1 = False
         self.work_dir = ''
         self.log = None
+        self.process = 2
+        self.cache = Path(__file__).parent.parent.joinpath('cache')
         # Segmentation and cropping related variables
         self.do_s0 = False
         self.input_root = ''
@@ -125,14 +126,24 @@ class Pipeline(object):
         self.margin = 200
         self.imm1_list = []  # Intermediate result list 1, relative path
         self.done_s0 = False
+        self.QCimage_s0_raw = None
+        self.QCimage_s0 = None
         # ImageJ stabilizer related variables
         self.do_s1 = False
         self.ij = None
         self.ijp = ''
-        self.s1_params = []
+        self.s1_params = [
+            'Translation',
+            '1.0',
+            '0.90',
+            '200',
+            '1E-7'
+        ]
         self.s1_root = ''
         self.imm2_list = []  # Intermediate result list 2, relative path
         self.done_s1 = False
+        self.QCimage_s1_raw = None
+        self.QCimage_s1 = None
         # CaImAn related variables
         self.do_s2 = False
         self.caiman_obj = None
@@ -141,6 +152,7 @@ class Pipeline(object):
         self.s2_root = ''
         self.done_s2 = False
         # Peak Caller related
+        self.do_s3 = False
         self.pc_obj = []
 
     def pprint(self, txt: str):
@@ -201,10 +213,6 @@ class Pipeline(object):
             if not hasattr(self, key):
                 print(f'the requested key {key} does not exist.')
                 continue
-            # if key == 'ijp':
-
-                # ij = imagej.init(value, mode='headless')
-                # setattr(self, 'ij', ij)
             setattr(self, key, value)
 
     def ready(self):
@@ -238,14 +246,14 @@ class Pipeline(object):
 
         # Segmentation and cropping
         # Scanning for bounding box for multiple input
-        with Pool(processes=4) as pool:
-            fnames = [join(self.input_root, fname) for fname in self.input_list]
+        with Pool(processes=self.process) as pool:
+            fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.input_list]
             results = pool.map(scan, fnames)
         x1, y1, x2, y2 = reduce_bbs(results)
 
         # Apply the uniform bb one-by-one to each input image
         for fname_i in self.input_list:
-            image_i = tifffile.imread(join(self.input_root, fname_i))
+            image_i = tifffile.imread(str(Path(self.input_root).joinpath(fname_i)))
             image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin)
             # Handle output path
             fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
@@ -263,9 +271,16 @@ class Pipeline(object):
 
         # ImageJ Stabilizer
         ps1(f"Stabilizer Starting.")
+        results = []
         start_t = time()
-        with Pool(processes=2) as pool:
-            results = pool.starmap(run_plugin, [(self.ijp, join(self.s1_root, imm1), self.s1_params) for imm1 in self.imm1_list])
+        idx = 0
+        while idx < len(self.imm1_list):
+            imm1_list = [self.imm1_list[idx+i] for i in range(self.process) if idx+i < len(self.imm1_list)]
+            idx += self.process
+            with Pool(processes=len(imm1_list)) as pool:
+                results = pool.starmap(run_plugin,
+                                       [(self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir, self.s1_params)
+                                        for imm1 in imm1_list])
         end_t = time()
         duration = end_t - start_t
         ps1(f"Stabilizer finished. total of {int(duration)} s.")
@@ -457,9 +472,12 @@ class Pipeline(object):
         self.pc_obj.append(pc_obj)
 
     def run(self):
-        # TODO: collect task report
-        # self.pprint(rf"******Tasks TODO list******")
-        # self.pprint(rf"")
+        # TODO: need to adjust imm1_list, imm2_list, according to which section is the first section
+        if not self.do_s0:
+            self.s1_root = self.input_root
+            self.imm1_list = self.input_list
+        if not self.do_s1:
+            self.imm2_list = self.input_list
         start_time = time()
         # First, decide which section to start execute
         if self.do_s0:
@@ -486,37 +504,3 @@ class Pipeline(object):
         self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
         if self.log is not None:
             self.log.close()
-
-
-def main():
-    # testobj = Pipeline()
-    # testobj.parse()
-
-    # Note: current testing methodology is WRONG
-    # testobj.run()
-    # testobj.s0()
-    # testobj.s1()
-    # testobj.s1()
-    # testobj.s0()
-    filename = r'D:\CanYing\Code\Columbia\cmn_obj'
-    with open(filename, 'rb') as f:
-        cmn = pickle.load(f)
-    data = cmn.estimates.C[:92, :1500]
-    dir = r"E:/test_dir/out/result"
-    Caller_obj_1 = PeakCaller(data, dir)
-    Caller_obj_1.Detrender_2()
-    Caller_obj_1.Find_Peak()
-    # The above code generates a PeakCaller object with peaks detected
-    Caller_obj_1.Print_ALL_Peaks()
-    Caller_obj_1.Raster_Plot()
-    Caller_obj_1.Histogram_Height()
-    Caller_obj_1.Histogram_Time()
-    Caller_obj_1.Correlation()
-    # To save results, do something like this:
-    Caller_obj_1.Synchronization()
-    Caller_obj_1.Save_Result()
-
-
-if __name__ == '__main__':
-    main()
-    exit(0)

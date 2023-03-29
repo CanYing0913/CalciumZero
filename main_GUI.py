@@ -1,151 +1,284 @@
-import streamlit as st
-import numpy as np
-import pandas as pd
-import time
-import os
+from pathlib import Path
+import PySimpleGUI as sg
+from multiprocessing import Process
+from tifffile import imread
+from cv2 import imwrite, resize
 import src.src_pipeline as pipe
-import tifffile
+
+section_start = 'Crop'
+start_0 = start_1 = start_2 = False
+
+
+def load_config():
+    SETTINGS_PATH = Path.cwd()
+    settings = sg.UserSettings(
+        path=str(SETTINGS_PATH), filename='config.ini', use_config_file=True, convert_bools_and_none=True
+    )
+    return settings
+
+
+def init_sg(settings):
+    win_width, win_height = sg.Window.get_screen_size()
+    win_width = int(win_width * float(settings['GUI']['ratio']))
+    win_height = int(win_height * float(settings['GUI']['ratio']))
+    theme = settings['GUI']['theme']
+    font_family, font_size = settings['GUI']['font_family'], int(settings['GUI']['font_size'])
+    sg.theme(theme)
+
+    row_meta = [
+        [sg.Text('Welcome to CaImAn pipeline GUI', font='italic 16 bold', justification='center')],
+        [sg.Text('Which section you want to run?', justification='center')],
+        [
+            sg.Checkbox('Crop', enable_events=True, key='-META-START-crop-'),
+            sg.Checkbox('Stabilizer', enable_events=True, key='-META-START-stabilizer-'),
+            sg.Checkbox('CaImAn', enable_events=True, key='-META-START-caiman-'),
+            sg.Checkbox('Peak Caller', enable_events=True, key='-META-START-peakcaller-')
+        ],
+        [
+            sg.Text('Input File(s):'),
+            sg.Input(size=(10, 2), key='-META-FIN-', enable_events=True),
+            sg.FilesBrowse('Choose input', file_types=[('TIFF', '*.tif'), ], key='-META-FIN-SELECT-')
+        ],
+        [
+            sg.Text('Output Folder:'),
+            sg.Input(size=(10, 2), key='-META-FOUT-', enable_events=True),
+            sg.FolderBrowse('Choose output')
+        ],
+        [
+            sg.Button('start', key='-META-start-', enable_events=True),
+            sg.Button('stop', key='-META-stop-', enable_events=True),
+            sg.Text('# of processes:'),
+            sg.Input('2', key='-META-process-', enable_events=True)
+        ]
+    ]
+    opts_s0 = [
+        [sg.Text('Crop Image')],
+        [sg.Text('Choose margin in px:')],
+        [sg.Slider(range=(0, 1000), default_value=200, resolution=10, key='-OPTION-margin-', enable_events=True,
+                   orientation='h')]
+    ]
+    opts_s1 = [
+        [sg.Text('ImageJ Stabilizer')],
+        [
+            sg.Text('ImageJ path:'),
+            sg.Input(size=(10, 2), default_text=f'{Path(__file__).parent.joinpath("Fiji.app")}',
+                     key='-OPTION-ijp-', enable_events=True),
+            sg.FolderBrowse('Browse')
+        ],
+        [
+            sg.Text('Transformation'),
+            sg.Listbox(('Translation', 'Affine'), default_values=['Translation'],
+                       key='-OPTION-ij-transform-', enable_events=True)
+        ],
+        [
+            sg.Text('MAX_Pyramid_level [0.0-1.0]'),
+            sg.Input(default_text='1.0', key='-OPTION-ij-maxpl-', size=5, justification='center', enable_events=True)
+        ],
+        [
+            sg.Text('update_coefficient [0.0-1.0]'),
+            sg.Input(default_text='0.90', key='-OPTION-ij-upco-', size=5, justification='center', enable_events=True)
+        ],
+        [
+            sg.Text('MAX_iteration [1-500]'),
+            sg.Input(default_text='200', key='-OPTION-ij-maxiter-', size=5, justification='center', enable_events=True)
+        ],
+        [
+            sg.Text('error_rolerance [1E-7]'),
+            sg.Input(default_text='1E-7', key='-OPTION-ij-errtol-',
+                     size=5, justification='center', disabled=True, enable_events=True)
+        ]
+    ]
+    row1 = [
+        sg.Column(row_meta, size=(400, 250), justification='center'),
+        sg.VSeparator(),
+        sg.Column(opts_s0, size=(275, 175), justification='center'),
+        sg.VSeparator(),
+        sg.Column(opts_s1, size=(325, 250), justification='center')
+    ]
+    QC_s0 = [
+        sg.Column([
+            [sg.Text('QC for crop')],
+            [sg.Listbox([], key='-QC-S0-img-select-', enable_events=True)],
+            [sg.Text('Which slice you want to examine?')],
+            [sg.Slider((0, 200), key='-QC-S0-img-slider-', orientation='h', enable_events=True)]
+        ]),
+        sg.VSeparator(),
+        sg.Column([[sg.Image(key='-QC-S0-img-raw-')]]),
+        sg.VSeparator(),
+        sg.Column([[sg.Image(key='-QC-S0-img-s0-')]])
+    ]
+    QC_s1 = [
+        sg.Column([
+            [sg.Text('QC for stabilizer')],
+            [sg.Listbox([], key='-QC-S1-img-select-', enable_events=True)],
+            [sg.Text('Which slice you want to examine?')],
+            [sg.Slider((0, 200), key='-QC-S1-img-slider-', orientation='h', enable_events=True)]
+        ]),
+        sg.VSeparator(),
+        sg.Column([[sg.Image(key='-QC-S1-img-raw-')]]),
+        sg.VSeparator(),
+        sg.Column([[sg.Image(key='-QC-S1-img-s0-')]])
+    ]
+    QC_tb = sg.TabGroup(
+        [[
+            sg.Tab('Crop', [QC_s0]),
+            sg.Tab('Stabilizer', [QC_s1]),
+        ]], key='-QC-window-'
+    )
+    row_QC = sg.Column([
+        [sg.Text('Quality Checks')],
+        [QC_tb],
+    ])
+    layout = [
+        [row1],
+        [row_QC]
+    ]
+
+    sg.set_options(font=(font_family, font_size))
+    window = sg.Window(title='Pipeline', layout=layout, size=(win_width, win_height), font=(font_family, font_size),
+                       text_justification='center', element_justification='center', enable_close_attempted_event=True)
+    return window
+
+
+def handle_events(pipe_obj, window, settings):
+    # Get variables from config for user-input purpose
+    run_th = Process(target=pipe_obj.run, args=())
+    try:
+        while True:
+            event, values = window.read()
+            # print(event)
+            # handle exit
+            if event == '-WINDOW CLOSE ATTEMPTED-':
+                if sg.popup_yes_no('Do you want to exit?') == 'Yes':
+                    break
+                else:
+                    continue
+            if '-META-' in event:
+                if event == '-META-FIN-' or event == '-META-FOUT-':
+                    if event == '-META-FIN-':
+                        if values['-META-FIN-']:
+                            FIN = values['-META-FIN-'].split(';')
+                            input_root = FIN[0][:-len(Path(FIN[0]).name)]
+                            FIN = [Path(f).name for f in FIN]
+                            window['-QC-S0-img-select-'].update(values=FIN)
+                            pipe_obj.update(input_root=input_root, input_list=FIN)
+                            # print(pipe_obj.input_root, pipe_obj.input_list)
+                    else:  # -FOUT-
+                        pipe_obj.update(work_dir=values['-META-FOUT-'])
+                        pipe_obj.update(s1_root=values['-META-FOUT-'])  # for testing
+                        # print(pipe_obj.work_dir)
+                elif '-process-' in event:
+                    pipe_obj.update(process=int(values[event]))
+                # handle starting section
+                elif '-META-START-' in event:
+                    if 'crop' in event:
+                        pipe_obj.update(do_s0=values[event])
+                    elif 'stabilizer' in event:
+                        pipe_obj.update(do_s1=values[event])
+                    elif 'caiman' in event:
+                        pipe_obj.update(do_s2=values[event])
+                    elif 'peakcaller' in event:
+                        pipe_obj.update(do_s3=values[event])
+                    else:
+                        sg.popup_error('NotImplementedError')
+                    # at the end, sanitize input file types
+                    do_s0, do_s1, do_s2, do_s3 = pipe_obj.do_s0, pipe_obj.do_s1, pipe_obj.do_s2, pipe_obj.do_s3
+                    if do_s0 or do_s1 or do_s2:
+                        window['-META-FIN-SELECT-'].FileTypes = [('TIFF', '*.tif'), ]
+                    elif do_s3:
+                        window['-META-FIN-SELECT-'].FileTypes = [('caiman obj', '*.cmnobj'), ('HDF5 file', '*.hdf5'), ]
+
+                elif event == '-META-start-':
+                    status, msg = pipe_obj.ready()
+                    if status and not run_th.is_alive():
+                        run_th.start()
+                        run_th = Process(target=pipe_obj.run, args=())
+                    else:
+                        sg.popup_error(msg + f". process live status: {str(run_th.is_alive())}")
+                elif event == '-META-stop-':
+                    if run_th.is_alive():
+                        run_th.kill()
+                    else:
+                        sg.popup_error(f'Execution not running - Cannot stop')
+
+                else:
+                    sg.popup_error('NotImplementedError')
+                    # raise NotImplementedError
+            # handle options
+            if '-OPTION-' in event:
+                if '-margin-' in event:
+                    pipe_obj.update(margin=values[event])
+                if '-ijp-' in event:
+                    pipe_obj.update(ijp=values[event])
+                if '-ij-' in event:
+                    if '-transform-' in event:
+                        idx = 0
+                    elif '-maxpl-' in event:
+                        idx = 1
+                    elif '-upco-' in event:
+                        idx = 2
+                    elif '-maxiter-' in event:
+                        idx = 3
+                    elif '-errtol-' in event:
+                        idx = 4
+                    else:
+                        sg.popup_error('NotImplementedError')
+                        raise NotImplementedError
+                    pipe_obj.s1_params[idx] = values[event]
+            if '-QC-' in event:
+                if '-S0-img-select-' in event:
+                    filename = values[event][0]
+                    filename_raw = str(Path(pipe_obj.input_root).joinpath(filename))
+                    if pipe_obj.work_dir == '':
+                        sg.popup_error('Please select output folder first.')
+                        continue
+                    filename_s0 = str(Path(pipe_obj.work_dir).joinpath(Path(filename).stem + '_crop.tif'))
+                    QCimage_raw = imread(filename_raw)
+                    QCimage_s0 = imread(filename_s0)
+                    raw_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_input']))
+                    s0_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_output']))
+                    pipe_obj.update(QCimage_s0_raw=QCimage_raw, QCimage_s0=QCimage_s0)
+                    s, w, h = QCimage_raw.shape
+                    s_, w_, h_ = QCimage_s0.shape
+                    new_w = int(200 * h / w)
+                    new_w_ = int(200 * h_ / w_)
+                    QCimage_raw = resize(QCimage_raw[0], (new_w, 200))
+                    QCimage_s0 = resize(QCimage_s0[0], (new_w_, 200))
+                    imwrite(raw_path, QCimage_raw)
+                    imwrite(s0_path, QCimage_s0)
+                    window['-QC-S0-img-slider-'].update(range=(0, s - 1))
+                    window['-QC-S0-img-raw-'].update(filename=raw_path)
+                    window['-QC-S0-img-s0-'].update(filename=s0_path)
+
+                elif '-S0-img-slider-' in event:
+                    slice = int(values[event])
+                    if pipe_obj.QCimage_s0_raw is not None:
+                        raw_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_input']))
+                        s0_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_output']))
+                        s, w, h = pipe_obj.QCimage_s0_raw.shape
+                        s_, w_, h_ = pipe_obj.QCimage_s0.shape
+                        new_w = int(200 * h / w)
+                        new_w_ = int(200 * h_ / w_)
+                        QCimage_raw = resize(pipe_obj.QCimage_s0_raw[slice], (new_w, 200))
+                        QCimage_s0 = resize(pipe_obj.QCimage_s0[slice], (new_w_, 200))
+                        imwrite(raw_path, QCimage_raw)
+                        imwrite(s0_path, QCimage_s0)
+                        window['-QC-S0-img-raw-'].update(filename=raw_path)
+                        window['-QC-S0-img-s0-'].update(filename=s0_path)
+                elif event == '-QC-select-':
+                    pass
+                else:
+                    sg.popup_error('NotImplementError')
+    finally:
+        window.close()
 
 
 def main():
-    pipeline = pipe.Pipeline()
-    s0_visible = s1_visible = s2_visible = s3_visible = True
-    st.title("Pipeline GUI Interface")
-
-    with st.container():
-        st.subheader('Parameter Box')
-        # Enable selection of starting section
-        section_list = ['Crop', 'Stabilizer', 'CaImAn', 'peak caller']
-        select_label = 'Which part you want to start with? Once it is started it will not pause between sections.'
-        section_start = st.selectbox(select_label, section_list)
-        if section_start == 'peak caller':
-            s0_visible = s1_visible = s2_visible = False
-        elif section_start == 'CaImAn':
-            s0_visible = s1_visible = False
-        elif section_start == 'Stabilizer':
-            s0_visible = False
-
-        # TODO: add an input file selector
-        pass
-        raw_input = st.text_input('Please provide path to your input. If you have multiple images to process at the '
-                                  'same time, please provide path to their folder (they should reside in the same '
-                                  'folder. All .tif files will be selected.)',
-                                  os.path.abspath(__file__)[:-len(os.path.basename(__file__))])
-        if not os.path.exists(raw_input):
-            st.error('path not exist.')
-        if os.path.isdir(raw_input):
-            # TODO: add input support for other format, such as .obj pickle file
-            input_list = [f for f in os.listdir(raw_input) if f[-4:] == '.tif']
-            pipeline.update(input_root=raw_input, input_list=input_list)
-        else:
-            pipeline.update(input_list=[raw_input])
-        # TODO: add output selector (a folder to place everything, aka work_dir)
-        wd_dir = st.text_input('Please provide path to your output folder.')
-        pipeline.update(work_dir=wd_dir)
-
-        # Crop Parameter Container
-        crop_container = st.empty()
-        if s0_visible:
-            with crop_container.container():
-                margin = st.slider('Margin in px to crop the image:', 0, 500, 200, 25)
-                pipeline.update(margin=margin)
-
-        # ImageJ Parameter Container
-        ij_container = st.empty()
-        if s1_visible:
-            with ij_container.container():
-                # TODO: add stabilizer parameter inputs
-                ijp = os.path.join(os.path.abspath(__file__)[:-len(os.path.basename(__file__))], 'Fiji.app')
-                pipeline.update(ijp=ijp)
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    s1_transform = st.selectbox('Stabilizer Transformation', ['Translation', 'Affine'])
-                with col2:
-                    s1_maxpl = st.number_input('ImageJ stabilizer parameter - MAX_Pyramid_level. Default to be 1.0.',
-                                               0.01, 1.0, 1.0, 0.05)
-                with col3:
-                    s1_upco = st.number_input('ImageJ stabilizer parameter - update_coefficient. Default to 0.90.',
-                                              0.01, 1.0, 0.9, 0.05)
-                col1, col2 = st.columns(2)
-                with col1:
-                    s1_maxiter = st.number_input('ImageJ stabilizer parameter - MAX_iteration. Default to 200.', 1, 500,
-                                                 200, 10)
-                with col2:
-                    s1_errtol = st.number_input('ImageJ stabilizer parameter - error_rolerance. Default to 1E-7.', 1E-9,
-                                                1E-5, value=1E-7, format='%f')
-                pipeline.update(s1_params=[s1_transform, s1_maxpl, s1_upco, s1_maxiter, s1_errtol])
-
-    # section 0 - Segmentation and Cropping
-    s0 = st.empty()
-    if s0_visible and not pipeline.done_s0:
-        with s0.container():
-            st.header('Auto crop')
-            # TODO: a possible future improvement: for multiple input files, select which to QC
-            s0_idx = st.selectbox('Which image you want to examine?', pipeline.input_list, key='s0_idx')
-            # TODO: add QC windows
-            try:
-                QC_in_0 = os.path.join(pipeline.input_root, s0_idx)
-                QC_crop = os.path.join(wd_dir, s0_idx.removesuffix('.tif')+'_crop.tif')
-            except TypeError:
-                st.error(f'Please specify input and output folders first.')
-                QC_in_0 = 'NULL'
-                QC_crop = 'NULL'
-            try:
-                f_in_0 = tifffile.imread(QC_in_0)
-                f_crop = tifffile.imread(QC_crop)
-                crop_idx = st.slider('Which slice you want to examine?', 0, f_in_0.shape[0])
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.image(f_in_0[crop_idx])
-                with col2:
-                    st.image(f_crop[crop_idx])
-            except Exception as e:
-                st.error(f'path {QC_in_0} or {QC_crop} not exist.')
-
-    # section 2: ImageJ Stabilizer
-    s1 = st.empty()
-    if s1_visible:
-        with s1.container():
-            st.header('ImageJ Stabilizer')
-            # TODO: add QC windows
-            # TODO: a possible future improvement: for multiple input files, select which to QC
-            if section_start == 'Crop':
-                s1_idx = st.selectbox('Which image you want to examine?', pipeline.imm1_list, key='s1_idx')
-            else:
-                s1_idx = st.selectbox('Which image you want to examine?', pipeline.input_list, key='s1_idx')
-            # TODO: add QC windows
-            try:
-                if section_start == 'Crop':
-                    QC_in_1 = os.path.join(pipeline.work_dir, s1_idx)
-                    QC_stab = os.path.join(wd_dir, s1_idx.removesuffix('.tif') + '_stab.tif')
-                else:
-                    QC_in_1 = os.path.join(pipeline.input_root, s1_idx)
-                    QC_stab = os.path.join(wd_dir, s1_idx.removesuffix('.tif') + '_stab.tif')
-            except TypeError:
-                st.error(f'Please specify input and output folders first.')
-                QC_in_1 = 'NULL'
-                QC_stab = 'NULL'
-            try:
-                f_in_1 = tifffile.imread(QC_in_1)
-                f_stab = tifffile.imread(QC_stab)
-                stab_idx = st.slider('Which slice you want to examine?', 0, f_in_1.shape[0])
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.image(f_in_1[stab_idx])
-                with col2:
-                    st.image(f_stab[stab_idx])
-            except Exception as e:
-                st.error(f'path {QC_in_1} or {QC_stab} not exist.')
-
-    # section 3: CaImAn
-    s2 = st.empty()
-    if s2_visible:
-        with s2.container():
-            st.header('CaImAn')
-            # TODO: add QC control window
-
-    # section 4: peak caller
-    pass
+    # Initialize pipeline and GUI
+    pipe_obj = pipe.Pipeline()
+    settings = load_config()
+    window = init_sg(settings)
+    handle_events(pipe_obj, window, settings)
 
 
 if __name__ == '__main__':

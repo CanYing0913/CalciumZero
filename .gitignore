@@ -3,6 +3,10 @@ __pycache__/
 java/
 .idea/
 .vscode/
-test/
 venv/
+# for testing
+test/
+build/
+.eggs/
 *.csv
+cmn_obj
