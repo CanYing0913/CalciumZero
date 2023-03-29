@@ -30,7 +30,7 @@ jobs:
       - name: Install cx_Freeze
         run: |
           mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-      - name: build
+      - name: build installer Windows
         shell: powershell
         run: |
           python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
@@ -42,13 +42,54 @@ jobs:
           git status
       - name: Commit files
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git rm build/*.msi
-          git add build/*.msi
+          git config --local user.email "deploy-bot@users.noreply.github.com"
+          git config --local user.name "deploy-bot"
+          git add build/exe.win-amd64-3.8.msi
           git commit -m "Pushing new Windows installer"
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
-#          github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: GUI_dev
+
+  Build-MacOS:
+    needs: Build-Windows
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+      - name: Setup conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          channels: conda-forge, defaults
+          channel-priority: true
+          mamba-version: "*"
+          activate-environment: pipeline
+      - name: Install dependencies
+        run: |
+          mamba install -n pipeline -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn pysimplegui
+      - name: Install cx_Freeze
+        run: |
+          mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+      - name: build
+        shell: bash -l {0}
+        run: |
+          python setup.py bdist_dmg --target-name dmg.mac-amd64-3.8.dmg --target-version 0.1
+      - name: examine output
+        shell: bash -l {0}
+        run: |
+          dir dist/
+          dir build/
+          git status
+#      - name: Commit files
+#        run: |
+#          git config --local user.email "deploy-bot@users.noreply.github.com"
+#          git config --local user.name "deploy-bot"
+#          git add build/*.msi
+#          git commit -m "Pushing new MacOS installer"
+#      - name: Push changes
+#        uses: ad-m/github-push-action@master
+#        with:
+#          branch: GUI_dev
