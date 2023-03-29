@@ -6,7 +6,6 @@ java/
 venv/
 # for testing
 test/
-build/
 .eggs/
 *.csv
 cmn_obj

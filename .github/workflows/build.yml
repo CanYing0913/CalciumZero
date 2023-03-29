@@ -52,24 +52,25 @@ jobs:
           git status
       - name: Commit files
         run: |
-          git pull
-          git config --local user.email "github-actions@github.com"
-          git config --local user.name "github-actions"
-          git branch
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git status
           git checkout distribution
           dir
-          echo "separate mark"
-          git checkout master -- dist/exe.win-amd64-3.8.msi exe.win-amd64-3.8.msi
-          git lfs install
-          git lfs track "exe.win-amd64-3.8.msi"
-          git add .gitattributes
-          git add exe.win-amd64-3.8.msi
-          git commit -m "Pushing new Windows installer"
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          branch: distribution
+          mv -Path dist/exe.win-amd64-3.8.msi -Destination exe.win-amd64-3.8.msi
+          Remove-Item -Path dist -Recurse
+          Remove-Item -Path build -Recurse
+          dir
+          git status
+#          git lfs install
+#          git lfs track "exe.win-amd64-3.8.msi"
+#          git add .gitattributes
+#          git add exe.win-amd64-3.8.msi
+#          git commit -m "Pushing new Windows installer"
+#      - name: Push changes
+#        uses: ad-m/github-push-action@master
+#        with:
+#          branch: distribution
 
 #  Build-MacOS:
 #    needs: Build-Windows
