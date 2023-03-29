@@ -47,15 +47,17 @@ jobs:
           git pull
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          git checkout distribution
+          git checkout master -- dist/exe.win-amd64-3.8.msi exe.win-amd64-3.8.msi
           git lfs install
-          git lfs track "dist/exe.win-amd64-3.8.msi"
+          git lfs track "exe.win-amd64-3.8.msi"
           git add .gitattributes
-          git add dist/exe.win-amd64-3.8.msi
+          git add exe.win-amd64-3.8.msi
           git commit -m "Pushing new Windows installer"
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
-          branch: master
+          branch: distribution
 
   Build-MacOS:
     needs: Build-Windows
@@ -93,12 +95,14 @@ jobs:
           git pull
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          git checkout distribution
+          git checkout master -- dist/install.dmg install.dmg
           git lfs install
-          git lfs track dist/install.dmg
-          git add dist/install.dmg
+          git lfs track install.dmg
+          git add install.dmg
           git add .gitattributes
           git commit -m "Pushing new MacOS installer"
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
-          branch: master
+          branch: distribution
