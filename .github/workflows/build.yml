@@ -4,7 +4,7 @@ on:
   push:
     branches: master
     paths-ignore:
-#      - '.github/**'
+      # - '.github/**'
       - 'readme.md'
       - '*.ipynb'
       - 'cache/**'
@@ -33,84 +33,66 @@ jobs:
       - name: build installer Windows
         shell: powershell
         run: |
-          python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
-#      - name: fake test
-#        run: |
-#          dir
-#          echo separate
-#          mkdir dist
-#          mkdir build
-#          touch dist/exe.win-amd64-3.8.msi
-#          touch build/exe.win-amd64-3.8
-#      - name: examine output
-#        shell: powershell
-#        run: |
-#          dir dist/
-#          dir build/
-#          git status
+          python setup.py bdist_msi --target-name install.msi --target-version 0.1
       - name: Release
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git checkout distribution
-          mv -Path dist/exe.win-amd64-3.8.msi -Destination exe.win-amd64-3.8.msi
+          mv -Path dist/install.msi -Destination install.msi
           Remove-Item -Path dist -Recurse
           Remove-Item -Path build -Recurse
           git lfs install
-          git lfs track "exe.win-amd64-3.8.msi"
+          git lfs track install.msi
           git add .gitattributes
-          git add exe.win-amd64-3.8.msi
+          git add install.msi
           git commit -m "Pushing new Windows installer"
-          git push origin distribution
-#      - name: Push changes
-#        uses: ad-m/github-push-action@master
-#        with:
-#          branch: distribution
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          branch: distribution
 
-#  Build-MacOS:
-#    needs: Build-Windows
-#    runs-on: macos-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#        with:
-#          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
-#          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-#      - name: Setup conda
-#        uses: conda-incubator/setup-miniconda@v2
-#        with:
-#          auto-update-conda: true
-#          channels: conda-forge, defaults
-#          channel-priority: true
-#          mamba-version: "*"
-#          activate-environment: pipeline
-#      - name: Install dependencies
-#        run: |
-#          mamba install -n pipeline -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn pysimplegui
-#      - name: Install cx_Freeze
-#        run: |
-#          mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-#      - name: build disk file MacOS
-#        shell: bash -l {0}
-#        run: |
-#          python setup.py bdist_dmg --silent
-#      - name: examine output
-#        shell: bash -l {0}
-#        run: |
-#          mv build/pipeline-0.1.dmg dist/install.dmg
-#          ls -l dist/
-#      - name: Commit files
-#        run: |
-#          git pull
-#          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-#          git config --local user.name "github-actions[bot]"
-#          git checkout distribution
-#          git checkout master -- dist/install.dmg install.dmg
-#          git lfs install
-#          git lfs track install.dmg
-#          git add install.dmg
-#          git add .gitattributes
-#          git commit -m "Pushing new MacOS installer"
-#      - name: Push changes
-#        uses: ad-m/github-push-action@master
-#        with:
-#          branch: distribution
+  Build-MacOS:
+    # needs: Build-Windows
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+      - name: Setup conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          channels: conda-forge, defaults
+          channel-priority: true
+          mamba-version: "*"
+          activate-environment: pipeline
+      - name: Install dependencies
+        run: |
+          mamba install -n pipeline -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn pysimplegui
+          mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+      - name: build disk file MacOS
+        shell: bash -l {0}
+        run: |
+          python setup.py bdist_dmg --silent
+          mv build/pipeline-0.1.dmg dist/install.dmg
+      - name: Commit files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout distribution
+          mv dist/install.dmg install.dmg
+          rm -r dist
+          rm -r build
+          git lfs install
+          git lfs track install.dmg
+          git add install.dmg
+          git add .gitattributes
+          git commit -m "Pushing new MacOS installer"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          branch: distribution
