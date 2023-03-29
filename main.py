@@ -3,9 +3,6 @@ import src.src_pipeline as pipe
 
 
 def main():
-    """
-    Main pipeline function.
-    """
     pipeline = pipe.Pipeline()
     pipeline.parse()
     pipeline.run()
