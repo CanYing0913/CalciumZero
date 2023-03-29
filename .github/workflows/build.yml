@@ -48,6 +48,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git checkout distribution
+          echo "separate mark"
           git checkout master -- dist/exe.win-amd64-3.8.msi exe.win-amd64-3.8.msi
           git lfs install
           git lfs track "exe.win-amd64-3.8.msi"
