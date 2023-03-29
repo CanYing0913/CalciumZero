@@ -52,7 +52,7 @@ jobs:
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
-          branch: GUI_dev
+          branch: master
 
   Build-MacOS:
     needs: Build-Windows
@@ -98,4 +98,4 @@ jobs:
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
-          branch: GUI_dev
+          branch: master

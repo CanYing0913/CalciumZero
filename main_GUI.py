@@ -5,9 +5,6 @@ from tifffile import imread
 from cv2 import imwrite, resize
 import src.src_pipeline as pipe
 
-section_start = 'Crop'
-start_0 = start_1 = start_2 = False
-
 
 def load_config():
     SETTINGS_PATH = Path.cwd()
