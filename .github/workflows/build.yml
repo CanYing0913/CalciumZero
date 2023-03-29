@@ -87,12 +87,13 @@ jobs:
           ls -l dist/
       - name: Commit files
         run: |
-          git config --local user.email "deploy-bot@users.noreply.github.com"
-          git config --local user.name "deploy-bot"
+          git pull
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git lfs install
           git lfs track dist/install.dmg
           git add dist/install.dmg
-          git add -u
+          git add .gitattributes
           git commit -m "Pushing new MacOS installer"
       - name: Push changes
         uses: ad-m/github-push-action@master
