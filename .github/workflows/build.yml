@@ -38,7 +38,7 @@ jobs:
 #          python setup.py bdist_msi --target-name exe.win-amd64-3.8.msi --target-version 0.1
       - name: fake test
         run: |
-          ls -l
+          dir
           echo separate
           mkdir dist
           mkdir build
@@ -58,7 +58,7 @@ jobs:
           git branch
           git status
           git checkout distribution
-          ls -l
+          dir
           echo "separate mark"
           git checkout master -- dist/exe.win-amd64-3.8.msi exe.win-amd64-3.8.msi
           git lfs install
