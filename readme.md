@@ -7,11 +7,11 @@
 ## Running locally throught our distribution
 If you just want to interact and use this work, the **best** way is to launch our provided application package across platorm.  
 
-| System  | platform |                                    download link                                    |
-|:-------:|:--------:|:-----------------------------------------------------------------------------------:|
-| Windows |  amd64   | [link](https://github.com/CanYing0913/CaImAn/raw/master/dist/exe.win-amd64-3.8.msi) |
-|  Linux  |  amd64   |                                                                                     |
-|  Apple  |  arm64   |      [link](https://github.com/CanYing0913/CaImAn/raw/mastr/dist/install.dmg)       |
+| System  | platform |                               download link                                |
+|:-------:|:--------:|:--------------------------------------------------------------------------:|
+| Windows |  amd64   | [link](https://github.com/CanYing0913/CaImAn/raw/distribution/install.msi) |
+|  Linux  |  amd64   |                                                                            |
+|  Apple  |  arm64   | [link](https://github.com/CanYing0913/CaImAn/raw/distribution/install.dmg) |
 ## Running on Colab
 You will need to follow the link [here](https://colab.research.google.com/drive/1BvHYZRoOla47MwVeV5_0H2-Vko1nm9yW?usp=sharing) to our Colab notebook. Note that our Colab notebook is lightweight, free to go. Prior to run the pipeline on Colab, you should have your input files located in your Google Drive. At the beginning of the notebook, we will ask you for permissions to mount your Google Drive on Google Colab runtime.  
 ## Running on Docker  
@@ -40,11 +40,13 @@ Note:
 # Once conda is intalled, you should install mamba to have a faster install time.
 conda install mamba -n base -c conda-forge
 mamba create -n [env_name] -c conda-forge \
+    caiman \
+    pysimplegui
     pyimagej \
     openjdk=8 \
-    opencv \
     seaborn
 conda activate [env_name]
+mamba install -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
 ```
 
 ### 3. Install Fiji ImageJ to local and add headless stabilizer plugin to ImageJ
