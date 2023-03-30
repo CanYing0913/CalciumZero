@@ -4,6 +4,7 @@ java/
 .idea/
 .vscode/
 venv/
+cache/
 # for testing
 test/
 .eggs/

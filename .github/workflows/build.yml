@@ -4,10 +4,9 @@ on:
   push:
     branches: master
     paths-ignore:
-      # - '.github/**'
+      - '.github/**'
       - 'readme.md'
       - '*.ipynb'
-      - 'cache/**'
       - 'Fiji.app/**'
 
 jobs:
@@ -33,6 +32,7 @@ jobs:
       - name: build installer Windows
         shell: powershell
         run: |
+          mkdir cache
           python setup.py bdist_msi --target-name install.msi --target-version 0.1
       - name: Release
         run: |
@@ -76,6 +76,7 @@ jobs:
       - name: build disk file MacOS
         shell: bash -l {0}
         run: |
+          mkdir cache
           python setup.py bdist_dmg --silent
           mkdir dist
           mv build/pipeline-0.1.dmg dist/install.dmg
