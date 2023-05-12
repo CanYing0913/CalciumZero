@@ -250,6 +250,9 @@ class Pipeline(object):
             fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.input_list]
             results = pool.map(scan, fnames)
         x1, y1, x2, y2 = reduce_bbs(results)
+        for fname in fnames:
+            fpath_seg = Path(self.work_dir).joinpath(Path(Path(fname).stem + "_seg.tif"))
+            tifffile.imwrite(fpath_seg, results[0][-1])
 
         # Apply the uniform bb one-by-one to each input image
         for fname_i in self.input_list:

@@ -19,7 +19,7 @@ def scan(fname):
     # Process input
     image_seg_o, th_l = dense_segmentation(image_i)
     x1_, y1_, x2_, y2_ = find_bb_3d_dense(image_seg_o)
-    return x1_, y1_, x2_, y2_
+    return x1_, y1_, x2_, y2_, image_seg_o
 
 
 def reduce_bbs(results):
@@ -28,7 +28,7 @@ def reduce_bbs(results):
     for single_result in results:
         # TODO: there should be a fix:
         # instead of aligning coordinates, we should align width and height.
-        x1_, y1_, x2_, y2_ = single_result
+        x1_, y1_, x2_, y2_, _ = single_result
         # w_, h_ = x2_ - x1_, y2_ - y1_
         x1 = min(x1, x1_)
         y1 = min(y1, y1_)
