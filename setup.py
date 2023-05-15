@@ -15,14 +15,7 @@ msi_data = {
     ],
 }
 
-bdist_msi_options = {
-    # "add_to_path": True,
-    # "data": msi_data,
-    # "environment_variables": [
-    #     ("E_MYAPP_VAR", "=-*MYAPP_VAR", "1", "TARGETDIR")
-    # ],
-    # "upgrade_code": "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}",
-}
+bdist_msi_options = {}
 
 # base="Win32GUI" should be used only for Windows GUI app
 base = "Win32GUI" if sys.platform == "win32" else None

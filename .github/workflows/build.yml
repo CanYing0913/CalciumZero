@@ -54,7 +54,7 @@ jobs:
           branch: distribution
 
   Build-MacOS:
-    # needs: Build-Windows
+    needs: Build-Windows
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
