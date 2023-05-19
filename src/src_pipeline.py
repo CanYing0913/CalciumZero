@@ -250,14 +250,16 @@ class Pipeline(object):
             fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.input_list]
             results = pool.map(scan, fnames)
         x1, y1, x2, y2 = reduce_bbs(results)
-        for fname in fnames:
+        for idx, fname in enumerate(fnames):
             fpath_seg = Path(self.work_dir).joinpath(Path(Path(fname).stem + "_seg.tif"))
-            tifffile.imwrite(fpath_seg, results[0][-1])
+            tifffile.imwrite(fpath_seg, results[idx][-1])
+        finalxcntss = [result[4] for result in results]
 
         # Apply the uniform bb one-by-one to each input image
-        for fname_i in self.input_list:
+        for idx, fname_i in enumerate(self.input_list):
             image_i = tifffile.imread(str(Path(self.input_root).joinpath(fname_i)))
-            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin)
+            finalxcnts = finalxcntss[idx]
+            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin, finalxcnts)
             # Handle output path
             fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
             fname_crop_o = os.path.join(self.work_dir, fname_crop_root)

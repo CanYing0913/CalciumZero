@@ -8,7 +8,7 @@ on:
       - 'readme.md'
       - '*.ipynb'
       - 'Fiji.app/**'
-      - '**'
+#      - '**'
 
 jobs:
   Build-Windows:

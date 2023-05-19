@@ -18,8 +18,8 @@ def scan(fname):
     image_i = tifffile.imread(fname)
     # Process input
     image_seg_o, th_l = dense_segmentation(image_i)
-    x1_, y1_, x2_, y2_ = find_bb_3d_dense(image_seg_o)
-    return x1_, y1_, x2_, y2_, image_seg_o
+    (x1_, y1_, x2_, y2_), finalxcnts = find_bb_3d_dense(image_seg_o)
+    return x1_, y1_, x2_, y2_, finalxcnts, image_seg_o
 
 
 def reduce_bbs(results):
@@ -28,7 +28,7 @@ def reduce_bbs(results):
     for single_result in results:
         # TODO: there should be a fix:
         # instead of aligning coordinates, we should align width and height.
-        x1_, y1_, x2_, y2_, _ = single_result
+        x1_, y1_, x2_, y2_, _, _ = single_result
         # w_, h_ = x2_ - x1_, y2_ - y1_
         x1 = min(x1, x1_)
         y1 = min(y1, y1_)
@@ -116,6 +116,7 @@ def find_bb(image: np.ndarray, debug=False) -> tuple:
     s1 = 100
     s2 = h * w * 0.8
     xcnts = []
+    # Assumption: area should be dominant, but should not be too large
     for cnt in cnts:
         area = cv2.contourArea(cnt)
         if s1 < area < s2:
@@ -126,6 +127,7 @@ def find_bb(image: np.ndarray, debug=False) -> tuple:
     prevDiff = sqrt((0.1 * w) ** 2 + (0.1 * h) ** 2)
     finalxcnt = np.zeros_like(xcnts[0])
     finalxcnts = []
+    # Assumption: ROI should lie around center
     for xcnt in xcnts:
         xcnt_np = np.array(xcnt)
         xcnt_x = xcnt_np[..., 0]
@@ -162,7 +164,7 @@ def find_bb(image: np.ndarray, debug=False) -> tuple:
         plt.figure()
         plt.imshow(image_t, cmap="gray")
         plt.show()
-    return tuple([x1, y1, x2, y2])
+    return tuple([x1, y1, x2, y2]), finalxcnt
 
 
 def find_bb_3d_dense(image: np.ndarray, debug_mode=False) -> tuple:
@@ -171,21 +173,27 @@ def find_bb_3d_dense(image: np.ndarray, debug_mode=False) -> tuple:
     x1 = y1 = float('inf')
     x2 = y2 = 0
     pbar = tqdm(range(slice_num))
+    finalxcnts = []
     for i in pbar:
         pbar.set_description(f"Finding bb for slice_{i}")
-        x1c, y1c, x2c, y2c = find_bb(image[i, ...], debug_mode)
+        (x1c, y1c, x2c, y2c), finalxcnt = find_bb(image[i, ...], debug_mode)
         x1 = x1c if x1 > x1c else x1
         y1 = y1c if y1 > y1c else y1
         x2 = x2c if x2 < x2c else x2
         y2 = y2c if y2 < y2c else y2
+        finalxcnts.append(finalxcnt)
 
     assert not (x1 == y1 == x2 == y2 == -1)
-    return tuple([int(x1), int(y1), int(x2), int(y2)])
+    return tuple([int(x1), int(y1), int(x2), int(y2)]), finalxcnts
 
 
-def apply_bb_3d(image: np.ndarray, bb: tuple, margin: int) -> np.ndarray:
+def apply_bb_3d(image: np.ndarray, bb: tuple, margin: int, finalxcnts) -> np.ndarray:
     x1, y1, x2, y2 = bb
     s, h, w = image.shape
+    for idx, (slice, finalxcnt) in enumerate(zip(image, finalxcnts)):
+        mask = np.zeros_like(slice)
+        cv2.drawContours(mask, [finalxcnt], -1, 255, -1)
+        image[idx] = cv2.bitwise_and(slice, slice, mask=mask)
     x1 = int(x1 - margin) if x1 - margin >= 0 else 0
     y1 = int(y1 - margin) if y1 - margin >= 0 else 0
     x2 = int(x2 + margin) if x2 + margin < w else w - 1
