@@ -3,7 +3,7 @@ import PySimpleGUI as sg
 from multiprocessing import Process
 from tifffile import imread
 from cv2 import imwrite, resize
-import src.src_pipeline as pipe
+from src.src_pipeline import Pipeline
 
 
 def load_config():
@@ -16,10 +16,13 @@ def load_config():
 
 def init_sg(settings):
     win_width, win_height = sg.Window.get_screen_size()
+    scale_w = win_width / 1920
+    scale_h = win_height / 1080
     win_width = int(win_width * float(settings['GUI']['ratio']))
     win_height = int(win_height * float(settings['GUI']['ratio']))
     theme = settings['GUI']['theme']
     font_family, font_size = settings['GUI']['font_family'], int(settings['GUI']['font_size'])
+    font_size = int(scale_w * font_size)
     sg.theme(theme)
 
     row_meta = [
@@ -33,43 +36,44 @@ def init_sg(settings):
         ],
         [
             sg.Text('Input File(s):'),
-            sg.Input(size=(10, 2), key='-META-FIN-', enable_events=True),
+            sg.Input(size=(int(10 * scale_w), 2), key='-META-FIN-', enable_events=True),
             sg.FilesBrowse('Choose input', file_types=[('TIFF', '*.tif'), ], key='-META-FIN-SELECT-')
         ],
         [
             sg.Text('Output Folder:'),
-            sg.Input(size=(10, 2), key='-META-FOUT-', enable_events=True),
+            sg.Input(size=(int(10 * scale_w), 2), key='-META-FOUT-', enable_events=True),
             sg.FolderBrowse('Choose output')
         ],
         [
             sg.Button('start', key='-META-start-', enable_events=True),
             sg.Button('stop', key='-META-stop-', enable_events=True),
             sg.Text('# of processes:'),
-            sg.Input('2', key='-META-process-', enable_events=True)
+            sg.Input('2', key='-META-process-', enable_events=True, size=int(10 * scale_w))
         ]
     ]
     opts_s0 = [
         [sg.Text('Crop Image')],
-        [sg.Text('Choose margin in px:')],
+        [sg.Text('Margin(pixel)')],
         [sg.Slider(range=(0, 1000), default_value=200, resolution=10, key='-OPTION-margin-', enable_events=True,
-                   orientation='h')]
+                   orientation='h', size=(int(10 * scale_w), int(20 * scale_h)))]
     ]
     opts_s1 = [
         [sg.Text('ImageJ Stabilizer')],
         [
-            sg.Text('ImageJ path:'),
-            sg.Input(size=(10, 2), default_text=f'{Path(__file__).parent.joinpath("Fiji.app")}',
-                     key='-OPTION-ijp-', enable_events=True),
-            sg.FolderBrowse('Browse')
+            sg.Text('ImageJ:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'{Path(__file__).parent.joinpath("Fiji.app")}',
+                     key='-OPTION-ijp-', enable_events=True, font=('Comic Sans MS', f'{int(font_size * scale_w)}')),
+            sg.FolderBrowse('Locate')
         ],
         [
-            sg.Text('Transformation'),
+            sg.Text('Transform'),
             sg.Listbox(('Translation', 'Affine'), default_values=['Translation'],
                        key='-OPTION-ij-transform-', enable_events=True)
         ],
         [
             sg.Text('MAX_Pyramid_level [0.0-1.0]'),
-            sg.Input(default_text='1.0', key='-OPTION-ij-maxpl-', size=5, justification='center', enable_events=True)
+            sg.Input(default_text='1.0', key='-OPTION-ij-maxpl-', size=int(5 * scale_w), justification='center',
+                     enable_events=True)
         ],
         [
             sg.Text('update_coefficient [0.0-1.0]'),
@@ -86,18 +90,19 @@ def init_sg(settings):
         ]
     ]
     row1 = [
-        sg.Column(row_meta, size=(400, 250), justification='center'),
+        sg.Column(row_meta, justification='center', ),#size=(400, 250), ),
         sg.VSeparator(),
-        sg.Column(opts_s0, size=(275, 175), justification='center'),
+        sg.Column(opts_s0, justification='center', ),#size=(275, 175), ),
         sg.VSeparator(),
-        sg.Column(opts_s1, size=(325, 250), justification='center')
+        sg.Column(opts_s1, justification='center', ),#size=(325, 250), )
     ]
     QC_s0 = [
         sg.Column([
             [sg.Text('QC for crop')],
             [sg.Listbox([], key='-QC-S0-img-select-', enable_events=True)],
             [sg.Text('Which slice you want to examine?')],
-            [sg.Slider((0, 200), key='-QC-S0-img-slider-', orientation='h', enable_events=True)]
+            [sg.Slider((0, 200), key='-QC-S0-img-slider-', orientation='h', enable_events=True,
+                       size=(int(10 * scale_w), int(20 * scale_h)))]
         ]),
         sg.VSeparator(),
         sg.Column([[sg.Image(key='-QC-S0-img-raw-')]]),
@@ -109,7 +114,8 @@ def init_sg(settings):
             [sg.Text('QC for stabilizer')],
             [sg.Listbox([], key='-QC-S1-img-select-', enable_events=True)],
             [sg.Text('Which slice you want to examine?')],
-            [sg.Slider((0, 200), key='-QC-S1-img-slider-', orientation='h', enable_events=True)]
+            [sg.Slider((0, 200), key='-QC-S1-img-slider-', orientation='h', enable_events=True,
+                       size=(int(10 * scale_w), int(20 * scale_h)))]
         ]),
         sg.VSeparator(),
         sg.Column([[sg.Image(key='-QC-S1-img-raw-')]]),
@@ -272,7 +278,7 @@ def handle_events(pipe_obj, window, settings):
 
 def main():
     # Initialize pipeline and GUI
-    pipe_obj = pipe.Pipeline()
+    pipe_obj = Pipeline()
     settings = load_config()
     window = init_sg(settings)
     handle_events(pipe_obj, window, settings)
