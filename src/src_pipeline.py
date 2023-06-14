@@ -15,9 +15,9 @@ from src.src_peak_caller import PeakCaller
 
 
 def remove_suffix(input_string, suffix):
-    if suffix and input_string.endswith(suffix):
-        return input_string[:-len(suffix)]
-    return input_string
+    if suffix and str(input_string).endswith(suffix):
+        return str(input_string)[:-len(suffix)]
+    return str(input_string)
 
 
 def parse():
@@ -300,7 +300,7 @@ class Pipeline(object):
             logging.basicConfig(
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
-        fnames = self.imm2_list
+        fnames = [str(fname) for fname in self.imm2_list]
         fnames_out = [remove_suffix(f, '.tif') + '_caiman.tif' for f in fnames]
         mc_dict = {
             'fnames': fnames,
