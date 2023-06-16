@@ -189,7 +189,7 @@ def handle_events(pipe_obj, window, settings):
                     if do_s0 or do_s1 or do_s2:
                         window['-META-FIN-SELECT-'].FileTypes = [('TIFF', '*.tif'), ]
                     elif do_s3:
-                        window['-META-FIN-SELECT-'].FileTypes = [('caiman obj', '*.cmnobj'), ('HDF5 file', '*.hdf5'), ]
+                        window['-META-FIN-SELECT-'].FileTypes = [('caiman obj', '*'), ('HDF5 file', '*.hdf5'), ]
 
                 elif event == '-META-start-':
                     status, msg = pipe_obj.ready()

@@ -456,25 +456,33 @@ class Pipeline(object):
             ps2(f"object cnm dumped to {path}.")
 
     def s3(self):
-        # TODO: peak_caller
-        slice_num = _
+        # peak_caller
+        # slice_num = _
+        if not self.do_s2:
+            with open(Path(self.input_root).joinpath(self.input_list[0]), 'rb') as f:
+                self.caiman_obj = pickle.load(f)
         data = self.caiman_obj.estimates.C[:92, :]
+
         # TODO: get slice number to know how many to pass to peak caller
-        filename = join(self.work_dir, '')
+        # filename = join(self.work_dir, '')
         # demo: a single image
-        pc_obj = PeakCaller(data, filename)
-        pc_obj.Detrender_2()
-        pc_obj.Find_Peak()
-        # The above code generates a PeakCaller object with peaks detected
-        pc_obj.Print_ALL_Peaks()
-        pc_obj.Raster_Plot()
-        pc_obj.Histogram_Height()
-        pc_obj.Histogram_Time()
-        pc_obj.Correlation()
+        filename = Path(self.work_dir).joinpath("out") if not self.do_s2 else self.imm2_list[0]
+        pc_obj1 = PeakCaller(data, filename)
+        pc_obj1.Detrender_2()
+        pc_obj1.Find_Peak()
+        new_series = pc_obj1.Filter_Series('src/finalized_model.sav')
+        pc_obj2 = PeakCaller(new_series, filename)
+        pc_obj2.Detrender_2()
+        pc_obj2.Find_Peak()
+        pc_obj2.Print_ALL_Peaks()
+        pc_obj2.Raster_Plot()
+        pc_obj2.Histogram_Height()
+        pc_obj2.Histogram_Time()
+        pc_obj2.Correlation()
         # To save results, do something like this:
-        pc_obj.Synchronization()
-        pc_obj.Save_Result()
-        self.pc_obj.append(pc_obj)
+        pc_obj2.Synchronization()
+        pc_obj2.Save_Result()
+        self.pc_obj.append(pc_obj2)
 
     def run(self):
         # TODO: need to adjust imm1_list, imm2_list, according to which section is the first section
@@ -483,6 +491,9 @@ class Pipeline(object):
             self.imm1_list = self.input_list
         if not self.do_s1:
             self.imm2_list = self.input_list
+        if not self.do_s2 and self.do_s3:
+            assert 'cmn_obj' in self.input_list
+
         start_time = time()
         # First, decide which section to start execute
         if self.do_s0:
@@ -501,9 +512,11 @@ class Pipeline(object):
             exec_t = end_time_caiman - start_time_caiman
             self.pprint(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
             self.done_s2 = True
-        pass
+
         # Peak_caller part
-        pass
+        if self.do_s3:
+            self.s3()
+
         end_time = time()
         exec_t = end_time - start_time
         self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
