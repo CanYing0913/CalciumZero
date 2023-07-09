@@ -6,6 +6,7 @@ java/
 venv/
 cache/
 # for testing
+Fiji.app/
 test/
 .eggs/
 *.csv
