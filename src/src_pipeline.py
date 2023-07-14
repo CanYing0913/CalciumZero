@@ -443,6 +443,7 @@ class Pipeline(object):
         (components, frames) = cnm.estimates.C.shape
         ps2(f"frames: {frames}")
         cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
+        setattr(cnm, 'dims', dims)
         self.caiman_obj = cnm
         # reconstruct denoised movie
         if self.csave:
