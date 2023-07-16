@@ -10,9 +10,9 @@ on:
       - '*.ipynb'
       - 'Fiji.app/**'
 #      - '**'
-  pull_request:
-    branches:
-      - master
+#  pull_request:
+#    branches:
+#      - master
 
 jobs:
   Build-Windows:
