@@ -38,7 +38,8 @@ def init_sg(settings):
         [
             sg.Text('Input File(s):'),
             sg.Input(size=(int(10 * scale_w), 2), key='-META-FIN-', enable_events=True, readonly=True),
-            sg.FilesBrowse('Choose input', file_types=[('TIFF', '*.tif'), ('cmobj', '*.cmobj') ], key='-META-FIN-SELECT-')
+            sg.FilesBrowse('Choose input', file_types=[('TIFF', '*.tif'), ('cmobj', '*.cmobj')],
+                           key='-META-FIN-SELECT-')
         ],
         [
             sg.Text('Output Folder:'),
@@ -98,7 +99,7 @@ def init_sg(settings):
         ]]
     )
     row1 = [
-        Column(row_meta, justification='center', ),#size=(400, 250), ),
+        Column(row_meta, justification='center', ),  # size=(400, 250), ),
         sg.VSeparator(),
         opts_tg
     ]
@@ -131,7 +132,11 @@ def init_sg(settings):
     QC_s2 = [
         sg.Text(),
         Column([
-            [sg.Slider((0, 899), resolution=1, orientation='h', enable_events=True, key='-QC-S2-slider-')],
+            [
+                sg.Slider((0, 9), 0, resolution=1, orientation='h', enable_events=True, key='-QC-S2-slider-',
+                          disable_number_display=True),
+                sg.Input('0', enable_events=True, key='-QC-S2-slice-', size=10)
+            ],
             [sg.Image(key='-QC-S2-img-')]
         ])
     ]
@@ -185,7 +190,11 @@ def handle_events(pipe_obj, window, settings):
                         pipe_obj.update(s1_root=values['-META-FOUT-'])  # for testing
                         # print(pipe_obj.work_dir)
                 elif '-process-' in event:
-                    pipe_obj.update(process=int(values[event]))
+                    try:
+                        pipe_obj.update(process=int(values[event]))
+                    except:
+                        sg.popup_error(f'You should type in a number. Aborting.')
+                        window['-META-process-'].update(values='')
                 # handle starting section
                 elif '-META-START-' in event:
                     if 'crop' in event:
@@ -218,6 +227,11 @@ def handle_events(pipe_obj, window, settings):
                         sg.popup_error(f'Execution not running - Cannot stop')
                 elif event == '-META-QC-':
                     if pipe_obj.caiman_obj is not None:
+                        # Display 0-th frame and update slider
+                        if len(pipe_obj.caiman_obj.input_files) == 1:
+                            window['-QC-S2-slider-'].update(range=(0, len(pipe_obj.caiman_obj.estimates.C) - 1))
+                        else:
+                            pass
                         img = pipe_obj.qc_s2(0)
                         imwrite(str(pipe_obj.QCimage_s2), img)
                         window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
@@ -298,12 +312,23 @@ def handle_events(pipe_obj, window, settings):
                     continue
                 # CaImAn QC
                 if '-QC-S2-' in event:
-                    if event == '-QC-S2-slider-':
-                        slice = int(values[event])
+                    if event == '-QC-S2-slider-' or event == '-QC-S2-slice-':
+                        try:
+                            slice = int(values[event])
+                        except:
+                            sg.popup_error(f'You need to type in a number. Aborting.')
+                            window['-QC-S2-slice-'].update('')
+                            continue
                         if pipe_obj.caiman_obj is not None:
+                            if slice >= pipe_obj.caiman_obj.estimates.C.__len__():
+                                sg.popup_error(f'{slice} is greater than possible. Index back to 0.')
+                                slice = 0
                             img = pipe_obj.qc_s2(slice)
                             imwrite(str(pipe_obj.QCimage_s2), img)
                             window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
+                        window['-QC-S2-slice-'].update(str(slice))
+                        window['-QC-S2-slider-'].update(slice)
+
     finally:
         window.close()
 

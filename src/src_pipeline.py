@@ -460,7 +460,7 @@ class Pipeline(object):
                 [2, 0, 1])
             denoised.save(fnames_out)
             ps2(f"caiman denoised movie saved to {fnames_out}")
-        path = os.path.join(self.work_dir, "cmn_obj")
+        path = os.path.join(self.work_dir, "cmn_obj.cmobj")
         with open(path, "wb") as f:
             pickle.dump(cnm, f)
             ps2(f"object cnm dumped to {path}.")
