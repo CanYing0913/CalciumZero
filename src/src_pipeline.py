@@ -119,6 +119,7 @@ class Pipeline(object):
         self.log = None
         self.process = 2
         self.cache = Path(__file__).parent.parent.joinpath('cache')
+        self.cache.mkdir(exist_ok=True, parents=False)
         # Segmentation and cropping related variables
         self.do_s0 = False
         self.input_root = ''
@@ -151,6 +152,7 @@ class Pipeline(object):
         self.csave = False
         self.s2_root = ''
         self.done_s2 = False
+        self.QCimage_s2 = None
         # Peak Caller related
         self.do_s3 = False
         self.pc_obj = []
@@ -213,6 +215,11 @@ class Pipeline(object):
             if not hasattr(self, key):
                 print(f'the requested key {key} does not exist.')
                 continue
+            if key == 'input_list':
+                if len(value) == 1 and 'cmn_obj' in value[0]:
+                    with open(str(Path(self.input_root).joinpath(value[0])), 'rb') as f:
+                        self.caiman_obj = pickle.load(f)
+                        continue
             setattr(self, key, value)
 
     def ready(self):
@@ -444,6 +451,8 @@ class Pipeline(object):
         ps2(f"frames: {frames}")
         cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
         setattr(cnm, 'dims', dims)
+        # Save input files to *.cmobj file
+        setattr(cnm, 'input_files', [tifffile.imread(fname) for fname in fnames])
         self.caiman_obj = cnm
         # reconstruct denoised movie
         if self.csave:
@@ -523,3 +532,25 @@ class Pipeline(object):
         self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
         if self.log is not None:
             self.log.close()
+
+    def load_setting(self, settings):
+        self.QCimage_s2 = self.cache.joinpath(settings['QC']['s2_image'])
+
+    def qc_s2(self, idx):
+        from cv2 import resize
+        ROI = np.reshape(self.caiman_obj.estimates.A[:, idx].toarray(), self.caiman_obj.dims, order='F')
+        # ROI = np.array(ROI, dtype=np.uint8)
+        w, h = ROI.shape
+        new_w = int(200 * h / w)
+        ROI = resize(ROI, (new_w, 200))
+        y, x = np.unravel_index(ROI.argmax(), ROI.shape)
+        image_raw = self.caiman_obj.input_files[0][x]
+        w_r, h_r = ROI.shape
+        new_w_r = int(200 * h_r / w_r)
+        image_raw = resize(image_raw, (new_w_r, 200))
+        ROI_temp = ROI * 255 + image_raw
+        ROI_temp = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 4)
+        # from matplotlib import pyplot as plt
+        # plt.figure()
+        # plt.imshow(ROI)
+        return ROI_temp

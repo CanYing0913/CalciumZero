@@ -1,8 +1,10 @@
 from pathlib import Path
 import PySimpleGUI as sg
+from PySimpleGUI import Column
 from multiprocessing import Process
 from tifffile import imread
 from cv2 import imwrite, resize
+import numpy as np
 from src.src_pipeline import Pipeline
 
 
@@ -26,8 +28,7 @@ def init_sg(settings):
     sg.theme(theme)
 
     row_meta = [
-        [sg.Text('Welcome to CaImAn pipeline GUI', font='italic 16 bold', justification='center')],
-        [sg.Text('Which section you want to run?', justification='center')],
+        [sg.Text('Welcome to CalciumZero GUI', font='italic 16 bold', justification='center')],
         [
             sg.Checkbox('Crop', enable_events=True, key='-META-START-crop-'),
             sg.Checkbox('Stabilizer', enable_events=True, key='-META-START-stabilizer-'),
@@ -36,17 +37,18 @@ def init_sg(settings):
         ],
         [
             sg.Text('Input File(s):'),
-            sg.Input(size=(int(10 * scale_w), 2), key='-META-FIN-', enable_events=True),
-            sg.FilesBrowse('Choose input', file_types=[('TIFF', '*.tif'), ], key='-META-FIN-SELECT-')
+            sg.Input(size=(int(10 * scale_w), 2), key='-META-FIN-', enable_events=True, readonly=True),
+            sg.FilesBrowse('Choose input', file_types=[('TIFF', '*.tif'), ('cmobj', '*.cmobj') ], key='-META-FIN-SELECT-')
         ],
         [
             sg.Text('Output Folder:'),
-            sg.Input(size=(int(10 * scale_w), 2), key='-META-FOUT-', enable_events=True),
+            sg.Input(size=(int(10 * scale_w), 2), key='-META-FOUT-', enable_events=True, readonly=True),
             sg.FolderBrowse('Choose output')
         ],
         [
             sg.Button('start', key='-META-start-', enable_events=True),
             sg.Button('stop', key='-META-stop-', enable_events=True),
+            sg.Button('QC', key='-META-QC-', enable_events=True),
             sg.Text('# of processes:'),
             sg.Input('2', key='-META-process-', enable_events=True, size=int(10 * scale_w))
         ]
@@ -89,28 +91,32 @@ def init_sg(settings):
                      size=5, justification='center', disabled=True, enable_events=True)
         ]
     ]
+    opts_tg = sg.TabGroup(
+        [[
+            sg.Tab('Crop', opts_s0),
+            sg.Tab('Stabilizer', opts_s1)
+        ]]
+    )
     row1 = [
-        sg.Column(row_meta, justification='center', ),#size=(400, 250), ),
+        Column(row_meta, justification='center', ),#size=(400, 250), ),
         sg.VSeparator(),
-        sg.Column(opts_s0, justification='center', ),#size=(275, 175), ),
-        sg.VSeparator(),
-        sg.Column(opts_s1, justification='center', ),#size=(325, 250), )
+        opts_tg
     ]
     QC_s0 = [
-        sg.Column([
+        Column([
             [sg.Text('QC for crop')],
             [sg.Listbox([], key='-QC-S0-img-select-', enable_events=True)],
-            [sg.Text('Which slice you want to examine?')],
+            [sg.Text('Slice Index')],
             [sg.Slider((0, 200), key='-QC-S0-img-slider-', orientation='h', enable_events=True,
                        size=(int(10 * scale_w), int(20 * scale_h)))]
         ]),
         sg.VSeparator(),
-        sg.Column([[sg.Image(key='-QC-S0-img-raw-')]]),
+        Column([[sg.Image(key='-QC-S0-img-raw-')]]),
         sg.VSeparator(),
-        sg.Column([[sg.Image(key='-QC-S0-img-s0-')]])
+        Column([[sg.Image(key='-QC-S0-img-s0-')]])
     ]
     QC_s1 = [
-        sg.Column([
+        Column([
             [sg.Text('QC for stabilizer')],
             [sg.Listbox([], key='-QC-S1-img-select-', enable_events=True)],
             [sg.Text('Which slice you want to examine?')],
@@ -118,17 +124,25 @@ def init_sg(settings):
                        size=(int(10 * scale_w), int(20 * scale_h)))]
         ]),
         sg.VSeparator(),
-        sg.Column([[sg.Image(key='-QC-S1-img-raw-')]]),
+        Column([[sg.Image(key='-QC-S1-img-raw-')]]),
         sg.VSeparator(),
-        sg.Column([[sg.Image(key='-QC-S1-img-s0-')]])
+        Column([[sg.Image(key='-QC-S1-img-s0-')]])
+    ]
+    QC_s2 = [
+        sg.Text(),
+        Column([
+            [sg.Slider((0, 899), resolution=1, orientation='h', enable_events=True, key='-QC-S2-slider-')],
+            [sg.Image(key='-QC-S2-img-')]
+        ])
     ]
     QC_tb = sg.TabGroup(
         [[
             sg.Tab('Crop', [QC_s0]),
             sg.Tab('Stabilizer', [QC_s1]),
+            sg.Tab('CaImAn', [QC_s2]),
         ]], key='-QC-window-'
     )
-    row_QC = sg.Column([
+    row_QC = Column([
         [sg.Text('Quality Checks')],
         [QC_tb],
     ])
@@ -190,7 +204,6 @@ def handle_events(pipe_obj, window, settings):
                         window['-META-FIN-SELECT-'].FileTypes = [('TIFF', '*.tif'), ]
                     elif do_s3:
                         window['-META-FIN-SELECT-'].FileTypes = [('caiman obj', '*'), ('HDF5 file', '*.hdf5'), ]
-
                 elif event == '-META-start-':
                     status, msg = pipe_obj.ready()
                     if status and not run_th.is_alive():
@@ -203,7 +216,13 @@ def handle_events(pipe_obj, window, settings):
                         run_th.kill()
                     else:
                         sg.popup_error(f'Execution not running - Cannot stop')
-
+                elif event == '-META-QC-':
+                    if pipe_obj.caiman_obj is not None:
+                        img = pipe_obj.qc_s2(0)
+                        imwrite(str(pipe_obj.QCimage_s2), img)
+                        window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
+                    else:
+                        sg.popup_error(f'You need to set input to your SINGLE cmn_obj file!')
                 else:
                     sg.popup_error('NotImplementedError')
                     # raise NotImplementedError
@@ -236,42 +255,55 @@ def handle_events(pipe_obj, window, settings):
                         sg.popup_error('Please select output folder first.')
                         continue
                     filename_s0 = str(Path(pipe_obj.work_dir).joinpath(Path(filename).stem + '_crop.tif'))
-                    QCimage_raw = imread(filename_raw)
-                    QCimage_s0 = imread(filename_s0)
+                    try:
+                        QCimage_raw = imread(filename_raw)
+                        QCimage_s0 = imread(filename_s0)
+                        QCimage_raw = np.array(QCimage_raw, dtype=np.uint8)
+                        QCimage_s0 = np.array(QCimage_s0, dtype=np.uint8)
+                    except FileNotFoundError:
+                        sg.popup_error('No crop file detected.')
+                        continue
                     raw_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_input']))
                     s0_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_output']))
                     pipe_obj.update(QCimage_s0_raw=QCimage_raw, QCimage_s0=QCimage_s0)
                     s, w, h = QCimage_raw.shape
                     s_, w_, h_ = QCimage_s0.shape
-                    new_w = int(200 * h / w)
-                    new_w_ = int(200 * h_ / w_)
-                    QCimage_raw = resize(QCimage_raw[0], (new_w, 200))
-                    QCimage_s0 = resize(QCimage_s0[0], (new_w_, 200))
+                    new_w = int(300 * h / w)
+                    new_w_ = int(300 * h_ / w_)
+                    QCimage_raw = resize(QCimage_raw[0], (new_w, 300))
+                    QCimage_s0 = resize(QCimage_s0[0], (new_w_, 300))
                     imwrite(raw_path, QCimage_raw)
                     imwrite(s0_path, QCimage_s0)
                     window['-QC-S0-img-slider-'].update(range=(0, s - 1))
                     window['-QC-S0-img-raw-'].update(filename=raw_path)
                     window['-QC-S0-img-s0-'].update(filename=s0_path)
-
-                elif '-S0-img-slider-' in event:
+                    continue
+                if '-S0-img-slider-' in event:
                     slice = int(values[event])
                     if pipe_obj.QCimage_s0_raw is not None:
                         raw_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_input']))
                         s0_path = str(Path(pipe_obj.cache).joinpath(settings['QC']['s0_output']))
                         s, w, h = pipe_obj.QCimage_s0_raw.shape
                         s_, w_, h_ = pipe_obj.QCimage_s0.shape
-                        new_w = int(200 * h / w)
-                        new_w_ = int(200 * h_ / w_)
-                        QCimage_raw = resize(pipe_obj.QCimage_s0_raw[slice], (new_w, 200))
-                        QCimage_s0 = resize(pipe_obj.QCimage_s0[slice], (new_w_, 200))
+                        new_w = int(300 * h / w)
+                        new_w_ = int(300 * h_ / w_)
+                        QCimage_raw = resize(pipe_obj.QCimage_s0_raw[slice], (new_w, 300))
+                        QCimage_s0 = resize(pipe_obj.QCimage_s0[slice], (new_w_, 300))
+                        # if np.max(QCimage_s0) < 127:
+                        #     QCimage_s0 = QCimage_s0 * 255 // np.max(QCimage_s0)
                         imwrite(raw_path, QCimage_raw)
                         imwrite(s0_path, QCimage_s0)
                         window['-QC-S0-img-raw-'].update(filename=raw_path)
                         window['-QC-S0-img-s0-'].update(filename=s0_path)
-                elif event == '-QC-select-':
-                    pass
-                else:
-                    sg.popup_error('NotImplementError')
+                    continue
+                # CaImAn QC
+                if '-QC-S2-' in event:
+                    if event == '-QC-S2-slider-':
+                        slice = int(values[event])
+                        if pipe_obj.caiman_obj is not None:
+                            img = pipe_obj.qc_s2(slice)
+                            imwrite(str(pipe_obj.QCimage_s2), img)
+                            window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
     finally:
         window.close()
 
@@ -281,6 +313,7 @@ def main():
     pipe_obj = Pipeline()
     settings = load_config()
     window = init_sg(settings)
+    pipe_obj.load_setting(settings)
     handle_events(pipe_obj, window, settings)
 
 
