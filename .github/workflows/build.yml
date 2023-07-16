@@ -2,13 +2,17 @@ name: Build and deploy installers
 
 on:
   push:
-    branches: master
+    branches:
+      - master
     paths-ignore:
       - '.github/**'
       - 'readme.md'
       - '*.ipynb'
       - 'Fiji.app/**'
 #      - '**'
+  pull_request:
+    branches:
+      - master
 
 jobs:
   Build-Windows:
