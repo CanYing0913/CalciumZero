@@ -17,6 +17,7 @@ def load_config():
 
 
 def init_sg(settings):
+    # Set window and theme based on config and user display
     win_width, win_height = sg.Window.get_screen_size()
     scale_w = win_width / 1920
     scale_h = win_height / 1080
@@ -27,6 +28,7 @@ def init_sg(settings):
     font_size = int(scale_w * font_size)
     sg.theme(theme)
 
+    # GUI components
     row_meta = [
         [sg.Text('Welcome to CalciumZero GUI', font='italic 16 bold', justification='center')],
         [
@@ -133,9 +135,16 @@ def init_sg(settings):
         sg.Text(),
         Column([
             [
-                sg.Slider((0, 9), 0, resolution=1, orientation='h', enable_events=True, key='-QC-S2-slider-',
+                sg.Listbox([0], default_values=[0], enable_events=True, key='-QC-S2-lb-'),
+                sg.Slider((0, 9), 0, resolution=1, orientation='h', enable_events=True, key='-QC-S2-img-slider-',
                           disable_number_display=True),
-                sg.Input('0', enable_events=True, key='-QC-S2-slice-', size=10)
+                sg.Input('0', enable_events=True, key='-QC-S2-slice-', size=5)
+            ],
+            [
+                sg.Text('ROI index:'),
+                sg.Slider((0, 9), 0, 1, orientation='h', disable_number_display=True, enable_events=True,
+                          key='-QC-S2-ROI-slider-'),
+                sg.Input('0', enable_events=True, key='-QC-S2-ROI-idx-', size=5)
             ],
             [sg.Image(key='-QC-S2-img-')]
         ])
@@ -229,10 +238,15 @@ def handle_events(pipe_obj, window, settings):
                     if pipe_obj.caiman_obj is not None:
                         # Display 0-th frame and update slider
                         if len(pipe_obj.caiman_obj.input_files) == 1:
-                            window['-QC-S2-slider-'].update(range=(0, len(pipe_obj.caiman_obj.estimates.C) - 1))
+                            window['-QC-S2-img-slider-'].update(range=(0, len(pipe_obj.caiman_obj.estimates.C) - 1))
                         else:
-                            pass
-                        img = pipe_obj.qc_s2(0)
+                            num_in = len(pipe_obj.caiman_obj.input_files)
+                            slice_per_file = len(pipe_obj.caiman_obj.input_files[0])
+                            window['-QC-S2-img-slider-'].update(range=(0, slice_per_file - 1))
+                            window['-QC-S2-lb-'].update(values=[x for x in range(num_in)])
+                            # window['-QC-S2-lb-'].update(default_values=[0])
+                        window['-QC-S2-ROI-slider-'].update(range=(0, pipe_obj.caiman_obj.estimates.A.shape[1]-1))
+                        img = pipe_obj.qc_s2(0, 0)
                         imwrite(str(pipe_obj.QCimage_s2), img)
                         window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
                     else:
@@ -312,22 +326,44 @@ def handle_events(pipe_obj, window, settings):
                     continue
                 # CaImAn QC
                 if '-QC-S2-' in event:
-                    if event == '-QC-S2-slider-' or event == '-QC-S2-slice-':
+                    if event == '-QC-S2-img-slider-' or event == '-QC-S2-slice-':
                         try:
                             slice = int(values[event])
                         except:
                             sg.popup_error(f'You need to type in a number. Aborting.')
                             window['-QC-S2-slice-'].update('')
                             continue
-                        if pipe_obj.caiman_obj is not None:
-                            if slice >= pipe_obj.caiman_obj.estimates.C.__len__():
-                                sg.popup_error(f'{slice} is greater than possible. Index back to 0.')
-                                slice = 0
-                            img = pipe_obj.qc_s2(slice)
-                            imwrite(str(pipe_obj.QCimage_s2), img)
-                            window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
-                        window['-QC-S2-slice-'].update(str(slice))
-                        window['-QC-S2-slider-'].update(slice)
+                    else:
+                        slice = int(values['-QC-S2-img-slider-'])
+                    if event == '-QC-S2-ROI-slice-' or event == '-QC-S2-ROI-slider':
+                        try:
+                            ROI_idx = int(values[event])
+                        except:
+                            sg.popup_error(f'You need to type in a number. Aborting.')
+                            window['-QC-S2-slice-'].update('')
+                            continue
+                    else:
+                        ROI_idx = int(values['-QC-S2-ROI-slider-'])
+                    if pipe_obj.caiman_obj is not None:
+                        if slice >= pipe_obj.caiman_obj.estimates.C.__len__():
+                            sg.popup_error(f'{slice} is greater than possible. Index back to 0.')
+                            slice = 0
+                        if not values['-QC-S2-lb-']:
+                            sg.popup_error('Select image index first!')
+                            continue
+                        slice_idx = slice + values['-QC-S2-lb-'][0] * len(pipe_obj.caiman_obj.input_files[0])
+                        img = pipe_obj.qc_s2(slice_idx, ROI_idx)
+                        imwrite(str(pipe_obj.QCimage_s2), img)
+                        window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
+                    window['-QC-S2-slice-'].update(str(slice))
+                    window['-QC-S2-img-slider-'].update(slice)
+                    window['-QC-S2-ROI-idx-'].update(str(ROI_idx))
+                    window['-QC-S2-ROI-slider-'].update(ROI_idx)
+                    continue
+
+
+                    # if event == '-QC-S2-lb-':
+                    #
 
     finally:
         window.close()
