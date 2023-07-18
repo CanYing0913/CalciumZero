@@ -460,7 +460,7 @@ class Pipeline(object):
                 [2, 0, 1])
             denoised.save(fnames_out)
             ps2(f"caiman denoised movie saved to {fnames_out}")
-        path = os.path.join(self.work_dir, "cmn_obj")
+        path = os.path.join(self.work_dir, "cmn_obj.cmobj")
         with open(path, "wb") as f:
             pickle.dump(cnm, f)
             ps2(f"object cnm dumped to {path}.")
@@ -536,21 +536,21 @@ class Pipeline(object):
     def load_setting(self, settings):
         self.QCimage_s2 = self.cache.joinpath(settings['QC']['s2_image'])
 
-    def qc_s2(self, idx):
+    def qc_s2(self, frame_idx, ROI_idx):
         from cv2 import resize
-        ROI = np.reshape(self.caiman_obj.estimates.A[:, idx].toarray(), self.caiman_obj.dims, order='F')
+        frame_per_file = len(self.caiman_obj.input_files[0])
+        image_idx = frame_idx // frame_per_file
+        frame_idx %= frame_per_file
+        ROI = np.reshape(self.caiman_obj.estimates.A[:, ROI_idx].toarray(), self.caiman_obj.dims, order='F')
         # ROI = np.array(ROI, dtype=np.uint8)
         w, h = ROI.shape
         new_w = int(200 * h / w)
         ROI = resize(ROI, (new_w, 200))
         y, x = np.unravel_index(ROI.argmax(), ROI.shape)
-        image_raw = self.caiman_obj.input_files[0][x]
+        image_raw = self.caiman_obj.input_files[image_idx][frame_idx]
         w_r, h_r = ROI.shape
         new_w_r = int(200 * h_r / w_r)
         image_raw = resize(image_raw, (new_w_r, 200))
         ROI_temp = ROI * 255 + image_raw
         ROI_temp = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 4)
-        # from matplotlib import pyplot as plt
-        # plt.figure()
-        # plt.imshow(ROI)
         return ROI_temp
