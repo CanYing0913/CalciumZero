@@ -2,8 +2,8 @@ import numpy as np
 from math import sqrt
 from tifffile import imread
 
-# Note: getPixels (aka np.zeros_like) should be flatten.  -- 2023.07.27
 
+# Note: getPixels (aka np.zeros_like) should be flatten.  -- 2023.07.27
 
 
 class Stabilizer(object):
@@ -13,6 +13,8 @@ class Stabilizer(object):
         'maxIter',
         'tol',
         'alpha',
+        'img',
+        'out',
         'ip',
         'ipRef'
     ]
@@ -24,27 +26,30 @@ class Stabilizer(object):
         self.tol = 1E-7
         self.alpha = 0.9
 
+        self.img = None
+        self.out = None
         self.ip = None
         self.ipRef = None
 
     def run(self, path_input, path_output):
-        self.ipRef = imread(path_input)
+        self.img = imread(path_input)
+        self.ipRef = self.img[0]
         stackSize = len(self.ipRef)
         current = 0
         self.showProgress(0.0)
-        self.process(self.ipRef, current-1, 1, -1, 1)
-        self.process(self.ipRef, current, stackSize, 1, current)
+        self.process(current - 1, 1, -1, 1)
+        self.process(current, stackSize, 1, current)
 
     @staticmethod
     def showProgress(percent):
-        pass
+        print(f'{percent}')
 
     def showStatus(self, msg):
-        pass
+        print(f'{msg}')
 
-    def process(self, ipRef, firstslice: int,
+    def process(self, firstslice: int,
                 lastslice: int, interval: int, tick: int):
-        stacksize, width, height = ipRef.shape
+        stacksize, width, height = self.ipRef.shape
         ipPyramid = [None, None, None, None, None]
         ipRefPyramid = [None, None, None, None, None]
         ipPyramid[0] = np.zeros((width, height), dtype=float)
@@ -70,35 +75,43 @@ class Stabilizer(object):
                         ipPyramid[4] = np.zeros((width16, height16), dtype=float)
                         ipRefPyramid[4] = np.zeros((width16, height16), dtype=float)
 
-        for slice in range(firstslice, lastslice, interval):
-            if slice == firstslice and interval > 0:
-                self.showStatus(f'skipping slice={slice}')
+        for slice_idx in range(firstslice, lastslice, interval):
+            if slice_idx == firstslice and interval > 0:
+                self.showStatus(f'skipping slice={slice_idx}')
+                if self.out is None:
+                    self.out = np.zeros_like(self.img)
+                    self.out[0] = self.ipRef
+                else:
+                    raise NotImplementedError
                 self.showProgress(tick / stacksize)
                 tick += 1
             else:
-                self.showStatus(f'stabilizing slice={slice}')
-                ipFloatRef = ipRef
-                ipFloat = np.array(ipRef, dtype=float)
+                self.showStatus(f'stabilizing slice={slice_idx}')
+                ip = self.img[slice_idx]
                 wp = [[]]
                 if self.transform == 'TRANSLATION':
                     wp = self.estimateTranslation1(
-                        ipFloat, ipFloatRef, ipPyramid, ipRefPyramid)
+                        ip, ipPyramid, ipRefPyramid)
                 else:
-                    wp = self.estimateAffine2(
-                        ipFloat, ipFloatRef, ipPyramid, ipRefPyramid, maxIter, tol);
-                ipFloatOut = np.zeros((width, height), dtype=float)
+                    wp = self.estimateAffine1(
+                        ip, ipPyramid, ipRefPyramid)
+                ipOut = np.zeros((width, height), dtype=float)
                 if self.transform == 'translation':
-                    self.warpTranslation(ipFloatOut, ipFloat, wp)
+                    ipOut = self.warpTranslation(ipOut, ip, wp)
                 else:
-                    self.warpAffine(ipFloatOut, ipFloat, wp)
+                    ipOut = self.warpAffine(ipOut, ip, wp)
 
                 # Note: Skipped RGB image process
                 # TODO line 299-318
-                combine(ipFloatRef, ipFloatOut)
-                showProgress(tick / stacksize)
+
+                self.out[slice_idx] = ipOut
+
+                self.ipRef = self.combine(self.ipRef, ipOut)
+                self.showProgress(tick / stacksize)
                 tick += 1
 
-    def estimateAffine1(self, ip, ipRef, ipPyramid, ipRefPyramid, maxIter, tol):
+    def estimateAffine1(self, ip, ipPyramid, ipRefPyramid):
+        ipRef = self.ipRef
         wp = np.array([[0.0, 0.0, 0.0] for _ in range(2)])
         ipPyramid[0] = self.gradient(ip)
         ipRefPyramid[0] = self.gradient(ipRef)
@@ -106,8 +119,9 @@ class Stabilizer(object):
             self.resize(ipPyramid[4], ipPyramid[0])
             self.resize(ipRefPyramid[4], ipRefPyramid[0])
             wp = self.estimateAffine2(wp, ipPyramid[4], ipRefPyramid[4])
-            wp[0, 0] *= 16
-            wp[1, 0] *= 16
+            wp[0, 2] *= 16
+            wp[1, 2] *= 16
+
         if ipPyramid[3] is not None and ipRefPyramid[3] is not None:
             self.resize(ipPyramid[3], ipPyramid[0])
             self.resize(ipRefPyramid[3], ipRefPyramid[0])
@@ -155,6 +169,7 @@ class Stabilizer(object):
         ipOut = ip.copy()
 
         dp = np.array([0.0 for _ in range(6)])
+
         bestWp = np.zeros((2, 3), dtype=float)
         bestWp[0, 0] = wp[0, 0]
         bestWp[0, 1] = wp[0, 1]
@@ -174,11 +189,11 @@ class Stabilizer(object):
         oldRmse = float('inf')
         minRmse = float('inf')
 
-        for iter in range(maxIter):
-            self.warpAffine(ipOut, ip, wp)
-            self.subtract(ipOut, ipRef)
+        for iter_idx in range(maxIter):
+            ipOut = self.warpAffine(ipOut, ip, wp)
+            ipOut = self.subtract(ipOut, ipRef)
             rmse = self.rootMeanSquare(ipOut)
-            if iter > 0:
+            if iter_idx > 0:
                 if rmse < minRmse:
                     bestWp[0, 0] = wp[0, 0]
                     bestWp[0, 1] = wp[0, 1]
@@ -193,14 +208,14 @@ class Stabilizer(object):
 
             error = ipOut
 
-            dp[0] = dotSum(sd[0], error)
-            dp[1] = dotSum(sd[1], error)
-            dp[2] = dotSum(sd[2], error)
-            dp[3] = dotSum(sd[3], error)
-            dp[4] = dotSum(sd[4], error)
-            dp[5] = dotSum(sd[5], error)
+            dp[0] = self.dotSum(sd[0], error)
+            dp[1] = self.dotSum(sd[1], error)
+            dp[2] = self.dotSum(sd[2], error)
+            dp[3] = self.dotSum(sd[3], error)
+            dp[4] = self.dotSum(sd[4], error)
+            dp[5] = self.dotSum(sd[5], error)
 
-            dp = prod(h, dp)
+            dp = self.prod1(h, dp)
 
             d[0][0] = dp[0] + 1.0
             d[0][1] = dp[2]
@@ -222,7 +237,7 @@ class Stabilizer(object):
             w[2][1] = 0.0
             w[2][2] = 1.0
 
-            w = prod(w, invert(d))
+            w = self.prod2(w, self.invert(d))
 
             wp[0][0] = w[0][0] - 1.0
             wp[0][1] = w[0][1]
@@ -233,35 +248,36 @@ class Stabilizer(object):
 
         return bestWp
 
-    def estimateTranslation1(self, ip, ipRef, ipPyramid, ipRefPyramid):
+    def estimateTranslation1(self, ip, ipPyramid, ipRefPyramid):
+        ipRef = self.ipRef
         wp = [[0.0] for _ in range(2)]
-        ipPyramid[0] = gradient(ip)
-        ipRefPyramid[0] = gradient(ipRef)
+        ipPyramid[0] = self.gradient(ip)
+        ipRefPyramid[0] = self.gradient(ipRef)
 
         if ipPyramid[4] is not None and ipRefPyramid[4] is not None:
-            resize(ipPyramid[4], ipPyramid[0])
-            resize(ipRefPyramid[4], ipRefPyramid[0])
+            self.resize(ipPyramid[4], ipPyramid[0])
+            self.resize(ipRefPyramid[4], ipRefPyramid[0])
             wp = self.estimateTranslation2(wp, ipPyramid[4], ipRefPyramid[4])
             wp[0][0] *= 16
             wp[1][0] *= 16
 
         if ipPyramid[3] is not None and ipRefPyramid[3] is not None:
-            resize(ipPyramid[3], ipPyramid[0])
-            resize(ipRefPyramid[3], ipRefPyramid[0])
+            self.resize(ipPyramid[3], ipPyramid[0])
+            self.resize(ipRefPyramid[3], ipRefPyramid[0])
             wp = self.estimateTranslation2(wp, ipPyramid[3], ipRefPyramid[3])
             wp[0][0] *= 8
             wp[1][0] *= 8
 
         if ipPyramid[2] is not None and ipRefPyramid[2] is not None:
-            resize(ipPyramid[2], ipPyramid[0])
-            resize(ipRefPyramid[2], ipRefPyramid[0])
+            self.resize(ipPyramid[2], ipPyramid[0])
+            self.resize(ipRefPyramid[2], ipRefPyramid[0])
             wp = self.estimateTranslation2(wp, ipPyramid[2], ipRefPyramid[2])
             wp[0][0] *= 4
             wp[1][0] *= 4
 
         if ipPyramid[1] is not None and ipRefPyramid[1] is not None:
-            resize(ipPyramid[1], ipPyramid[0])
-            resize(ipRefPyramid[1], ipRefPyramid[0])
+            self.resize(ipPyramid[1], ipPyramid[0])
+            self.resize(ipRefPyramid[1], ipRefPyramid[0])
             wp = self.estimateTranslation2(wp, ipPyramid[1], ipRefPyramid[1])
             wp[0][0] *= 2
             wp[1][0] *= 2
@@ -279,57 +295,71 @@ class Stabilizer(object):
         dp = [0.0, 0.0]
 
         bestWp = np.zeros((2, 1), dtype=float)
-        bestWp[0][0] = wp[0][0];
-        bestWp[1][0] = wp[1][0];
+        bestWp[0, 0] = wp[0, 0]
+        bestWp[1, 0] = wp[1, 0]
 
         d = np.identity(3, dtype=float)
         w = np.identity(2, dtype=float)
         h = np.zeros((2, 2), dtype=float)
 
-        h[0][0] = dotSum(dxRef, dxRef)
-        h[1][0] = dotSum(dxRef, dyRef)
-        h[0][1] = dotSum(dyRef, dxRef)
-        h[1][1] = dotSum(dyRef, dyRef)
-        h = invert(h)
+        h[0][0] = self.dotSum(dxRef, dxRef)
+        h[1][0] = self.dotSum(dxRef, dyRef)
+        h[0][1] = self.dotSum(dyRef, dxRef)
+        h[1][1] = self.dotSum(dyRef, dyRef)
+        h = self.invert(h)
 
-        oldRmse = double.MAX_VALUE
-        minRmse = double.MAX_VALUE
+        oldRmse = float('inf')
+        minRmse = float('inf')
+        dminv = pow(2, -1074)
 
         for iter in range(self.maxIter):
-            self.warpTranslation(ipOut, ip, wp)
-            subtract(ipOut, ipRef)
-            rmse = rootMeanSquare(ipOut)
+            ipOut = self.warpTranslation(ipOut, ip, wp)
+            ipOut = self.subtract(ipOut, ipRef)
+            rmse = self.rootMeanSquare(ipOut)
             if iter > 0:
                 if rmse < minRmse:
-                    bestWp[0][0] = wp[0][0]
-                    bestWp[1][0] = wp[1][0]
+                    bestWp[0, 0] = wp[0, 0]
+                    bestWp[1, 0] = wp[1, 0]
                     minRmse = rmse
-                if abs((oldRmse - rmse) /  (oldRmse + double.MIN_VALUE)) < self.tol:
+                if abs((oldRmse - rmse) / (oldRmse + dminv)) < self.tol:
                     break
-            oldRm = rmse
-            error = ipOut.copy()
+            oldRmse = rmse
 
-            dp[0] = dotSum(dxRef, error)
-            dp[1] = dotSum(dyRef, error)
+            error = ipOut
 
-            dp = prod(h, dp)
+            dp[0] = self.dotSum(dxRef, error)
+            dp[1] = self.dotSum(dyRef, error)
 
-            d[0][0] = 1.0; d[0][1] = 0.0; d[0][2] = dp[0]
-            d[1][0] = 0.0; d[1][1] = 1.0; d[1][2] = dp[1]
-            d[2][0] = 0.0; d[2][1] = 0.0; d[2][2] = 1.0
+            dp = self.prod1(h, dp)
 
-            w[0][0] = 1.0; w[0][1] = 0.0; w[0][2] = wp[0][0]
-            w[1][0] = 0.0; w[1][1] = 1.0; w[1][2] = wp[1][0]
-            w[2][0] = 0.0; w[2][1] = 0.0; w[2][2] = 1.0
+            d[0][0] = 1.0
+            d[0][1] = 0.0
+            d[0][2] = dp[0]
+            d[1][0] = 0.0
+            d[1][1] = 1.0
+            d[1][2] = dp[1]
+            d[2][0] = 0.0
+            d[2][1] = 0.0
+            d[2][2] = 1.0
 
-            w = prod(w, invert(d))
+            w[0][0] = 1.0
+            w[0][1] = 0.0
+            w[0][2] = wp[0][0]
+            w[1][0] = 0.0
+            w[1][1] = 1.0
+            w[1][2] = wp[1][0]
+            w[2][0] = 0.0
+            w[2][1] = 0.0
+            w[2][2] = 1.0
 
-            wp[0][0] = w[0][2]
-            wp[1][0] = w[1][2]
+            w = self.prod2(w, self.invert(d))
+
+            wp[0, 0] = w[0, 2]
+            wp[1, 0] = w[1, 2]
 
         return bestWp
 
-    def gradient(self, ipOut, ip):
+    def gradient(self, ip):
         width, height = ip.shape
         pixels = ip
         outPixels = np.zeros_like(ip, dtype=float)
@@ -344,23 +374,31 @@ class Stabilizer(object):
             # sw---s---se
 
             p1 = 0.0
-            p2 = pixels[offset - width - 1] # nw
-            p3 = pixels[offset - width]     # n
-            p4 = 0.0                        # ne
-            p5 = pixels[offset - 1]         # w
-            p6 = pixels[offset]             # o
-            p7 = 0.0                        # e
-            p8 = pixels[offset + width - 1] # sw
-            p9 = pixels[offset + width]     # s
+            p2 = pixels[offset - width - 1]  # nw
+            p3 = pixels[offset - width]  # n
+            p4 = 0.0  # ne
+            p5 = pixels[offset - 1]  # w
+            p6 = pixels[offset]  # o
+            p7 = 0.0  # e
+            p8 = pixels[offset + width - 1]  # sw
+            p9 = pixels[offset + width]  # s
 
             for x in range(1, width - 1):
-                p1 = p2; p2 = p3; p3 = pixels[offset - width + 1]
-                p4 = p5; p5 = p6; p6 = pixels[offset + 1]
-                p7 = p8; p8 = p9; p9 = pixels[offset + width + 1]
+                p1 = p2
+                p2 = p3
+                p3 = pixels[offset - width + 1]
+                p4 = p5
+                p5 = p6
+                p6 = pixels[offset + 1]
+                p7 = p8
+                p8 = p9
+                p9 = pixels[offset + width + 1]
                 a = p1 + 2 * p2 + p3 - p7 - 2 * p8 - p9
                 b = p1 + 2 * p4 + p7 - p3 - 2 * p6 - p9
                 outPixels[offset] = sqrt(a * a + b * b)
                 offset += 1
+
+        return np.reshape(outPixels, ip.shape)
 
     def resize(self, ipOut, ip):
         width, height = ip.shape
@@ -373,11 +411,13 @@ class Stabilizer(object):
             ys = y * yScale
             for x in range(widthOut):
                 # see https://imagej.nih.gov/ij/developer/api/ij/ij/process/FloatProcessor.html#getInterpolatedPixel(double,double)
-                pixelsOut[i] = ip.getInterpolatedPixel(x * xScale, ys)
+                # pixelsOut[i] = ip.getInterpolatedPixel(x * xScale, ys)
+                pixelsOut[i] = self.getInterpolatedPixel2(x * xScale, ys, ip)
                 i += 1
 
-    def prod1(self, m, v):
-        n = len(v)
+    def prod1(self, m, v: np.ndarray):
+        assert len(v.shape) == 1
+        n = v.shape[0]
         out = np.zeros(n)
         for j in range(n):
             out[j] = 0.0
@@ -420,12 +460,12 @@ class Stabilizer(object):
         for x in range(width):
             # Take forward / backward difference on edges.
             outPixels[x] = pixels[width + x] - pixels[x]
-            outPixels[(height - 1) * width + x] = pixels[width * (height - 1) + x]- pixels[width * (height - 2) + x]
+            outPixels[(height - 1) * width + x] = pixels[width * (height - 1) + x] - pixels[width * (height - 2) + x]
 
             # y
             for y in range(1, height - 1):
                 # Take central difference in interior.
-                outPixels[y * width + x] = (pixels[width * (y + 1) + x] - pixels[width * (y - 1) + x]) * 0.5;
+                outPixels[y * width + x] = (pixels[width * (y + 1) + x] - pixels[width * (y - 1) + x]) * 0.5
 
         return outPixels
 
@@ -450,6 +490,7 @@ class Stabilizer(object):
     Physics, 2nd Edition," written by Tao Pang and published by Cambridge
     University Press on January 19, 2006 written in Java.
     """
+
     @staticmethod
     def gaussian(a, index):
         n = len(index)
@@ -467,7 +508,7 @@ class Stabilizer(object):
             c[i] = c1
 
         # Search the pivoting element from each column
-         k = 0
+        k = 0
         for j in range(n - 1):
             pi1 = 0.0
             for i in range(j, n):
@@ -496,6 +537,7 @@ class Stabilizer(object):
     Physics, 2nd Edition," written by Tao Pang and published by Cambridge
     University Press on January 19, 2006 written in Java.
     """
+
     def invert(self, a):
         n = len(a)
         x = np.zeros((n, n), dtype=float)
@@ -537,15 +579,16 @@ class Stabilizer(object):
         for i in range(0, len(pixels)):
             if pixels[i] != 0:
                 outPixels[i] = self.alpha * outPixels[i] + beta * pixels[i]
+        return np.reshape(outPixels, ip.shape)
 
     def subtract(self, ipOut, ip):
         pixels = ip.flatten()
         outPixels = ipOut.flatten()
         for i in range(0, len(pixels)):
             outPixels[i] = outPixels[i] - pixels[i]
+        return np.reshape(outPixels, ipOut.shape)
 
-    @staticmethod
-    def warpAffine(ipOut, ip, wp):
+    def warpAffine(self, ipOut, ip, wp):
         outPixels = ipOut.flatten()
         width, height = ipOut.shape
         p = 0
@@ -553,11 +596,11 @@ class Stabilizer(object):
             for x in range(width):
                 xx = (1.0 + wp[0, 0]) * x + wp[0, 1] * y + wp[0, 2]
                 yy = wp[1, 0] * x + (1.0 + wp[1, 1]) * y + wp[1, 2]
-                outPixels[p] = ip.getInterpolatedPixel(xx, yy) #TODO
+                outPixels[p] = self.getInterpolatedPixel2(xx, yy, ip)
                 p += 1
+        return np.reshape(outPixels, ipOut.shape)
 
-    @staticmethod
-    def warpTranslation(ipOut, ip, wp):
+    def warpTranslation(self, ipOut, ip, wp):
         outPixels = ipOut.flatten()
         width, height = ipOut.shape
         p = 0
@@ -565,8 +608,9 @@ class Stabilizer(object):
             for x in range(width):
                 xx = x + wp[0, 0]
                 yy = y + wp[1, 0]
-                outPixels[p] = ip.getInterpolatedPixel(xx, yy) #TODO
+                outPixels[p] = self.getInterpolatedPixel2(xx, yy, ip)  # TODO
                 p += 1
+        return np.reshape(outPixels, ipOut.shape)
 
     def getInterpolatedPixel1(self, x, y, ip, interpolationMethod='BILINEAR'):
         width, height = ip.shape
