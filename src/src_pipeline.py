@@ -471,7 +471,7 @@ class Pipeline(object):
         if not self.do_s2:
             with open(Path(self.input_root).joinpath(self.input_list[0]), 'rb') as f:
                 self.caiman_obj = pickle.load(f)
-        data = self.caiman_obj.estimates.C[:92, :]
+        data = self.caiman_obj.estimates.f
 
         # TODO: get slice number to know how many to pass to peak caller
         # filename = join(self.work_dir, '')
@@ -552,5 +552,5 @@ class Pipeline(object):
         new_w_r = int(200 * h_r / w_r)
         image_raw = resize(image_raw, (new_w_r, 200))
         ROI_temp = ROI * 255 + image_raw
-        ROI_temp = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 4)
+        ROI_temp = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 2)
         return ROI_temp

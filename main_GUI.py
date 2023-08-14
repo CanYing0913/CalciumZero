@@ -144,7 +144,9 @@ def init_sg(settings):
                 sg.Text('ROI index:'),
                 sg.Slider((0, 9), 0, 1, orientation='h', disable_number_display=True, enable_events=True,
                           key='-QC-S2-ROI-slider-'),
-                sg.Input('0', enable_events=True, key='-QC-S2-ROI-idx-', size=5)
+                sg.Input('0', enable_events=True, key='-QC-S2-ROI-idx-', size=5),
+                sg.Listbox([], enable_events=True, key='-QC-S2-AC-LB-', visible=False),
+                sg.Checkbox('AC', enable_events=True, key='-QC-S2-AC-')
             ],
             [sg.Image(key='-QC-S2-img-')]
         ])
@@ -238,7 +240,7 @@ def handle_events(pipe_obj, window, settings):
                     if pipe_obj.caiman_obj is not None:
                         # Display 0-th frame and update slider
                         if len(pipe_obj.caiman_obj.input_files) == 1:
-                            window['-QC-S2-img-slider-'].update(range=(0, len(pipe_obj.caiman_obj.estimates.C) - 1))
+                            window['-QC-S2-img-slider-'].update(range=(0, len(pipe_obj.caiman_obj.estimates.F_dff) - 1))
                         else:
                             num_in = len(pipe_obj.caiman_obj.input_files)
                             slice_per_file = len(pipe_obj.caiman_obj.input_files[0])
@@ -249,6 +251,7 @@ def handle_events(pipe_obj, window, settings):
                         img = pipe_obj.qc_s2(0, 0)
                         imwrite(str(pipe_obj.QCimage_s2), img)
                         window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
+                        window['-QC-S2-AC-LB-'].update(values=pipe_obj.caiman_obj.estimates.idx_components)
                     else:
                         sg.popup_error(f'You need to set input to your SINGLE cmn_obj file!')
                 else:
@@ -335,7 +338,7 @@ def handle_events(pipe_obj, window, settings):
                             continue
                     else:
                         slice = int(values['-QC-S2-img-slider-'])
-                    if event == '-QC-S2-ROI-slice-' or event == '-QC-S2-ROI-slider':
+                    if event == '-QC-S2-ROI-slice-' or event == '-QC-S2-ROI-slider-':
                         try:
                             ROI_idx = int(values[event])
                         except:
@@ -344,8 +347,24 @@ def handle_events(pipe_obj, window, settings):
                             continue
                     else:
                         ROI_idx = int(values['-QC-S2-ROI-slider-'])
+
+                    # accepted components
+                    if event == '-QC-S2-AC-':
+                        if values['-QC-S2-AC-']:
+                            window['-QC-S2-ROI-slider-'].update(visible=False)
+                            window['-QC-S2-ROI-idx-'].update(visible=False)
+                            window['-QC-S2-AC-LB-'].update(visible=True)
+                            ROI_idx = 0 if len(values['-QC-S2-AC-LB-']) == 0 else values['-QC-S2-AC-LB-'][0]
+                        else:
+                            window['-QC-S2-ROI-slider-'].update(visible=True)
+                            window['-QC-S2-ROI-idx-'].update(visible=True)
+                            window['-QC-S2-AC-LB-'].update(visible=False)
+                        sg.popup_error(f'Please select slice index.')
+                        continue
+                    elif event == '-QC-S2-AC-LB-':
+                        ROI_idx = 0 if len(values['-QC-S2-AC-LB-']) == 0 else values['-QC-S2-AC-LB-'][0]
                     if pipe_obj.caiman_obj is not None:
-                        if slice >= pipe_obj.caiman_obj.estimates.C.__len__():
+                        if slice >= pipe_obj.caiman_obj.estimates.F_dff.shape[1]:
                             sg.popup_error(f'{slice} is greater than possible. Index back to 0.')
                             slice = 0
                         if not values['-QC-S2-lb-']:
