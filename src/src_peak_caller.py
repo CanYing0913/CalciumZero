@@ -39,10 +39,14 @@ def flatten(lst):
 
 
 class PeakCaller:
-    def __init__(self, seq, filename):
+    def __init__(self, seq, filename, index=np.array([])):
+        if index.size == 0:
+            self.index = np.array([i for i in range(len(seq))])
+        else:
+            self.index = index
         self.num_peak_rec = 0
         self.seq = seq
-        self.filename = Path(filename).with_suffix('')
+        self.filename = filename[:-5]
         self.obs_num = len(seq)
         self.length = len(seq[0])
         self.smoothed_seq = np.zeros(self.obs_num * self.length).reshape(self.obs_num, self.length)
@@ -55,6 +59,7 @@ class PeakCaller:
         self.filterer_peak_loc = np.zeros(self.obs_num * self.length).reshape(self.obs_num, self.length)
         self.filterer_peak_loc_2 = [[] for _ in range(self.obs_num)]
         self.filterer_peak_height_mean = [0 for _ in range(self.obs_num)]
+        self.filterer_peak_height_std = [0 for _ in range(self.obs_num)]
         self.filterer_peak_height = [[] for _ in range(self.obs_num)]
         self.filterer_peak_rise_time = [[] for _ in range(self.obs_num)]
         self.filterer_peak_fall_time = [[] for _ in range(self.obs_num)]
@@ -242,8 +247,8 @@ class PeakCaller:
                         self.peak_half_end[i][k] = np.where(
                             self.detrended_seq[i][k:min_af_index + 1] <= (minafter + self.detrended_seq[i][k]) / 2)[0][
                                                        0] + k
-                        self.peak_rise_time[i][k] = k - min_bf_index
-                        self.peak_fall_time[i][k] = min_af_index - k
+                        self.peak_rise_time[i][k] = k - self.peak_half_start[i][k]
+                        self.peak_fall_time[i][k] = self.peak_half_end[i][k] - k
                         height = (2 * self.detrended_seq[i][k] - minbefore - minafter) / 2
                         # height=max(self.detrended_seq[i][k]-minbefore,self.detrended_seq[i][k]-minafter)
                         pks[i].append(height)
@@ -271,14 +276,15 @@ class PeakCaller:
             rise_times = self.peak_rise_time[num][loc]
             fall_times = self.peak_fall_time[num][loc]
             self.filterer_peak_height_mean[num] = np.mean(heights)
+            self.filterer_peak_height_std[num] = np.std(heights)
             self.filterer_peak_height[num] = list(heights)
             self.filterer_peak_rise_time[num] = list(rise_times)
             self.filterer_peak_fall_time[num] = list(fall_times)
         for num in range(self.obs_num):
-            index_lst = [1 for _ in range(self.obs_num)]
-            for ind in self.filterer_peak_loc[num]:
-                if ind == 1:
-                    for i in range(int(self.peak_start[num][i]), int(self.peak_end[num][i] + 1)):
+            index_lst = [1 for _ in range(self.length)]
+            for ind in range(len(self.filterer_peak_loc[num])):
+                if self.filterer_peak_loc[num][ind] == 1:
+                    for i in range(int(self.peak_start[num][ind]), int(self.peak_end[num][ind] + 1)):
                         index_lst[i] = 0
             real_index = np.where(np.array(index_lst) == 1)
             other_points = self.detrended_seq[num][real_index]
@@ -292,8 +298,12 @@ class PeakCaller:
         # loc=np.where(self.peak_height[num]>0)[0]
         # print(loc)
         highlight = [loc, main_data[loc]]
+        plt.figure(figsize=(15, 5))
         plt.plot(main_data)
         plt.scatter(*highlight, marker='v', color='r')
+        plt.xlabel("Time")
+        plt.ylabel('Intensity')
+        plt.title('ROI#' + str(self.index[num]))
 
     def Find_Peak_Good(self, thresh=0.15):
         ans = []
@@ -315,7 +325,7 @@ class PeakCaller:
             num_left = min(self.obs_num - 100 * i, 100)
             if num_left <= 0:
                 break
-            with plt.rc_context({'xtick.color': 'yellow', 'ytick.color': 'yellow'}):
+            with plt.rc_context({'xtick.color': 'black', 'ytick.color': 'black'}):
                 fig, axs = plt.subplots(num_left, figsize=(15, 4 * num_left))
                 fig.tight_layout()
                 for j in range(100 * i, 100 * i + num_left):
@@ -328,7 +338,9 @@ class PeakCaller:
                     axs[j % 100].plot(main_data)
                     axs[j % 100].set_xlabel('Time')
                     axs[j % 100].set_ylabel('Intensity')
+                    axs[j % 100].set_title('ROI#' + str(self.index[100 * i + j]))
                     axs[j % 100].scatter(*highlight, marker='v', color='r')
+                fig.tight_layout(pad=5.0)
                 fig.savefig(path + "_All_Peaks_" + str(i))
                 fig.clf()
                 plt.close()
@@ -344,7 +356,7 @@ class PeakCaller:
                     y.append(i)
         plt.scatter(x, y, color=(0, 0.8, 0))
         plt.xlabel('Time(s)')
-        plt.ylabel('ROI(#)')
+        plt.ylabel('ROI_Index(#)')
         plt.show()
         plt.savefig(path)
         plt.close()
@@ -389,7 +401,7 @@ class PeakCaller:
         peak_data = pd.DataFrame(details)
         for i in range(len(self.filterer_peak_height)):
             for j in range(len(self.filterer_peak_height[i])):
-                peak_data.loc[len(peak_data.index)] = [int(i), int(j), self.filterer_peak_loc_2[i][j],
+                peak_data.loc[len(peak_data.index)] = [int(self.index[i]), int(j), self.filterer_peak_loc_2[i][j],
                                                        self.filterer_peak_height[i][j],
                                                        self.filterer_peak_rise_time[i][j],
                                                        self.filterer_peak_fall_time[i][j],
@@ -417,7 +429,7 @@ class PeakCaller:
                 interv = (self.filterer_peak_loc_2[i][-1] - self.filterer_peak_loc_2[i][0]) / (
                             len(self.filterer_peak_height[i]) - 1)
                 freq = 1 / interv
-            series_data.loc[len(series_data.index)] = [i, len(self.filterer_peak_loc_2[i]),
+            series_data.loc[len(series_data.index)] = [self.index[i], len(self.filterer_peak_loc_2[i]),
                                                        np.mean(self.filterer_peak_height[i]),
                                                        np.mean(self.filterer_peak_rise_time[i]),
                                                        np.mean(self.filterer_peak_fall_time[i]),
@@ -600,15 +612,16 @@ class PeakCaller:
                                                        np.mean(self.filterer_peak_rise_time[i]) + np.mean(
                                                            self.filterer_peak_fall_time[i]), interv, freq]
         series_data = series_data.drop(columns=['ROI(#)'])
-        series_data['peak_mean_prominence'] = self.peak_mean_prominence
-        series_data['peak_height_std'] = self.peak_height_std
-        series_data['candidate_mean_prominence'] = self.candidate_mean_prominence
-        series_data['peak_std_prominence'] = self.peak_std_prominence
+        # series_data['peak_mean_prominence']=self.peak_mean_prominence
+        series_data['peak_height_std'] = self.filterer_peak_height_std
+        # series_data['candidate_mean_prominence']=self.candidate_mean_prominence
+        # series_data['peak_std_prominence']=self.peak_std_prominence
         series_data['W'] = W
         series_data['Z'] = Z
         series_data['X'] = X
         series_data = series_data.to_numpy()
         series_data[np.isnan(series_data)] = 0
+        series_data[np.isinf(series_data)] = 0
         pred = clf.predict(series_data)
         new_idx = np.where(pred > 0)
-        return self.seq[new_idx]
+        return [self.seq[new_idx], self.index[new_idx]]
