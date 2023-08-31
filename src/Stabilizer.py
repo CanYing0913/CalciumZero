@@ -1,6 +1,8 @@
 import numpy as np
 from math import sqrt
-from tifffile import imread
+from tifffile import imread, imwrite
+from tqdm import trange
+from functools import lru_cache
 
 
 # Note: getPixels (aka np.zeros_like) should be flatten.  -- 2023.07.27
@@ -31,14 +33,16 @@ class Stabilizer(object):
         self.ip = None
         self.ipRef = None
 
-    def run(self, path_input, path_output):
+    def run(self, path_input, path_output=None):
         self.img = imread(path_input)
-        self.ipRef = self.img[0]
+        self.ipRef = np.asfortranarray(self.img[0])
         stackSize = len(self.ipRef)
         current = 0
         self.showProgress(0.0)
         self.process(current - 1, 1, -1, 1)
         self.process(current, stackSize, 1, current)
+        if path_output is not None:
+            imwrite(path_output, self.out)
 
     @staticmethod
     def showProgress(percent):
@@ -46,36 +50,37 @@ class Stabilizer(object):
 
     def showStatus(self, msg):
         print(f'{msg}')
+        pass
 
     def process(self, firstslice: int,
                 lastslice: int, interval: int, tick: int):
-        stacksize, width, height = self.ipRef.shape
+        stacksize, width, height = self.img.shape
         ipPyramid = [None, None, None, None, None]
         ipRefPyramid = [None, None, None, None, None]
         ipPyramid[0] = np.zeros((width, height), dtype=float)
         ipRefPyramid[0] = np.zeros((width, height), dtype=float)
         if self.pyramidLevel >= 1 and width >= 100 and height >= 100:
-            width2 = width / 2
-            height2 = height / 2
+            width2 = width // 2
+            height2 = height // 2
             ipPyramid[1] = np.zeros((width2, height2), dtype=float)
             ipRefPyramid[1] = np.zeros((width2, height2), dtype=float)
             if self.pyramidLevel >= 2 and width >= 200 and height >= 200:
-                width4 = width / 4
-                height4 = height / 4
+                width4 = width // 4
+                height4 = height // 4
                 ipPyramid[2] = np.zeros((width4, height4), dtype=float)
                 ipRefPyramid[2] = np.zeros((width4, height4), dtype=float)
                 if self.pyramidLevel >= 3 and width >= 400 and height >= 400:
-                    width8 = width / 8
-                    height8 = height / 8
+                    width8 = width // 8
+                    height8 = height // 8
                     ipPyramid[3] = np.zeros((width8, height8), dtype=float)
                     ipRefPyramid[3] = np.zeros((width8, height8), dtype=float)
                     if self.pyramidLevel >= 4 and width >= 800 and height >= 800:
-                        width16 = width / 16
-                        height16 = height / 16
+                        width16 = width // 16
+                        height16 = height // 16
                         ipPyramid[4] = np.zeros((width16, height16), dtype=float)
                         ipRefPyramid[4] = np.zeros((width16, height16), dtype=float)
 
-        for slice_idx in range(firstslice, lastslice, interval):
+        for slice_idx in trange(firstslice, lastslice, interval):
             if slice_idx == firstslice and interval > 0:
                 self.showStatus(f'skipping slice={slice_idx}')
                 if self.out is None:
@@ -87,9 +92,9 @@ class Stabilizer(object):
                 tick += 1
             else:
                 self.showStatus(f'stabilizing slice={slice_idx}')
-                ip = self.img[slice_idx]
+                ip = self.img[slice_idx].copy()
                 wp = [[]]
-                if self.transform == 'TRANSLATION':
+                if self.transform == 'translation':
                     wp = self.estimateTranslation1(
                         ip, ipPyramid, ipRefPyramid)
                 else:
@@ -116,29 +121,29 @@ class Stabilizer(object):
         ipPyramid[0] = self.gradient(ip)
         ipRefPyramid[0] = self.gradient(ipRef)
         if ipPyramid[4] is not None and ipRefPyramid[4] is not None:
-            self.resize(ipPyramid[4], ipPyramid[0])
-            self.resize(ipRefPyramid[4], ipRefPyramid[0])
+            ipPyramid[4] = self.resize(ipPyramid[4], ipPyramid[0])
+            ipRefPyramid[4] = self.resize(ipRefPyramid[4], ipRefPyramid[0])
             wp = self.estimateAffine2(wp, ipPyramid[4], ipRefPyramid[4])
             wp[0, 2] *= 16
             wp[1, 2] *= 16
 
         if ipPyramid[3] is not None and ipRefPyramid[3] is not None:
-            self.resize(ipPyramid[3], ipPyramid[0])
-            self.resize(ipRefPyramid[3], ipRefPyramid[0])
+            ipPyramid[3] = self.resize(ipPyramid[3], ipPyramid[0])
+            ipRefPyramid[3] = self.resize(ipRefPyramid[3], ipRefPyramid[0])
             wp = self.estimateAffine2(wp, ipPyramid[3], ipRefPyramid[3])
             wp[0, 2] *= 8
             wp[1, 2] *= 8
 
         if ipPyramid[2] is not None and ipRefPyramid[2] is not None:
-            self.resize(ipPyramid[2], ipPyramid[0])
-            self.resize(ipRefPyramid[2], ipRefPyramid[0])
+            ipPyramid[2] = self.resize(ipPyramid[2], ipPyramid[0])
+            ipRefPyramid[2] = self.resize(ipRefPyramid[2], ipRefPyramid[0])
             wp = self.estimateAffine2(wp, ipPyramid[2], ipRefPyramid[2])
             wp[0, 2] *= 4
             wp[1, 2] *= 4
 
         if ipPyramid[1] is not None and ipRefPyramid[1] is not None:
-            self.resize(ipPyramid[1], ipPyramid[0])
-            self.resize(ipRefPyramid[1], ipRefPyramid[0])
+            ipPyramid[1] = self.resize(ipPyramid[1], ipPyramid[0])
+            ipRefPyramid[1] = self.resize(ipRefPyramid[1], ipRefPyramid[0])
             wp = self.estimateAffine2(wp, ipPyramid[1], ipRefPyramid[1])
             wp[0, 2] *= 2
             wp[1, 2] *= 2
@@ -255,29 +260,29 @@ class Stabilizer(object):
         ipRefPyramid[0] = self.gradient(ipRef)
 
         if ipPyramid[4] is not None and ipRefPyramid[4] is not None:
-            self.resize(ipPyramid[4], ipPyramid[0])
-            self.resize(ipRefPyramid[4], ipRefPyramid[0])
+            ipPyramid[4] = self.resize(ipPyramid[4], ipPyramid[0])
+            ipRefPyramid[4] = self.resize(ipRefPyramid[4], ipRefPyramid[0])
             wp = self.estimateTranslation2(wp, ipPyramid[4], ipRefPyramid[4])
             wp[0][0] *= 16
             wp[1][0] *= 16
 
         if ipPyramid[3] is not None and ipRefPyramid[3] is not None:
-            self.resize(ipPyramid[3], ipPyramid[0])
-            self.resize(ipRefPyramid[3], ipRefPyramid[0])
+            ipPyramid[3] = self.resize(ipPyramid[3], ipPyramid[0])
+            ipRefPyramid[3] = self.resize(ipRefPyramid[3], ipRefPyramid[0])
             wp = self.estimateTranslation2(wp, ipPyramid[3], ipRefPyramid[3])
             wp[0][0] *= 8
             wp[1][0] *= 8
 
         if ipPyramid[2] is not None and ipRefPyramid[2] is not None:
-            self.resize(ipPyramid[2], ipPyramid[0])
-            self.resize(ipRefPyramid[2], ipRefPyramid[0])
+            ipPyramid[2] = self.resize(ipPyramid[2], ipPyramid[0])
+            ipRefPyramid[2] = self.resize(ipRefPyramid[2], ipRefPyramid[0])
             wp = self.estimateTranslation2(wp, ipPyramid[2], ipRefPyramid[2])
             wp[0][0] *= 4
             wp[1][0] *= 4
 
         if ipPyramid[1] is not None and ipRefPyramid[1] is not None:
-            self.resize(ipPyramid[1], ipPyramid[0])
-            self.resize(ipRefPyramid[1], ipRefPyramid[0])
+            ipPyramid[1] = self.resize(ipPyramid[1], ipPyramid[0])
+            ipRefPyramid[1] = self.resize(ipRefPyramid[1], ipRefPyramid[0])
             wp = self.estimateTranslation2(wp, ipPyramid[1], ipRefPyramid[1])
             wp[0][0] *= 2
             wp[1][0] *= 2
@@ -373,47 +378,58 @@ class Stabilizer(object):
             #  |   |   |
             # sw---s---se
 
-            p1 = 0.0
-            p2 = pixels[offset - width - 1]  # nw
-            p3 = pixels[offset - width]  # n
-            p4 = 0.0  # ne
-            p5 = pixels[offset - 1]  # w
-            p6 = pixels[offset]  # o
-            p7 = 0.0  # e
-            p8 = pixels[offset + width - 1]  # sw
-            p9 = pixels[offset + width]  # s
+            p2 = pixels[np.unravel_index(offset - width - 1, ip.shape)]  # nw
+            p3 = pixels[np.unravel_index(offset - width, ip.shape)]  # n
+            # p4 = 0.0  # ne
+            p5 = pixels[np.unravel_index(offset - 1, ip.shape)]  # w
+            p6 = pixels[np.unravel_index(offset, ip.shape)]  # o
+            # p7 = 0.0  # e
+            p8 = pixels[np.unravel_index(offset + width - 1, ip.shape)]  # sw
+            p9 = pixels[np.unravel_index(offset + width, ip.shape)]  # s
 
             for x in range(1, width - 1):
                 p1 = p2
                 p2 = p3
-                p3 = pixels[offset - width + 1]
+                p3 = pixels[np.unravel_index(offset - width + 1, ip.shape)]
                 p4 = p5
                 p5 = p6
-                p6 = pixels[offset + 1]
+                p6 = pixels[np.unravel_index(offset + 1, ip.shape)]
                 p7 = p8
                 p8 = p9
-                p9 = pixels[offset + width + 1]
+                p9 = pixels[np.unravel_index(offset + width + 1, ip.shape)]
                 a = p1 + 2 * p2 + p3 - p7 - 2 * p8 - p9
                 b = p1 + 2 * p4 + p7 - p3 - 2 * p6 - p9
-                outPixels[offset] = sqrt(a * a + b * b)
+                outPixels[np.unravel_index(offset, ip.shape)] = sqrt(a * a + b * b)
                 offset += 1
 
-        return np.reshape(outPixels, ip.shape)
+        return outPixels
 
     def resize(self, ipOut, ip):
+        import threading
         width, height = ip.shape
         widthOut, heightOut = ipOut.shape
         xScale = width / widthOut
         yScale = height / heightOut
-        pixelsOut = ipOut
+        pixelsOut = ipOut.flatten()
         i = 0
-        for y in range(heightOut):
+        threads = []
+        for y in trange(heightOut):
             ys = y * yScale
             for x in range(widthOut):
                 # see https://imagej.nih.gov/ij/developer/api/ij/ij/process/FloatProcessor.html#getInterpolatedPixel(double,double)
                 # pixelsOut[i] = ip.getInterpolatedPixel(x * xScale, ys)
-                pixelsOut[i] = self.getInterpolatedPixel2(x * xScale, ys, ip)
+                t = threading.Thread(target=self.getInterpolatedPixel2, args=(x * xScale, ys, ip.flatten(), pixelsOut, i))
+                threads.append(t)
+                t.start()
+                # pixelsOut[i] = self.getInterpolatedPixel2(x * xScale, ys, ip)
                 i += 1
+                if i == 10:
+                    break
+            if i == 10:
+                break
+        for t in threads:
+            t.join()
+        return np.reshape(pixelsOut, ip.shape)
 
     def prod1(self, m, v: np.ndarray):
         assert len(v.shape) == 1
@@ -628,19 +644,22 @@ class Stabilizer(object):
                 y = height - 1.001
             return self.getInterpolatedPixel2(x, y, ip)
 
-    @staticmethod
-    def getInterpolatedPixel2(x, y, ip):
+    @lru_cache()
+    def getInterpolatedPixel2(self, x, y, ip, dest=None, dest_idx=None):
         width, height = ip.shape
-        pixels = ip.flatten()
         xbase = int(x)
         ybase = int(y)
         xFraction = x - xbase
         yFraction = y - ybase
         offset = ybase * width + xbase
-        lowerLeft = pixels[offset]
-        lowerRight = pixels[offset + 1]
-        upperRight = pixels[offset + width + 1]
-        upperLeft = pixels[offset + width]
+        lowerLeft = ip[offset]
+        lowerRight = ip[offset + 1]
+        upperRight = ip[offset + width + 1]
+        upperLeft = ip[offset + width]
+        # lowerLeft = ip[np.unravel_index(offset, ip.shape)]
+        # lowerRight = ip[np.unravel_index(offset + 1, ip.shape)]
+        # upperRight = ip[np.unravel_index(offset + width + 1, ip.shape)]
+        # upperLeft = ip[np.unravel_index(offset + width, ip.shape)]
         if np.isnan(upperLeft) and xFraction >= 0.5:
             upperAverage = upperRight
         elif np.isnan(upperRight) and xFraction < 0.5:
@@ -654,9 +673,18 @@ class Stabilizer(object):
             lowerAverage = lowerLeft
         else:
             lowerAverage = lowerLeft + xFraction * (lowerRight - lowerLeft)
-        if np.isnan(lowerAverage) and yFraction >= 0.5:
-            return upperAverage
-        elif np.isnan(upperAverage) and yFraction < 0.5:
-            return lowerAverage
+        if dest is None:
+            if np.isnan(lowerAverage) and yFraction >= 0.5:
+                return upperAverage
+            elif np.isnan(upperAverage) and yFraction < 0.5:
+                return lowerAverage
+            else:
+                return lowerAverage + yFraction * (upperAverage - lowerAverage)
         else:
-            return lowerAverage + yFraction * (upperAverage - lowerAverage)
+            if np.isnan(lowerAverage) and yFraction >= 0.5:
+                dest[dest_idx] = upperAverage
+            elif np.isnan(upperAverage) and yFraction < 0.5:
+                dest[dest_idx] = lowerAverage
+            else:
+                dest[dest_idx] = lowerAverage + yFraction * (upperAverage - lowerAverage)
+

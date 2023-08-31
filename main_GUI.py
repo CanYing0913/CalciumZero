@@ -4,6 +4,7 @@ from PySimpleGUI import Column
 from multiprocessing import Process
 from tifffile import imread
 from cv2 import imwrite, resize
+from matplotlib import pyplot as plt
 import numpy as np
 from src.src_pipeline import Pipeline
 
@@ -176,6 +177,7 @@ def init_sg(settings):
 def handle_events(pipe_obj, window, settings):
     # Get variables from config for user-input purpose
     run_th = Process(target=pipe_obj.run, args=())
+    prev_s2qc_fig = plt.figure()
     try:
         while True:
             event, values = window.read()
@@ -341,6 +343,12 @@ def handle_events(pipe_obj, window, settings):
                     if event == '-QC-S2-ROI-slice-' or event == '-QC-S2-ROI-slider-':
                         try:
                             ROI_idx = int(values[event])
+                            if plt.fignum_exists(prev_s2qc_fig.number):
+                                plt.close(prev_s2qc_fig)
+                                prev_s2qc_fig = plt.figure()
+                            plt.plot(pipe_obj.caiman_obj.estimates.C[ROI_idx])
+                            plt.show(block=False)
+                            plt.pause(0.001)
                         except:
                             sg.popup_error(f'You need to type in a number. Aborting.')
                             window['-QC-S2-slice-'].update('')
