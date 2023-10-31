@@ -29,50 +29,92 @@ def prints2(txt: str):
 # bpl.output_notebook()
 # hv.notebook_extension('bokeh')
 
+# # dataset dependent parameters
+# frate = 10  # movie frame rate
+# decay_time = 0.4  # length of a typical transient in seconds
+#
+# # motion correction parameters
+# motion_correct = False  # flag for performing motion correction
+# pw_rigid = False  # flag for performing piecewise-rigid motion correction (otherwise just rigid)
+# gSig_filt = (3, 3)  # size of high pass spatial filtering, used in 1p data
+# max_shifts = (5, 5)  # maximum allowed rigid shift
+# strides = (48, 48)  # start a new patch for pw-rigid motion correction every x pixels
+# overlaps = (24, 24)  # overlap between pathes (size of patch strides+overlaps)
+# max_deviation_rigid = 3  # maximum deviation allowed for patch with respect to rigid shifts
+# border_nan = 'copy'  # replicate values along the boundaries
+
 # dataset dependent parameters
-frate = 10  # movie frame rate
-decay_time = 0.4  # length of a typical transient in seconds
+frate = 10                       # movie frame rate
+decay_time = 0.4                 # length of a typical transient in seconds
 
 # motion correction parameters
-motion_correct = False  # flag for performing motion correction
-pw_rigid = False  # flag for performing piecewise-rigid motion correction (otherwise just rigid)
-gSig_filt = (3, 3)  # size of high pass spatial filtering, used in 1p data
-max_shifts = (5, 5)  # maximum allowed rigid shift
-strides = (48, 48)  # start a new patch for pw-rigid motion correction every x pixels
-overlaps = (24, 24)  # overlap between pathes (size of patch strides+overlaps)
+motion_correct = True    # flag for performing motion correction
+pw_rigid = False         # flag for performing piecewise-rigid motion correction (otherwise just rigid)
+gSig_filt = (3, 3)       # size of high pass spatial filtering, used in 1p data
+max_shifts = (5, 5)      # maximum allowed rigid shift
+strides = (48, 48)       # start a new patch for pw-rigid motion correction every x pixels
+overlaps = (24, 24)      # overlap between pathes (size of patch strides+overlaps)
 max_deviation_rigid = 3  # maximum deviation allowed for patch with respect to rigid shifts
-border_nan = 'copy'  # replicate values along the boundaries
+border_nan = 'copy'      # replicate values along the boundaries
 
 # Parameter setting for CNMF-E
+# # parameters for source extraction and deconvolution
+# p = 1  # order of the autoregressive system
+# K = None  # upper bound on number of components per patch, in general None
+# gSig = (3, 3)  # gaussian width of a 2D gaussian kernel, which approximates a neuron
+# gSiz = (13, 13)  # average diameter of a neuron, in general 4*gSig+1
+# Ain = None  # possibility to seed with predetermined binary masks
+# merge_thr = .7  # merging threshold, max correlation allowed
+# rf = 40  # half-size of the patches in pixels. e.g., if rf=40, patches are 80x80
+# stride_cnmf = 20  # amount of overlap between the patches in pixels
+# #                     (keep it at least large as gSiz, i.e 4 times the neuron size gSig)
+# tsub = 2  # downsampling factor in time for initialization,
+# #                     increase if you have memory problems
+# ssub = 1  # downsampling factor in space for initialization,
+# #                     increase if you have memory problems
+# #                     you can pass them here as boolean vectors
+# low_rank_background = None  # None leaves background of each patch intact,
+# #                     True performs global low-rank approximation if gnb>0
+# gnb = 0  # number of background components (rank) if positive,
+# #                     else exact ring model with following settings
+# #                         gnb= 0: Return background as b and W
+# #                         gnb=-1: Return full rank background B
+# #                         gnb<-1: Don't return background
+# nb_patch = 0  # number of background components (rank) per patch if gnb>0,
+# #                     else it is set automatically
+# min_corr = .8  # min peak value from correlation image
+# min_pnr = 5  # min peak to noise ration from PNR image
+# ssub_B = 2  # additional downsampling factor in space for background
+# ring_size_factor = 1.4  # radius of ring is gSiz*ring_size_factor
+
 # parameters for source extraction and deconvolution
-p = 1  # order of the autoregressive system
-K = None  # upper bound on number of components per patch, in general None
-gSig = (3, 3)  # gaussian width of a 2D gaussian kernel, which approximates a neuron
-gSiz = (13, 13)  # average diameter of a neuron, in general 4*gSig+1
-Ain = None  # possibility to seed with predetermined binary masks
-merge_thr = .7  # merging threshold, max correlation allowed
-rf = 40  # half-size of the patches in pixels. e.g., if rf=40, patches are 80x80
-stride_cnmf = 20  # amount of overlap between the patches in pixels
+p = 2               # order of the autoregressive system
+K = 6            # upper bound on number of components per patch, in general None
+gSig = (3, 3)       # gaussian width of a 2D gaussian kernel, which approximates a neuron
+gSiz = (13, 13)     # average diameter of a neuron, in general 4*gSig+1
+Ain = None          # possibility to seed with predetermined binary masks
+merge_thr = .85      # merging threshold, max correlation allowed
+rf = 20             # half-size of the patches in pixels. e.g., if rf=40, patches are 80x80
+stride_cnmf = 10    # amount of overlap between the patches in pixels
 #                     (keep it at least large as gSiz, i.e 4 times the neuron size gSig)
-tsub = 2  # downsampling factor in time for initialization,
+tsub = 2            # downsampling factor in time for initialization,
 #                     increase if you have memory problems
-ssub = 1  # downsampling factor in space for initialization,
+ssub = 1            # downsampling factor in space for initialization,
 #                     increase if you have memory problems
 #                     you can pass them here as boolean vectors
 low_rank_background = None  # None leaves background of each patch intact,
 #                     True performs global low-rank approximation if gnb>0
-gnb = 0  # number of background components (rank) if positive,
+gnb = 0             # number of background components (rank) if positive,
 #                     else exact ring model with following settings
 #                         gnb= 0: Return background as b and W
 #                         gnb=-1: Return full rank background B
 #                         gnb<-1: Don't return background
-nb_patch = 0  # number of background components (rank) per patch if gnb>0,
+nb_patch = 0        # number of background components (rank) per patch if gnb>0,
 #                     else it is set automatically
-min_corr = .8  # min peak value from correlation image
-min_pnr = 5  # min peak to noise ration from PNR image
-ssub_B = 2  # additional downsampling factor in space for background
+min_corr = .9       # min peak value from correlation image
+min_pnr = 10        # min peak to noise ration from PNR image
+ssub_B = 2          # additional downsampling factor in space for background
 ring_size_factor = 1.4  # radius of ring is gSiz*ring_size_factor
-
 
 def s2(work_dir: str, fpath_in: str, fpath_out=None, save_obj=True, save_tif=False, log=False):
     if log:
