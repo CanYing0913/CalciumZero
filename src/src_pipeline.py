@@ -7,6 +7,7 @@ import argparse
 from multiprocessing import Pool
 import imagej
 from pathlib import Path
+import os
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
@@ -131,8 +132,8 @@ class Pipeline(object):
         self.QCimage_s0 = None
         # ImageJ stabilizer related variables
         self.do_s1 = False
-        self.ij = None
-        self.ijp = ''
+        self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
+        self.ij = imagej.init(str(self.ijp), mode='interactive')
         self.s1_params = [
             'Translation',
             '1.0',
@@ -152,6 +153,7 @@ class Pipeline(object):
         self.csave = False
         self.s2_root = ''
         self.done_s2 = False
+        self.outpath_s2 = ''
         self.QCimage_s2 = None
         # Peak Caller related
         self.do_s3 = False
@@ -248,6 +250,7 @@ class Pipeline(object):
         Parameters:
 
         """
+
         def ps0(text: str):
             self.pprint(f"***[S0 - Detection]: {text}")
 
@@ -287,11 +290,12 @@ class Pipeline(object):
         start_t = time()
         idx = 0
         while idx < len(self.imm1_list):
-            imm1_list = [self.imm1_list[idx+i] for i in range(self.process) if idx+i < len(self.imm1_list)]
+            imm1_list = [self.imm1_list[idx + i] for i in range(self.process) if idx + i < len(self.imm1_list)]
             idx += self.process
             with Pool(processes=len(imm1_list)) as pool:
                 results = pool.starmap(run_plugin,
-                                       [(self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir, self.s1_params)
+                                       [(
+                                        self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir, self.s1_params)
                                         for imm1 in imm1_list])
         end_t = time()
         duration = end_t - start_t
@@ -308,7 +312,7 @@ class Pipeline(object):
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
         fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.imm2_list]
-        fnames_out = [str(Path(self.work_dir).joinpath(remove_suffix(f, '.tif') + '_caiman.tif')) for f in fnames]
+        self.outpath_s2 = [str(Path(self.work_dir).joinpath(remove_suffix(f, '.tif') + '_caiman.tif')) for f in fnames]
         mc_dict = {
             'fnames': fnames,
             'fr': frate,
@@ -458,8 +462,8 @@ class Pipeline(object):
         if self.csave:
             denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose(
                 [2, 0, 1])
-            denoised.save(fnames_out)
-            ps2(f"caiman denoised movie saved to {fnames_out}")
+            denoised.save(self.outpath_s2)
+            ps2(f"caiman denoised movie saved to {self.outpath_s2}")
         path = os.path.join(self.work_dir, "cmn_obj.cmobj")
         with open(path, "wb") as f:
             pickle.dump(cnm, f)
@@ -554,3 +558,23 @@ class Pipeline(object):
         ROI_temp = ROI * 255 + image_raw
         ROI_temp = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 2)
         return ROI_temp
+
+    def qc_caiman_movie(self):
+        if self.ij is None:
+            try:
+                self.ij = imagej.init(self.ijp, mode='interactive')
+            except Exception as e:
+                raise RuntimeError("ImageJ not initialized.")
+        if self.QCimage_s2 is None:
+            raise RuntimeError("QC image not found.")
+        if self.outpath_s2 == '':
+            raise RuntimeError("No caiman output path.")
+        elif not Path(self.outpath_s2).exists():
+            raise RuntimeError(f"Caiman output path {self.outpath_s2} not found.")
+
+        # Start playing output movie
+        dataset = self.ij.IJ.run("Bio-Formats Importer",
+                                 f"open={self.outpath_s2} autoscale color_mode=Grayscale rois_import=[ROI manager] "
+                                 f"view=Hyperstack stack_order=XYCZT")
+        # dataset = self.ij.io().open(self.outpath_s2)
+        # self.ij.ui().show(dataset)

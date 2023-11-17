@@ -10,7 +10,7 @@ from src.src_pipeline import Pipeline
 
 
 def load_config():
-    SETTINGS_PATH = Path.cwd()
+    SETTINGS_PATH = Path(__file__).parent
     settings = sg.UserSettings(
         path=str(SETTINGS_PATH), filename='config.ini', use_config_file=True, convert_bools_and_none=True
     )
@@ -139,7 +139,8 @@ def init_sg(settings):
                 sg.Listbox([0], default_values=[0], enable_events=True, key='-QC-S2-lb-'),
                 sg.Slider((0, 9), 0, resolution=1, orientation='h', enable_events=True, key='-QC-S2-img-slider-',
                           disable_number_display=True),
-                sg.Input('0', enable_events=True, key='-QC-S2-slice-', size=5)
+                sg.Input('0', enable_events=True, key='-QC-S2-slice-', size=5),
+                sg.Button('Movie', enable_events=True, key='-QC-S2-movie-')
             ],
             [
                 sg.Text('ROI index:'),
@@ -177,6 +178,7 @@ def init_sg(settings):
 def handle_events(pipe_obj, window, settings):
     # Get variables from config for user-input purpose
     run_th = Process(target=pipe_obj.run, args=())
+    qc_s2_movie = Process(target=pipe_obj.qc_caiman_movie, args=())
     prev_s2qc_fig = plt.figure()
     try:
         while True:
@@ -331,6 +333,12 @@ def handle_events(pipe_obj, window, settings):
                     continue
                 # CaImAn QC
                 if '-QC-S2-' in event:
+                    if event == '-QC-S2-movie-':
+                        if qc_s2_movie.is_alive():
+                            qc_s2_movie.kill()
+                        qc_s2_movie = Process(target=pipe_obj.qc_caiman_movie, args=())
+                        qc_s2_movie.start()
+                        continue
                     if event == '-QC-S2-img-slider-' or event == '-QC-S2-slice-':
                         try:
                             slice = int(values[event])
@@ -386,11 +394,6 @@ def handle_events(pipe_obj, window, settings):
                     window['-QC-S2-img-slider-'].update(slice)
                     window['-QC-S2-ROI-idx-'].update(str(ROI_idx))
                     window['-QC-S2-ROI-slider-'].update(ROI_idx)
-                    continue
-
-
-                    # if event == '-QC-S2-lb-':
-                    #
 
     finally:
         window.close()
