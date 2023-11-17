@@ -8,7 +8,7 @@ on:
       - '.github/**'
       - 'readme.md'
       - '*.ipynb'
-      - 'Fiji.app/**'
+#      - 'Fiji.app/**'
 #      - '**'
   pull_request:
     branches:
