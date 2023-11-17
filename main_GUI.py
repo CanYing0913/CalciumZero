@@ -2,6 +2,7 @@ from pathlib import Path
 import PySimpleGUI as sg
 from PySimpleGUI import Column
 from multiprocessing import Process
+from threading import Thread
 from tifffile import imread
 from cv2 import imwrite, resize
 from matplotlib import pyplot as plt
@@ -178,7 +179,7 @@ def init_sg(settings):
 def handle_events(pipe_obj, window, settings):
     # Get variables from config for user-input purpose
     run_th = Process(target=pipe_obj.run, args=())
-    qc_s2_movie = Process(target=pipe_obj.qc_caiman_movie, args=())
+    qc_s2_movie = Thread(target=pipe_obj.qc_caiman_movie, args=())
     prev_s2qc_fig = plt.figure()
     try:
         while True:
@@ -335,8 +336,9 @@ def handle_events(pipe_obj, window, settings):
                 if '-QC-S2-' in event:
                     if event == '-QC-S2-movie-':
                         if qc_s2_movie.is_alive():
-                            qc_s2_movie.kill()
-                        qc_s2_movie = Process(target=pipe_obj.qc_caiman_movie, args=())
+                            sg.popup_quick_message('Movie is already running. Aborting.')
+                            continue
+                        qc_s2_movie = Thread(target=pipe_obj.qc_caiman_movie, args=())
                         qc_s2_movie.start()
                         continue
                     if event == '-QC-S2-img-slider-' or event == '-QC-S2-slice-':
