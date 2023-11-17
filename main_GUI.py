@@ -4,12 +4,13 @@ from PySimpleGUI import Column
 from multiprocessing import Process
 from tifffile import imread
 from cv2 import imwrite, resize
+from matplotlib import pyplot as plt
 import numpy as np
 from src.src_pipeline import Pipeline
 
 
 def load_config():
-    SETTINGS_PATH = Path.cwd()
+    SETTINGS_PATH = Path(__file__).parent
     settings = sg.UserSettings(
         path=str(SETTINGS_PATH), filename='config.ini', use_config_file=True, convert_bools_and_none=True
     )
@@ -138,13 +139,16 @@ def init_sg(settings):
                 sg.Listbox([0], default_values=[0], enable_events=True, key='-QC-S2-lb-'),
                 sg.Slider((0, 9), 0, resolution=1, orientation='h', enable_events=True, key='-QC-S2-img-slider-',
                           disable_number_display=True),
-                sg.Input('0', enable_events=True, key='-QC-S2-slice-', size=5)
+                sg.Input('0', enable_events=True, key='-QC-S2-slice-', size=5),
+                sg.Button('Movie', enable_events=True, key='-QC-S2-movie-')
             ],
             [
                 sg.Text('ROI index:'),
                 sg.Slider((0, 9), 0, 1, orientation='h', disable_number_display=True, enable_events=True,
                           key='-QC-S2-ROI-slider-'),
-                sg.Input('0', enable_events=True, key='-QC-S2-ROI-idx-', size=5)
+                sg.Input('0', enable_events=True, key='-QC-S2-ROI-idx-', size=5),
+                sg.Listbox([], enable_events=True, key='-QC-S2-AC-LB-', visible=False),
+                sg.Checkbox('AC', enable_events=True, key='-QC-S2-AC-')
             ],
             [sg.Image(key='-QC-S2-img-')]
         ])
@@ -174,6 +178,8 @@ def init_sg(settings):
 def handle_events(pipe_obj, window, settings):
     # Get variables from config for user-input purpose
     run_th = Process(target=pipe_obj.run, args=())
+    qc_s2_movie = Process(target=pipe_obj.qc_caiman_movie, args=())
+    prev_s2qc_fig = plt.figure()
     try:
         while True:
             event, values = window.read()
@@ -238,7 +244,7 @@ def handle_events(pipe_obj, window, settings):
                     if pipe_obj.caiman_obj is not None:
                         # Display 0-th frame and update slider
                         if len(pipe_obj.caiman_obj.input_files) == 1:
-                            window['-QC-S2-img-slider-'].update(range=(0, len(pipe_obj.caiman_obj.estimates.C) - 1))
+                            window['-QC-S2-img-slider-'].update(range=(0, len(pipe_obj.caiman_obj.estimates.F_dff) - 1))
                         else:
                             num_in = len(pipe_obj.caiman_obj.input_files)
                             slice_per_file = len(pipe_obj.caiman_obj.input_files[0])
@@ -249,6 +255,7 @@ def handle_events(pipe_obj, window, settings):
                         img = pipe_obj.qc_s2(0, 0)
                         imwrite(str(pipe_obj.QCimage_s2), img)
                         window['-QC-S2-img-'].update(filename=pipe_obj.QCimage_s2)
+                        window['-QC-S2-AC-LB-'].update(values=pipe_obj.caiman_obj.estimates.idx_components)
                     else:
                         sg.popup_error(f'You need to set input to your SINGLE cmn_obj file!')
                 else:
@@ -326,6 +333,12 @@ def handle_events(pipe_obj, window, settings):
                     continue
                 # CaImAn QC
                 if '-QC-S2-' in event:
+                    if event == '-QC-S2-movie-':
+                        if qc_s2_movie.is_alive():
+                            qc_s2_movie.kill()
+                        qc_s2_movie = Process(target=pipe_obj.qc_caiman_movie, args=())
+                        qc_s2_movie.start()
+                        continue
                     if event == '-QC-S2-img-slider-' or event == '-QC-S2-slice-':
                         try:
                             slice = int(values[event])
@@ -335,17 +348,39 @@ def handle_events(pipe_obj, window, settings):
                             continue
                     else:
                         slice = int(values['-QC-S2-img-slider-'])
-                    if event == '-QC-S2-ROI-slice-' or event == '-QC-S2-ROI-slider':
+                    if event == '-QC-S2-ROI-slice-' or event == '-QC-S2-ROI-slider-':
                         try:
                             ROI_idx = int(values[event])
+                            if plt.fignum_exists(prev_s2qc_fig.number):
+                                plt.close(prev_s2qc_fig)
+                                prev_s2qc_fig = plt.figure()
+                            plt.plot(pipe_obj.caiman_obj.estimates.C[ROI_idx])
+                            plt.show(block=False)
+                            plt.pause(0.001)
                         except:
                             sg.popup_error(f'You need to type in a number. Aborting.')
                             window['-QC-S2-slice-'].update('')
                             continue
                     else:
                         ROI_idx = int(values['-QC-S2-ROI-slider-'])
+
+                    # accepted components
+                    if event == '-QC-S2-AC-':
+                        if values['-QC-S2-AC-']:
+                            window['-QC-S2-ROI-slider-'].update(visible=False)
+                            window['-QC-S2-ROI-idx-'].update(visible=False)
+                            window['-QC-S2-AC-LB-'].update(visible=True)
+                            ROI_idx = 0 if len(values['-QC-S2-AC-LB-']) == 0 else values['-QC-S2-AC-LB-'][0]
+                        else:
+                            window['-QC-S2-ROI-slider-'].update(visible=True)
+                            window['-QC-S2-ROI-idx-'].update(visible=True)
+                            window['-QC-S2-AC-LB-'].update(visible=False)
+                        sg.popup_error(f'Please select slice index.')
+                        continue
+                    elif event == '-QC-S2-AC-LB-':
+                        ROI_idx = 0 if len(values['-QC-S2-AC-LB-']) == 0 else values['-QC-S2-AC-LB-'][0]
                     if pipe_obj.caiman_obj is not None:
-                        if slice >= pipe_obj.caiman_obj.estimates.C.__len__():
+                        if slice >= pipe_obj.caiman_obj.estimates.F_dff.shape[1]:
                             sg.popup_error(f'{slice} is greater than possible. Index back to 0.')
                             slice = 0
                         if not values['-QC-S2-lb-']:
@@ -359,11 +394,6 @@ def handle_events(pipe_obj, window, settings):
                     window['-QC-S2-img-slider-'].update(slice)
                     window['-QC-S2-ROI-idx-'].update(str(ROI_idx))
                     window['-QC-S2-ROI-slider-'].update(ROI_idx)
-                    continue
-
-
-                    # if event == '-QC-S2-lb-':
-                    #
 
     finally:
         window.close()
