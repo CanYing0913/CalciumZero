@@ -17,22 +17,32 @@ def run_plugin(ijp, fname, work_dir, s1_params):
         if suffix and input_string.endswith(suffix):
             return input_string[:-len(suffix)]
         return input_string
+
     ij = imagej.init(ijp, mode='headless')
     fname_out = Path(fname).stem + '_stab.tif'
     fname_out = Path(work_dir).joinpath(fname_out)
     imp = ij.IJ.openImage(fname)
     if type(imp) is None:
         raise TypeError(f'imp failed to initialize with path {fname}')
-    Transformation = "Translation" if s1_params[0] == 0 else "Affine"
-    MAX_Pyramid_level = s1_params[1]
-    update_coefficient = s1_params[2]
-    MAX_iteration = s1_params[3]
-    error_tolerance = s1_params[4]
+    if isinstance(s1_params, list):
+        Transformation = "Translation" if s1_params[0] == 0 else "Affine"
+        MAX_Pyramid_level = s1_params[1]
+        update_coefficient = s1_params[2]
+        MAX_iteration = s1_params[3]
+        error_tolerance = s1_params[4]
+    elif isinstance(s1_params, dict):
+        Transformation = s1_params['Transformation']
+        MAX_Pyramid_level = s1_params['MAX_Pyramid_level']
+        update_coefficient = s1_params['update_coefficient']
+        MAX_iteration = s1_params['MAX_iteration']
+        error_tolerance = s1_params['error_tolerance']
+    else:
+        raise TypeError(f'Unknown type {type(s1_params)} for s1_params.')
     # f(f"Using output name {fname_out} for {fname}. Starting...")
     ij.IJ.run(imp, "Image Stabilizer Headless",
-                   "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
-                   " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
-                   str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
+              "transformation=" + Transformation + " maximum_pyramid_levels=" + str(MAX_Pyramid_level) +
+              " template_update_coefficient=" + str(update_coefficient) + " maximum_iterations=" +
+              str(MAX_iteration) + " error_tolerance=" + str(error_tolerance))
     ij.IJ.saveAs(imp, "Tiff", str(fname_out))
     imp.close()
     # f(f"{fname_out} exec finished.")

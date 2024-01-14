@@ -1,0 +1,2 @@
+- Build to achieve single pipeline run in new GUI
+- Refactor Pipeline class to be more concise and more efficient

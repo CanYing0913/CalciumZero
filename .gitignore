@@ -5,6 +5,7 @@ java/
 .vscode/
 venv/
 cache/
+log/**
 # for testing
 #Fiji.app/**
 test/

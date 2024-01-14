@@ -8,6 +8,7 @@ from multiprocessing import Pool
 import imagej
 from pathlib import Path
 import os
+from time import perf_counter
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
@@ -114,6 +115,60 @@ def parse():
 
 class Pipeline(object):
     def __init__(self):
+        self.queue = None
+        self.queue_id = 0
+        self.logger = None
+        self.params_dict = {
+            'run': [True, True, True],
+            'crop': {'margin': 200},
+            'stabilizer': {
+                'Transformation': 'Translation',
+                'MAX_Pyramid_level': 1.0,
+                'update_coefficient': 0.90,
+                'MAX_iteration': 200,
+                'error_tolerance': 1E-7
+            },
+            'caiman': {
+                "mc_dict": {
+                    'fnames': "",
+                    'fr': frate,
+                    'decay_time': decay_time,
+                    'pw_rigid': pw_rigid,
+                    'max_shifts': max_shifts,
+                    'gSig_filt': gSig_filt,
+                    'strides': strides,
+                    'overlaps': overlaps,
+                    'max_deviation_rigid': max_deviation_rigid,
+                    'border_nan': border_nan
+                },
+                "params_dict": {'method_init': 'corr_pnr',  # use this for 1 photon
+                                'K': K,
+                                'gSig': gSig,
+                                'gSiz': gSiz,
+                                'merge_thr': merge_thr,
+                                'p': p,
+                                'tsub': tsub,
+                                'ssub': ssub,
+                                'rf': rf,
+                                'stride': stride_cnmf,
+                                'only_init': True,  # set it to True to run CNMF-E
+                                'nb': gnb,
+                                'nb_patch': nb_patch,
+                                'method_deconvolution': 'oasis',  # could use 'cvxpy' alternatively
+                                'low_rank_background': low_rank_background,
+                                'update_background_components': True,
+                                # sometimes setting to False improve the results
+                                'min_corr': min_corr,
+                                'min_pnr': min_pnr,
+                                'normalize_init': False,  # just leave as is
+                                'center_psf': True,  # leave as is for 1 photon
+                                'ssub_B': ssub_B,
+                                'ring_size_factor': ring_size_factor,
+                                }
+            }
+        }
+        self.is_running = False
+        self.is_finished = False
         # Control sequence
         self.skip_0 = self.skip_1 = False
         self.work_dir = ''
@@ -125,7 +180,6 @@ class Pipeline(object):
         self.do_s0 = False
         self.input_root = ''
         self.input_list = []
-        self.margin = 200
         self.imm1_list = []  # Intermediate result list 1, relative path
         self.done_s0 = False
         self.QCimage_s0_raw = None
@@ -133,7 +187,7 @@ class Pipeline(object):
         # ImageJ stabilizer related variables
         self.do_s1 = False
         self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
-        self.ij = imagej.init(str(self.ijp), mode='interactive')
+        # self.ij = imagej.init(str(self.ijp), mode='interactive')
         self.s1_params = [
             'Translation',
             '1.0',
@@ -159,13 +213,13 @@ class Pipeline(object):
         self.do_s3 = False
         self.pc_obj = []
 
-    def pprint(self, txt: str):
-        """
-        Customized print function that both print to stdout and log file
-        """
-        print(txt)
-        if self.log is not None:
-            self.log.write(txt + '\n')
+    def log_print(self, txt: str):
+        if self.logger:
+            self.logger.debug(txt)
+        else:
+            print(txt)
+            if self.log is not None:
+                self.log.write(txt + '\n')
 
     def parse(self):
         # Retrieve calling parameters
@@ -182,7 +236,7 @@ class Pipeline(object):
         if not arguments.no_log:
             log_path = os.path.join(self.work_dir, 'log.txt')
             self.log = open(log_path, 'w')
-            self.pprint(f"log file is stored @ {log_path}")
+            self.log_print(f"log file is stored @ {log_path}")
         # Segmentation and cropping related variables
         self.input_root = arguments.input_root
         self.input_list = arguments.input
@@ -191,9 +245,9 @@ class Pipeline(object):
         if not self.skip_1:
             self.ij = imagej.init(arguments.imagej_path, mode='headless')
             self.ijp = arguments.imagej_path
-            self.pprint(f"ImageJ initialized with version {self.ij.getVersion()}.")
+            self.log_print(f"ImageJ initialized with version {self.ij.getVersion()}.")
             self.s1_params = arguments.ij_params
-            print_param(self.s1_params, self.pprint)
+            print_param(self.s1_params, self.log_print)
         # CaImAn related variables
         # TODO: add caiman parameters
         self.clog = arguments.clog
@@ -215,14 +269,37 @@ class Pipeline(object):
     def update(self, **kwargs):
         for key, value in kwargs.items():
             if not hasattr(self, key):
-                print(f'the requested key {key} does not exist.')
+                self.log_print(f'the requested key {key} does not exist.')
                 continue
             if key == 'input_list':
                 if len(value) == 1 and 'cmn_obj' in value[0]:
                     with open(str(Path(self.input_root).joinpath(value[0])), 'rb') as f:
                         self.caiman_obj = pickle.load(f)
                         continue
+
+            # Setup extra params other than s0-s2
+            if key == 'params_dict':
+                self.input_list = [value['input_path']]
+                self.work_dir = value['output_path']
+                self.do_s0, self.do_s1, self.do_s2 = value['run']
+                continue
+            if key in self.params_dict['caiman'].keys():
+                self.params_dict['caiman'][key] = value
+                continue
+            if key in self.params_dict['caiman']['mc_dict'].keys():
+                self.params_dict['caiman']['mc_dict'][key] = value
+                continue
+            if key in self.params_dict['caiman']['params_dict'].keys():
+                self.params_dict['caiman']['params_dict'][key] = value
+                continue
             setattr(self, key, value)
+
+    def handle_cm_opts(self, window, event, values):
+        event_name = event.split('-')[-1]
+        if event_name in self.params_dict.keys():
+            self.params_dict[event_name] = values[event]
+        elif event_name in self.mc_dict.keys():
+            self.mc_dict[event_name] = values[event]
 
     def ready(self):
         if not self.input_list:
@@ -234,7 +311,7 @@ class Pipeline(object):
                 if '.tif' not in input_file:
                     return False, f'Wrong input format for crop: {input_file}'
         if self.do_s1:
-            if self.ijp == '' or self.s1_params == []:
+            if self.ijp == '':
                 return False, 'ImageJ not ready'
             for input_file in self.input_list:
                 if '.tif' not in input_file:
@@ -252,8 +329,9 @@ class Pipeline(object):
         """
 
         def ps0(text: str):
-            self.pprint(f"***[S0 - Detection]: {text}")
+            self.log_print(f"***[S0 - Detection]: {text}")
 
+        start_time = perf_counter()
         # Segmentation and cropping
         # Scanning for bounding box for multiple input
         with Pool(processes=self.process) as pool:
@@ -269,7 +347,7 @@ class Pipeline(object):
         for idx, fname_i in enumerate(self.input_list):
             image_i = tifffile.imread(str(Path(self.input_root).joinpath(fname_i)))
             finalxcnts = finalxcntss[idx]
-            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin, finalxcnts)
+            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.params_dict['crop']['margin'], finalxcnts)
             # Handle output path
             fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
             fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
@@ -278,16 +356,17 @@ class Pipeline(object):
             tifffile.imwrite(fname_crop_o, image_crop_o)
             self.imm1_list.append(fname_crop_root)
         self.done_s0 = True
-        return
+        end_time = perf_counter()
+        ps0(f"Detection finished in {int(end_time - start_time)} s.")
 
     def s1(self):
         def ps1(text: str):
-            self.pprint(f"***[S1 - ImageJ stabilizer]: {text}")
+            self.log_print(f"***[S1 - ImageJ stabilizer]: {text}")
 
         # ImageJ Stabilizer
         ps1(f"Stabilizer Starting.")
         results = []
-        start_t = time()
+        start_time = perf_counter()
         idx = 0
         while idx < len(self.imm1_list):
             imm1_list = [self.imm1_list[idx + i] for i in range(self.process) if idx + i < len(self.imm1_list)]
@@ -295,37 +374,27 @@ class Pipeline(object):
             with Pool(processes=len(imm1_list)) as pool:
                 results = pool.starmap(run_plugin,
                                        [(
-                                        self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir, self.s1_params)
-                                        for imm1 in imm1_list])
-        end_t = time()
-        duration = end_t - start_t
-        ps1(f"Stabilizer finished. total of {int(duration)} s.")
+                                           self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir,
+                                           self.params_dict['stabilizer'])
+                                           for imm1 in imm1_list])
+        end_time = perf_counter()
+        ps1(f"Stabilizer finished in {int(end_time - start_time)} s.")
         self.imm2_list = results  # note here is absolute path list
 
     def s2(self):
         def ps2(txt: str):
-            self.pprint(f"***[S2 - caiman]: {txt}")
+            self.log_print(f"***[S2 - caiman]: {txt}")
 
-        # TODO: caiman
+        start_time = perf_counter()
         if self.clog:
+            ps2(f"caiman logging enabled.")
             logging.basicConfig(
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
         fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.imm2_list]
         self.outpath_s2 = [str(Path(self.work_dir).joinpath(remove_suffix(f, '.tif') + '_caiman.tif')) for f in fnames]
-        mc_dict = {
-            'fnames': fnames,
-            'fr': frate,
-            'decay_time': decay_time,
-            'pw_rigid': pw_rigid,
-            'max_shifts': max_shifts,
-            'gSig_filt': gSig_filt,
-            'strides': strides,
-            'overlaps': overlaps,
-            'max_deviation_rigid': max_deviation_rigid,
-            'border_nan': border_nan
-        }
-        opts = params.CNMFParams(params_dict=mc_dict)
+        self.handle_cm_opts(None, 'fnames', fnames)
+        opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])
         # Motion Correction
         if motion_correct:
             # do motion correction rigid
@@ -358,31 +427,7 @@ class Pipeline(object):
         Yr, dims, T = cm.load_memmap(fname_mmap)
         images = Yr.T.reshape((T,) + dims, order='F')
 
-        opts.change_params(params_dict={'method_init': 'corr_pnr',  # use this for 1 photon
-                                        'K': K,
-                                        'gSig': gSig,
-                                        'gSiz': gSiz,
-                                        'merge_thr': merge_thr,
-                                        'p': p,
-                                        'tsub': tsub,
-                                        'ssub': ssub,
-                                        'rf': rf,
-                                        'stride': stride_cnmf,
-                                        'only_init': True,  # set it to True to run CNMF-E
-                                        'nb': gnb,
-                                        'nb_patch': nb_patch,
-                                        'method_deconvolution': 'oasis',  # could use 'cvxpy' alternatively
-                                        'low_rank_background': low_rank_background,
-                                        'update_background_components': True,
-                                        # sometimes setting to False improve the results
-                                        'min_corr': min_corr,
-                                        'min_pnr': min_pnr,
-                                        'normalize_init': False,  # just leave as is
-                                        'center_psf': True,  # leave as is for 1 photon
-                                        'ssub_B': ssub_B,
-                                        'ring_size_factor': ring_size_factor,
-                                        }
-                           )
+        opts.change_params(self.params_dict['caiman']['param_dict'])
         # Inspect summary images and set parameters
         # compute some summary images (correlation and peak to noise)
         cn_filter, pnr = cm.summary_images.correlation_pnr(images[::10], gSig=gSig[0],
@@ -391,11 +436,12 @@ class Pipeline(object):
         nb_inspect_correlation_pnr(cn_filter, pnr)
 
         # Run the CNMF-E algorithm
-        start_time_cnmf = time()
+        start_time_cnmf = perf_counter()
         cnm = cnmf.CNMF(n_processes=8, dview=None, Ain=Ain, params=opts)
         cnm.fit(images)
-        exec_time_cnmf = time() - start_time_cnmf
-        ps2(f"it takes {exec_time_cnmf // 60}m, {int(exec_time_cnmf % 60)}s to complete.")
+        end_time_cnmf = perf_counter()
+        exec_time_cnmf = end_time_cnmf - start_time_cnmf
+        ps2(f"cnmf takes {exec_time_cnmf // 60}m, {int(exec_time_cnmf % 60)}s to complete.")
         # ## Component Evaluation
         # the components are evaluated in three ways:
         #   a) the shape of each component must be correlated with the data
@@ -468,6 +514,9 @@ class Pipeline(object):
         with open(path, "wb") as f:
             pickle.dump(cnm, f)
             ps2(f"object cnm dumped to {path}.")
+        end_time = perf_counter()
+        exec_time = end_time - start_time
+        ps2(f"caiman finished in {exec_time // 60}m, {int(exec_time % 60)} s.")
 
     def s3(self):
         # peak_caller
@@ -498,7 +547,11 @@ class Pipeline(object):
         pc_obj2.Save_Result()
         self.pc_obj.append(pc_obj2)
 
-    def run(self):
+    def run(self, ij):
+        from copy import deepcopy
+        from message import message
+        msg = deepcopy(message)
+        msg['idx'] = self.queue_id
         # TODO: need to adjust imm1_list, imm2_list, according to which section is the first section
         if not self.do_s0:
             self.s1_root = self.input_root
@@ -508,7 +561,10 @@ class Pipeline(object):
         if not self.do_s2 and self.do_s3:
             assert 'cmn_obj' in self.input_list
 
-        start_time = time()
+        start_time = perf_counter()
+        if self.queue:
+            msg['is_running'] = True
+            self.queue.put(msg)
         # First, decide which section to start execute
         if self.do_s0:
             # Do cropping
@@ -524,18 +580,22 @@ class Pipeline(object):
             self.s2()
             end_time_caiman = time()
             exec_t = end_time_caiman - start_time_caiman
-            self.pprint(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
+            self.log_print(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
             self.done_s2 = True
 
         # Peak_caller part
         if self.do_s3:
             self.s3()
 
-        end_time = time()
-        exec_t = end_time - start_time
-        self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
-        if self.log is not None:
+        end_time = perf_counter()
+        exec_time = end_time - start_time
+        self.log_print(f"[INFO] pipeline.run() takes {exec_time // 60}m {int(exec_time % 60)}s.")
+        if self.log is not None and not self.log.closed:
             self.log.close()
+        if self.queue:
+            msg['is_running'] = False
+            msg['is_finished'] = True
+            self.queue.put(msg)
 
     def load_setting(self, settings):
         self.QCimage_s2 = self.cache.joinpath(settings['QC']['s2_image'])
@@ -559,22 +619,28 @@ class Pipeline(object):
         ROI_temp = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 2)
         return ROI_temp
 
-    def qc_caiman_movie(self):
-        if self.ij is None:
-            try:
-                self.ij = imagej.init(self.ijp, mode='interactive')
-            except Exception as e:
-                raise RuntimeError("ImageJ not initialized.")
-        if self.QCimage_s2 is None:
-            raise RuntimeError("QC image not found.")
-        if self.outpath_s2 == '':
-            raise RuntimeError("No caiman output path.")
-        elif not Path(self.outpath_s2).exists():
-            raise RuntimeError(f"Caiman output path {self.outpath_s2} not found.")
+    # def qc_caiman_movie(self):
+    #     if self.ij is None:
+    #         try:
+    #             self.ij = imagej.init(self.ijp, mode='interactive')
+    #         except Exception as e:
+    #             raise RuntimeError("ImageJ not initialized.")
+    #     if self.QCimage_s2 is None:
+    #         raise RuntimeError("QC image not found.")
+    #     if self.caiman_obj.outpath_s2 == '':
+    #         raise RuntimeError("No caiman output path.")
+    #     elif not Path(self.outpath_s2).exists():
+    #         raise RuntimeError(f"Caiman output path {self.outpath_s2} not found.")
+    #
+    #     # Start playing output movie
+    #     dataset = self.ij.IJ.run("Bio-Formats Importer",
+    #                              f"open={self.caiman_obj.outpath_s2} autoscale color_mode=Grayscale rois_import=[ROI manager] "
+    #                              f"view=Hyperstack stack_order=XYCZT")
+    #     # dataset = self.ij.io().open(self.outpath_s2)
+    #     # self.ij.ui().show(dataset)
 
-        # Start playing output movie
-        dataset = self.ij.IJ.run("Bio-Formats Importer",
-                                 f"open={self.outpath_s2} autoscale color_mode=Grayscale rois_import=[ROI manager] "
-                                 f"view=Hyperstack stack_order=XYCZT")
-        # dataset = self.ij.io().open(self.outpath_s2)
-        # self.ij.ui().show(dataset)
+    class GUI_instance:
+        __slots__ = [
+            'run_instance',
+            'qc_instance',
+        ]
