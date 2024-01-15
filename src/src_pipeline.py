@@ -639,8 +639,9 @@ class Pipeline(object):
     #     # dataset = self.ij.io().open(self.outpath_s2)
     #     # self.ij.ui().show(dataset)
 
-    class GUI_instance:
-        __slots__ = [
-            'run_instance',
-            'qc_instance',
-        ]
+
+class GUI_instance:
+    __slots__ = [
+        'run_instance',
+        'qc_instance',
+    ]

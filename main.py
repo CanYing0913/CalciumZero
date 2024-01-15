@@ -1,19 +1,11 @@
 import sys
-import src.src_pipeline as pipe
+from GUI import GUI
 
 
 def main():
-    pipeline = pipe.Pipeline()
-    try:
-        pipeline.parse()
-        pipeline.run()
-    finally:
-        # Upon exceptions, update log so user can inspect
-        if pipeline.log is not None:
-            print("[INFO] Closing log...")
-            pipeline.log.close()
+    app = GUI()
+    app.gui()
 
 
 if __name__ == "__main__":
     main()
-    sys.exit(0)
