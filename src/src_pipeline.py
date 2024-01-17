@@ -640,6 +640,32 @@ class Pipeline(object):
     #     # self.ij.ui().show(dataset)
 
 
+class QC:
+    __slots__ = [
+        'cmn_obj_path',
+        'cmn_obj',
+        'movie',
+        'current_frame',
+        'qc_tab',
+    ]
+
+    def __init__(self, cmn_obj_path):
+        from pickle import load
+        self.cmn_obj_path = cmn_obj_path
+        self.cmn_obj = load(open(cmn_obj_path, 'rb'))
+        self.movie = self.cmn_obj.input_files
+        self.current_frame = 0
+
+    def show_frame(self, frame_number):
+        from PIL import Image, ImageTk
+        self.current_frame = int(frame_number)
+        frame = self.movie[0][self.current_frame]
+        frame = Image.fromarray(frame)
+        frame = ImageTk.PhotoImage(frame)
+        self.qc_tab.canvas.create_image(0, 0, anchor="nw", image=frame)
+        self.qc_tab.canvas.image = frame  # Keep a reference to prevent garbage collection
+
+
 class GUI_instance:
     __slots__ = [
         'run_instance',
