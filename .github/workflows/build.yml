@@ -77,7 +77,8 @@ jobs:
           activate-environment: pipeline
       - name: Install dependencies
         run: |
-          mamba install -n pipeline -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn pysimplegui cx_Freeze
+          mamba install -n pipeline -c conda-forge numpy caiman pyimagej openjdk=8 seaborn pysimplegui cx_Freeze>=6.17
+          mamba list cx_freeze
       - name: build Linux AppImage
         shell: bash -l {0}
         run: |
