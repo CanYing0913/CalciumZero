@@ -70,17 +70,13 @@ jobs:
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v2
         with:
-          activate-environment: base
           channels: conda-forge, anaconda
-          auto-activate-base: true
-
-      - name: Install Mamba
-        run: |
-          conda install mamba -n base -c conda-forge
+          mamba-version: "*"
+          activate-environment: cz
 
       - name: Install Dependencies
         run: |
-          mamba create -n cz -c conda-forge -c anaconda python=3.11 numpy caiman pyimagej openjdk=8 seaborn pysimplegui "cx_Freeze>=6.15"
+          mamba install -n cz -c conda-forge -c anaconda python=3.11 numpy caiman pyimagej openjdk=8 seaborn pysimplegui "cx_Freeze>=6.15"
 
       - name: Activate Environment and Run Commands
         run: |
