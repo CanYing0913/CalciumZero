@@ -72,6 +72,7 @@ jobs:
         with:
           auto-update-conda: true
           channels: conda-forge, anaconda
+          channel-priority: true
           mamba-version: "*"
           activate-environment: cz
 
@@ -81,6 +82,7 @@ jobs:
           mamba list cx_freeze
 
       - name: Activate Environment and Run Commands
+        shell: bash -l {0}
         run: |
           mkdir cache
           python setup.py bdist_appimage
