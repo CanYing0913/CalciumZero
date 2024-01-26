@@ -77,10 +77,10 @@ jobs:
       - name: Setup conda
         uses: conda-incubator/setup-miniconda@v2
         with:
-          auto-update-conda: true
           channels: conda-forge, anaconda
           channel-priority: true
-          mamba-version: "*"
+          miniforge-version: latest
+          use-mamba: true
           activate-environment: cz
       - name: Install dependencies & Run
         run: |
