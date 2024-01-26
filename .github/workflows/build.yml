@@ -80,7 +80,6 @@ jobs:
 
       - name: Activate Environment and Run Commands
         run: |
-#          mamba activate cz
           mkdir cache
           python setup.py bdist_appimage
           mkdir dist
