@@ -16,30 +16,30 @@ on:
 #      - master
 
 jobs:
-#  Build-Windows:
-#    runs-on: windows-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#        with:
-#          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
-#          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-#      - name: Setup conda
-#        uses: conda-incubator/setup-miniconda@v2
-#        with:
-#          auto-update-conda: true
-#          channels: conda-forge, defaults
-#          channel-priority: true
-#          mamba-version: "*"
-#          activate-environment: pipeline
-#      - name: Install dependencies
-#        run: |
-#          mamba install -n pipeline -c conda-forge python=3.8 numpy=1.21 caiman pyimagej openjdk=8 seaborn pysimplegui
-#          mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-#      - name: build installer Windows
-#        shell: powershell
-#        run: |
-#          mkdir cache
-#          python setup.py bdist_msi --target-name install.msi --target-version 0.1
+  Build-Windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+      - name: Setup conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          channels: conda-forge, anaconda
+          channel-priority: true
+          mamba-version: "*"
+          activate-environment: pipeline
+      - name: Install dependencies
+        run: |
+          mamba install -n pipeline -c conda-forge python numpy caiman pyimagej openjdk=8 seaborn pysimplegui
+          mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+      - name: build installer Windows
+        shell: powershell
+        run: |
+          mkdir cache
+          python setup.py bdist_msi --target-name install.msi --target-version 0.1
 #      - name: Release
 #        run: |
 #          git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -58,14 +58,16 @@ jobs:
 #        with:
 #          force: true
 #          branch: distribution
-#
 
-  build:
+  build-linux:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v2
@@ -90,51 +92,6 @@ jobs:
           mkdir dist
           ls
 
-#  Build-Linux:
-##    needs: Build-Windows
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v2
-#        with:
-#          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
-#          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-#      - name: Setup conda
-#        uses: conda-incubator/setup-miniconda@v2
-#        with:
-#          auto-update-conda: true
-#          channels: conda-forge, defaults
-#          channel-priority: true
-#          mamba-version: "*"
-#          activate-environment: pipeline
-#      - name: Install dependencies
-#        run: |
-#          mamba install -n pipeline -c conda-forge numpy caiman pyimagej openjdk=8 seaborn pysimplegui cx_Freeze>=6.17
-#          mamba list cx_freeze
-#      - name: build Linux AppImage
-#        run: |
-#          mkdir cache
-#          python setup.py bdist_appimage
-#          mkdir dist
-#          ls
-#          mv build/pipeline-0.1.dmg dist/install.dmg
-#      - name: Commit files
-#        run: |
-#          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-#          git config --local user.name "github-actions[bot]"
-#          git checkout distribution
-#          mv dist/install.dmg install.dmg
-#          rm -r dist
-#          rm -r build
-#          git lfs install
-#          git lfs track install.dmg
-#          git add install.dmg
-#          git add .gitattributes
-#          git commit -m "Pushing new MacOS installer"
-#      - name: Push changes
-#        uses: ad-m/github-push-action@master
-#        with:
-#          force: true
-#          branch: distribution
 
 #  Build-MacOS:
 #    needs: Build-Windows
