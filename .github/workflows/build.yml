@@ -16,30 +16,35 @@ on:
 #      - master
 
 jobs:
-  Build-Windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
-          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-      - name: Setup conda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
-          channels: conda-forge, anaconda
-          channel-priority: true
-          mamba-version: "*"
-          activate-environment: pipeline
-      - name: Install dependencies
-        run: |
-          mamba install -n pipeline -c conda-forge python numpy caiman pyimagej openjdk=8 seaborn pysimplegui
-          mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-      - name: build installer Windows
-        shell: powershell
-        run: |
-          mkdir cache
-          python setup.py bdist_msi --target-name install.msi --target-version 0.1
+#  Build-Windows:
+#    runs-on: windows-latest
+#
+#    steps:
+#      - name: Checkout Repository
+#        uses: actions/checkout@v2
+#        with:
+#          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+#          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+#
+#      - name: Setup conda
+#        uses: conda-incubator/setup-miniconda@v2
+#        with:
+#          auto-update-conda: true
+#          channels: conda-forge, anaconda
+#          channel-priority: true
+#          mamba-version: "*"
+#          activate-environment: pipeline
+#
+#      - name: Install dependencies
+#        run: |
+#          mamba install -n pipeline -c conda-forge python numpy caiman pyimagej openjdk=8 seaborn pysimplegui
+#          mamba install -n pipeline -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+#
+#      - name: build installer Windows
+#        shell: powershell
+#        run: |
+#          mkdir cache
+#          python setup.py bdist_msi --target-name install.msi --target-version 0.1
 #      - name: Release
 #        run: |
 #          git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -69,7 +74,7 @@ jobs:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
-      - name: Set up Miniconda
+      - name: Setup conda
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
@@ -82,11 +87,11 @@ jobs:
         run: |
           mamba install -n cz -c conda-forge -c anaconda caiman pyimagej openjdk=8 seaborn pysimplegui
           mamba install -y --no-channel-priority -S -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-          mamba list cx_freeze
 
-      - name: Activate Environment and Run Commands
+      - name: build app Linux
         shell: bash -l {0}
         run: |
+          mamba list cx_freeze
           mkdir cache
           python setup.py bdist_appimage
           mkdir dist
