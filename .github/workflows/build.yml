@@ -74,7 +74,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          conda create -n cz -c conda-forge numpy caiman pyimagej openjdk=8 seaborn pysimplegui "cx_Freeze>=6.17"
+          conda create -n cz -c conda-forge -c anaconda numpy caiman pyimagej openjdk=8 seaborn pysimplegui "cx_Freeze>=6.15"
           echo "source activate cz" >> $GITHUB_ENV
 
       - name: Activate Environment and Run Commands
