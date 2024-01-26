@@ -86,7 +86,10 @@ jobs:
         run: |
           mamba install -n cz -c conda-forge -c anaconda caiman pyimagej openjdk=8 seaborn pysimplegui
           mamba install -y --no-channel-priority -S -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-          mamba env list
+          which python
+          mamba list cx_freeze
+          conda activate cz
+          which python
           mamba list cx_freeze
           mkdir cache
           python setup.py bdist_appimage
