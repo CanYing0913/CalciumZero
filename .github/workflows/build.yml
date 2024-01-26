@@ -91,6 +91,7 @@ jobs:
       - name: build app Linux
         shell: bash -l {0}
         run: |
+          mamba activate cz
           mamba list cx_freeze
           mkdir cache
           python setup.py bdist_appimage
