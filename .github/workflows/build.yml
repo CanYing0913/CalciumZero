@@ -70,16 +70,19 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.11'
+
+      - name: Install Mamba
+        run: |
+          conda install mamba -n base -c conda-forge
 
       - name: Install Dependencies
         run: |
-          conda create -n cz -c conda-forge -c anaconda numpy caiman pyimagej openjdk=8 seaborn pysimplegui "cx_Freeze>=6.15"
-          echo "source activate cz" >> $GITHUB_ENV
+          mamba create -n cz -c conda-forge -c anaconda numpy caiman pyimagej openjdk=8 seaborn pysimplegui "cx_Freeze>=6.15"
 
       - name: Activate Environment and Run Commands
         run: |
-          source $GITHUB_ENV
+          mamba activate cz
           mkdir cache
           python setup.py bdist_appimage
           mkdir dist
