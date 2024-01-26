@@ -82,16 +82,9 @@ jobs:
           channel-priority: true
           mamba-version: "*"
           activate-environment: cz
-
-      - name: Install Dependencies
         run: |
           mamba install -n cz -c conda-forge -c anaconda caiman pyimagej openjdk=8 seaborn pysimplegui
           mamba install -y --no-channel-priority -S -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-
-      - name: build app Linux
-        shell: bash -l {0}
-        run: |
-          conda activate cz
           mamba list cx_freeze
           mkdir cache
           python setup.py bdist_appimage
