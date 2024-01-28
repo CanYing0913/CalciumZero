@@ -1,4 +1,4 @@
-name: Build and deploy installers
+name: Build installers
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - 'readme.md'
       - '*.ipynb'
       - 'Fiji.app/**'
-#      - '**'
+      - docs/**
   pull_request:
     branches:
       - master
