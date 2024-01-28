@@ -120,7 +120,6 @@ jobs:
 
 
   Build-MacOS:
-    needs: Build-Windows
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
