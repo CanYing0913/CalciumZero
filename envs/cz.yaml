@@ -1,0 +1,12 @@
+name: cz
+channels:
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - python
+  - openjdk=8
+  - pyimagej
+  - caiman
+  - seaborn
+  - pysimplegui
