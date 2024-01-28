@@ -4,16 +4,15 @@ on:
   push:
     branches:
       - master
-      - v0.4
     paths-ignore:
-#      - '.github/**'
+      - '.github/**'
       - 'readme.md'
       - '*.ipynb'
-#      - 'Fiji.app/**'
+      - 'Fiji.app/**'
 #      - '**'
-#  pull_request:
-#    branches:
-#      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   Build-Windows:
@@ -45,28 +44,28 @@ jobs:
         run: |
           mkdir cache
           python setup.py bdist_msi
-      - name: test
-        shell: powershell
-        run: |
-          dir dist
-#      - name: Release
+#      - name: test
+#        shell: powershell
 #        run: |
-#          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-#          git config --local user.name "github-actions[bot]"
-#          git checkout distribution
-#          mv -Path dist/install.msi -Destination install.msi -Force
-#          Remove-Item -Path dist -Recurse
-#          Remove-Item -Path build -Recurse
-#          git lfs install
-#          git lfs track install.msi
-#          git add .gitattributes
-#          git add install.msi
-#          git commit -m "Pushing new Windows installer"
-#      - name: Push changes
-#        uses: ad-m/github-push-action@master
-#        with:
-#          force: true
-#          branch: distribution
+#          dir dist
+      - name: Release
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout distribution
+          mv -Path dist/CalciumZero-0.1-win64.msi -Destination CalciumZero-0.1-win64.msi -Force
+          Remove-Item -Path dist -Recurse
+          Remove-Item -Path build -Recurse
+          git lfs install
+          git lfs track CalciumZero-0.1-win64.msi
+          git add .gitattributes
+          git add CalciumZero-0.1-win64.msi
+          git commit -m "Pushing new Windows installer"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          branch: distribution
 
   build-linux:
     runs-on: ubuntu-latest
@@ -143,25 +142,25 @@ jobs:
         run: |
           mkdir cache
           python setup.py bdist_dmg
-      - name: test
-        shell: bash -l {0}
-        run: |
-          ls build
-#      - name: Commit files
+#      - name: test
+#        shell: bash -l {0}
 #        run: |
-#          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-#          git config --local user.name "github-actions[bot]"
-#          git checkout distribution
-#          mv dist/install.dmg install.dmg
-#          rm -r dist
-#          rm -r build
-#          git lfs install
-#          git lfs track install.dmg
-#          git add install.dmg
-#          git add .gitattributes
-#          git commit -m "Pushing new MacOS installer"
-#      - name: Push changes
-#        uses: ad-m/github-push-action@master
-#        with:
-#          force: true
-#          branch: distribution
+#          ls build
+      - name: Commit files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout distribution
+          mv build/CalciumZero-0.1.dmg CalciumZero-0.1.dmg
+          rm -r dist
+          rm -r build
+          git lfs install
+          git lfs track CalciumZero-0.1.dmg
+          git add CalciumZero-0.1.dmg
+          git add .gitattributes
+          git commit -m "Pushing new MacOS installer"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          branch: distribution
