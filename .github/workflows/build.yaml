@@ -82,7 +82,7 @@ jobs:
         with:
           mamba-version: "*"
           channels: conda-forge, anaconda
-          auto-active-base: false
+          auto-activate-base: false
           activate-environment: cz
           environment-file: envs/cz.yaml
 
@@ -90,13 +90,12 @@ jobs:
         run: |
           mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
 
-      - name: Check solution
-        run: |
-          mamba env export
+#      - name: Check solution
+#        run: |
+#          mamba env export
 
       - name: test python
         run: |
-          which cx_Freeze
           which python
           mkdir cache
           python setup.py bdist_appimage
