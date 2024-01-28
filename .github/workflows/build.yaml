@@ -99,8 +99,8 @@ jobs:
           which python
           mkdir cache
           python setup.py bdist_appimage
-          mkdir dist
           ls
+          ls dist
 
 
 #  Build-MacOS:
