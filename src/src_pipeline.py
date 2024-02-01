@@ -114,10 +114,10 @@ def parse():
 
 
 class Pipeline(object):
-    def __init__(self):
-        self.queue = None
-        self.queue_id = 0
-        self.logger = None
+    def __init__(self, queue=None, queue_id=0, logger=None):
+        self.queue = queue
+        self.queue_id = queue_id
+        self.logger = logger
         self.params_dict = {
             'run': [True, True, True],
             'crop': {'margin': 200},
@@ -547,11 +547,10 @@ class Pipeline(object):
         pc_obj2.Save_Result()
         self.pc_obj.append(pc_obj2)
 
-    def run(self, ij):
-        from copy import deepcopy
-        from message import message
-        msg = deepcopy(message)
-        msg['idx'] = self.queue_id
+    def run(self):
+        msg = {
+            'idx': self.queue_id, 'is_running': False, 'is_finished': False
+        }
         # TODO: need to adjust imm1_list, imm2_list, according to which section is the first section
         if not self.do_s0:
             self.s1_root = self.input_root
@@ -666,7 +665,7 @@ class QC:
         self.qc_tab.canvas.image = frame  # Keep a reference to prevent garbage collection
 
 
-class GUI_instance:
+class CalciumZero:
     __slots__ = [
         'run_instance',
         'qc_instance',

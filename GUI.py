@@ -3,7 +3,7 @@ import time
 import tkinter as tk
 import tkinter.messagebox
 from tkinter import ttk, filedialog, messagebox
-from src.src_pipeline import Pipeline, QC, GUI_instance
+from src.src_pipeline import Pipeline, QC, CalciumZero
 from src.message import Message
 import json
 from pathlib import Path
@@ -422,27 +422,37 @@ class GUI:
         tk.Button(frame_2, text="OK", command=on_ok).pack(side=tk.LEFT, padx=10, pady=10)
         tk.Button(frame_2, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=10, pady=10)
 
-    # Function to create a new tab with given parameters
-    def create_instance(self, run_params=None, qc_param=None, run=True, qc=False):
-        # Find next available index
-        try:
-            idx = self.instance_list.index(None)
-        except ValueError:
-            return False, "Maximum number of instances reached."
+    def create_instance(self, run_params=None, qc_param=None, run=True, qc=False, append=False, append_tabid=None):
+        """ Function to create a new tab with given parameters"""
+        # Find corresponding idx to use
+        if append:
+            assert append_tabid is not None and qc, "Invalid append parameters."
+            assert not run, "When appending qc to instance, run must be False."
+            idx = append_tabid
+        else:
+            # Find next available index
+            try:
+                idx = self.instance_list.index(None)
+            except ValueError:
+                return False, "Maximum number of instances reached."
 
-        cur_instance = GUI_instance()
-        if run:
-            run_instance = Pipeline()
-            cur_instance.run_instance = run_instance
-            for item in ['input_path', 'output_path', 'run']:
-                if item not in run_params:
-                    return False, f"Missing parameter {item}."
-            run_instance.update(params_dict=run_params)  # Setup parameters
-            run_instance.update(logger=self.logger)  # Setup logger
-            run_instance.update(
-                queue=self.queue,
-                queue_id=len(self.instance_list)
-            )  # Setup queue
+        if append:
+            cur_instance = self.instance_list[idx]
+        else:
+            cur_instance = CalciumZero()
+            # run will only be True if append is False
+            if run:
+                run_instance = Pipeline(
+                    queue=self.queue,
+                    queue_id=idx,
+                    logger=self.logger
+                )
+                cur_instance.run_instance = run_instance
+                for item in ['input_path', 'output_path', 'run']:
+                    if item not in run_params:
+                        return False, f"Missing parameter {item}."
+                run_instance.update(params_dict=run_params)  # Setup parameters
+        # QC can be created initially OR appended to an existing instance
         if qc:
             qc_instance = QC(qc_param['cm_obj'])
             cur_instance.qc_instance = qc_instance
@@ -450,20 +460,24 @@ class GUI:
         self.instance_list[idx] = cur_instance
         self.process_list[idx] = None
 
-        cur_tab = self.create_tab(self.root.notebook, idx, run=run, qc=qc)
+        cur_tab = self.create_tab(self.root.notebook, idx, append=append, run=run, qc=qc)
+        # TODO: customized tab name
         self.root.notebook.add(cur_tab, text='New Instance')
         self.tab_list[idx] = cur_tab
         return True, idx
 
-    def create_tab(self, parent, idx, run=False, qc=False):
+    def create_tab(self, parent, idx, append=False, run=False, qc=False):
         cur_instance = self.instance_list[idx]
-        instance_tab = ttk.Frame(parent)
-        instance_tab.pack(expand=True, fill='both')
-        instance_tab.id = idx
-        instance_tab.run, instance_tab.qc = run, qc
-
-        instance_tab.notebook = ttk.Notebook(instance_tab)
-        instance_tab.notebook.pack(expand=True, fill='both')
+        if append:
+            instance_tab = parent.tab(idx)
+            instance_tab.qc = qc
+        else:
+            instance_tab = ttk.Frame(parent)
+            instance_tab.pack(expand=True, fill='both')
+            instance_tab.id = idx
+            instance_tab.run, instance_tab.qc = run, qc
+            instance_tab.notebook = ttk.Notebook(instance_tab)
+            instance_tab.notebook.pack(expand=True, fill='both')
 
         if run:
             run_tab = ttk.Frame()
@@ -579,20 +593,20 @@ class GUI:
             self.root.after(500, self.instance_monitor)
 
     def run_instance(self, idx):
-        if self.instance_list[idx].is_running or self.instance_list[idx].is_finished:
+        if self.instance_list[idx].run_instance.is_running or self.instance_list[idx].run_instance.is_finished:
             return
         # check running ok
-        status, msg = self.instance_list[idx].ready()
+        status, msg = self.instance_list[idx].run_instance.ready()
         if not status:
             self.logger.debug(f'not ready, message: {msg}')
             raise Warning("Instance not ready")
         print(f'running {idx}')
-        # p = Process(target=self.instance_list[idx].run, args=())
-        # p.start()
-        # self.process_list[idx] = p
-        p = Process(target=test, args=(queue_lock, self.queue, self.instance_list, idx))
+        p = Process(target=self.instance_list[idx].run_instance.run, args=())
         p.start()
         self.process_list[idx] = p
+        # p = Process(target=test, args=(queue_lock, self.queue, self.instance_list, idx))
+        # p.start()
+        # self.process_list[idx] = p
 
     def setup(self):
         def on_close():
