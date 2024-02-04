@@ -115,6 +115,7 @@ def parse():
 
 class Pipeline(object):
     def __init__(self, queue=None, queue_id=0, logger=None):
+        # GUI-related
         self.queue = queue
         self.queue_id = queue_id
         self.logger = logger
@@ -208,6 +209,7 @@ class Pipeline(object):
         self.s2_root = ''
         self.done_s2 = False
         self.outpath_s2 = ''
+        self.cmobj_path = ''
         self.QCimage_s2 = None
         # Peak Caller related
         self.do_s3 = False
@@ -385,6 +387,8 @@ class Pipeline(object):
         def ps2(txt: str):
             self.log_print(f"***[S2 - caiman]: {txt}")
 
+        self.cmobj_path = os.path.join(self.work_dir, "cmn_obj.cmobj")
+
         start_time = perf_counter()
         if self.clog:
             ps2(f"caiman logging enabled.")
@@ -510,10 +514,9 @@ class Pipeline(object):
                 [2, 0, 1])
             denoised.save(self.outpath_s2)
             ps2(f"caiman denoised movie saved to {self.outpath_s2}")
-        path = os.path.join(self.work_dir, "cmn_obj.cmobj")
-        with open(path, "wb") as f:
+        with open(self.cmobj_path, "wb") as f:
             pickle.dump(cnm, f)
-            ps2(f"object cnm dumped to {path}.")
+            ps2(f"object cnm dumped to {self.cmobj_path}.")
         end_time = perf_counter()
         exec_time = end_time - start_time
         ps2(f"caiman finished in {exec_time // 60}m, {int(exec_time % 60)} s.")

@@ -47,6 +47,7 @@ class GUI:
         'instance_list',
         'process_list',
         'tab_list',
+        'status_list',
         'queue',
     ]
 
@@ -98,9 +99,10 @@ class GUI:
 
         # Instance-related List
         self.TAB_MAX = 4
-        self.instance_list: List[Optional[GUI_instance, Pipeline]] = list(None for _ in range(self.TAB_MAX))
+        self.instance_list: List[Optional[CalciumZero]] = list(None for _ in range(self.TAB_MAX))
         self.tab_list: List[Optional[tkinter.Frame]] = list(None for _ in range(self.TAB_MAX))
         self.process_list: List[Optional[Process]] = list(None for _ in range(self.TAB_MAX))
+        self.status_list: List[Optional[str]] = list(None for _ in range(self.TAB_MAX))
 
         # Initialize Main Window
         self.root = tk.Tk()
@@ -458,6 +460,7 @@ class GUI:
             cur_instance.qc_instance = qc_instance
 
         self.instance_list[idx] = cur_instance
+        self.status_list[idx] = 'idle'
         self.process_list[idx] = None
 
         cur_tab = self.create_tab(self.root.notebook, idx, append=append, run=run, qc=qc)
@@ -569,22 +572,26 @@ class GUI:
                 if not self.tab_list[idx].run:
                     self.logger.error(f"Message received for a non-running instance {idx}.")
                     raise NotImplementedError(f"Message received for a non-running instance {idx}.")
-                # if msg.is_running is not None:
-                #     self.instance_list[idx].is_running = msg.is_running
-                # if msg.is_finished is not None:
-                #     self.instance_list[idx].is_finished = msg.is_finished
-                # cur_pipeline = self.instance_list[idx]
-                # if msg.is_finished:
                 if msg['is_finished']:
-                    print(f'finished {idx}')
-                    self.tab_list[idx].notebook.tab(0).ss_button['text'] = 'Finished'
-                    self.tab_list[idx].notebook.tab(0).ss_button.config(state=tk.DISABLED)
+                    if self.status_list[idx] == 'running':
+                        print(f'finished {idx}')
+                        self.status_list[idx] = 'finished'
+                        self.tab_list[idx].notebook.tab(0).ss_button['text'] = 'Finished'
+                        self.tab_list[idx].notebook.tab(0).ss_button.config(state=tk.DISABLED)
+                        # Automatically create qc tab
+                        self.create_instance(
+                            qc_param={'cm_obj': self.instance_list[idx].run_instance.cmobj_path},
+                            run=False, qc=True, append=True, append_tabid=idx
+                        )
                 # elif msg.is_running:
                 elif msg['is_running']:
-                    print(f'running {idx}')
-                    self.tab_list[idx].notebook.tab(0).ss_button['text'] = 'Stop'
-                    self.tab_list[idx].notebook.tab(0).ss_button.config(state=tk.NORMAL)
+                    if self.status_list[idx] == 'idle':
+                        self.status_list[idx] = 'running'
+                        print(f'running {idx}')
+                        self.tab_list[idx].notebook.tab(0).ss_button['text'] = 'Stop'
+                        self.tab_list[idx].notebook.tab(0).ss_button.config(state=tk.NORMAL)
                 else:
+                    raise NotImplementedError(f"Invalid message received: {msg}")
                     self.tab_list[idx].notebook.tab(0).ss_button['text'] = 'Start'
                     self.tab_list[idx].notebook.tab(0).ss_button.config(state=tk.NORMAL)
         except queue.Empty:
