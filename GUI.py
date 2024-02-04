@@ -37,6 +37,20 @@ def test(lock, queue, instance_list, idx):
     queue.put(msg)
 
 
+class MyTk(tk.Tk):
+    # @override
+    def __init__(self, logger, *args, **kwargs):
+        self.logger = logger
+        super().__init__(*args, **kwargs)
+
+    # @override
+    def report_callback_exception(self, exc, val, tb):
+        import traceback
+        trace = ''.join(traceback.format_exception(exc, val, tb))
+        self.logger.error(f"Exception: \n{trace}")
+        super().report_callback_exception(exc, val, tb)
+
+
 class GUI:
     __slots__ = [
         'logger',
@@ -105,7 +119,7 @@ class GUI:
         self.status_list: List[Optional[str]] = list(None for _ in range(self.TAB_MAX))
 
         # Initialize Main Window
-        self.root = tk.Tk()
+        self.root = MyTk(self.logger)
         self.root.title("CalciumZero")
         # Define the window size
         window_width = 1200
