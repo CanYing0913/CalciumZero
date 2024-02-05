@@ -96,10 +96,63 @@ def init_sg(settings):
                      size=5, justification='center', disabled=True, enable_events=True)
         ]
     ]
+    opts_s2_f = ('Comic Sans MS', f'{int(font_size * scale_w)}')
+    opts_s2 = [
+        [sg.Text('CaImAn')],
+        [
+            sg.Text('Fr:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'10',
+                     key='-OPTION2-fr-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('decay time:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'0.4',
+                     key='-OPTION2-decay_time-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('motion_correct:'),
+            sg.Checkbox("True", default=True, key='-OPTION2-motion_correct-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('pw rigid:'),
+            sg.Checkbox("True", key='-OPTION2-pw_rigid-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('max shifts:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'5, 5',
+                     key='-OPTION2-max_shifts-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('gSig filt:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'3, 3',
+                     key='-OPTION2-gSig_filt-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('strides:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'48, 48',
+                     key='-OPTION2-strides-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('overlaps:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'24, 24',
+                     key='-OPTION2-overlaps-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('max_deviation_rigid:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'3',
+                     key='-OPTION2-max_deviation_rigid-', enable_events=True, font=opts_s2_f),
+        ],
+        [
+            sg.Text('border_nan:'),
+            sg.Input(size=(int(10 * scale_w), 2), default_text=f'copy',
+                     key='-OPTION2-border_nan-', enable_events=True, font=opts_s2_f),
+        ],
+    ]
     opts_tg = sg.TabGroup(
         [[
             sg.Tab('Crop', opts_s0),
-            sg.Tab('Stabilizer', opts_s1)
+            sg.Tab('Stabilizer', opts_s1),
+            sg.Tab('CaImAn', opts_s2)
         ]]
     )
     row1 = [
@@ -264,6 +317,8 @@ def handle_events(pipe_obj, window, settings):
                     # raise NotImplementedError
             # handle options
             if '-OPTION-' in event:
+                if 'OPTION2' in event:
+                    pipe_obj.handle_cm_opts(window, event, values)
                 if '-margin-' in event:
                     pipe_obj.update(margin=values[event])
                 if '-ijp-' in event:
