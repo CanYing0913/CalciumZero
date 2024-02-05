@@ -7,7 +7,7 @@ import argparse
 from multiprocessing import Pool
 import imagej
 from pathlib import Path
-import os
+from os import path
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
@@ -132,7 +132,7 @@ class Pipeline(object):
         self.QCimage_s0 = None
         # ImageJ stabilizer related variables
         self.do_s1 = False
-        self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
+        self.ijp = path.abspath(path.join(path.dirname(path.abspath(__file__)), '..', '..', 'Fiji.app'))
         self.ij = imagej.init(str(self.ijp), mode='interactive')
         self.s1_params = [
             'Translation',

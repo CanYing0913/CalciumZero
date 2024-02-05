@@ -1,4 +1,5 @@
 from pathlib import Path
+from os import path
 import PySimpleGUI as sg
 from PySimpleGUI import Column
 from multiprocessing import Process
@@ -11,9 +12,9 @@ from src.src_pipeline import Pipeline
 
 
 def load_config():
-    SETTINGS_PATH = Path(__file__).parent
+    SETTINGS_PATH = path.dirname(path.abspath(__file__))
     settings = sg.UserSettings(
-        path=str(SETTINGS_PATH), filename='config.ini', use_config_file=True, convert_bools_and_none=True
+        path=SETTINGS_PATH, filename='config.ini', use_config_file=True, convert_bools_and_none=True
     )
     return settings
 
