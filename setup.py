@@ -6,7 +6,7 @@ build_exe_options = {
     "excludes": ['PyQt5'],
     'packages': ['imagej', 'PySimpleGUI', 'caiman', 'ipyparallel', 'skimage', 'seaborn'],
     'include_files': ['config.ini', 'cache'],
-    'silent_level': ['1']
+    'silent_level': '1'
 }
 
 msi_data = {
