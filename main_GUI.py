@@ -404,9 +404,9 @@ def handle_events(pipe_obj, window, settings):
 
 def main():
     # Initialize pipeline and GUI
-    pipe_obj = Pipeline()
     settings = load_config()
     window = init_sg(settings)
+    pipe_obj = Pipeline()
     pipe_obj.load_setting(settings)
     handle_events(pipe_obj, window, settings)
 
