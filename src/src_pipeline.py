@@ -132,7 +132,7 @@ class Pipeline(object):
         self.QCimage_s0 = None
         # ImageJ stabilizer related variables
         self.do_s1 = False
-        self.ijp = path.abspath(path.join(path.dirname(path.abspath(__file__)), '..', '..', 'Fiji.app'))
+        self.ijp = path.abspath(path.join(path.dirname(path.abspath(__file__)), '..', 'Fiji.app'))
         self.ij = imagej.init(str(self.ijp), mode='interactive')
         self.s1_params = [
             'Translation',
