@@ -8,6 +8,7 @@ log/**
 # for testing
 #Fiji.app/**
 test/
+log/
 .eggs/
 *.csv
 cmn_obj

@@ -13,18 +13,11 @@ from multiprocessing import Process, Lock, Queue
 import imagej
 from typing import List, Optional
 
-# ImageJ Instance with its lock
-imagej_path = Path(__file__).parent.joinpath("Fiji.app")
-ij = imagej.init(imagej_path, mode='interactive')
-ij_lock = Lock()
-queue_lock = Lock()
 
-
-def test(lock, queue, instance_list, idx):
-    # msg = Message(idx=idx, is_running=False, is_finished=False)
+def test(queue, idx):
     msg = {'idx': idx, 'is_running': False, 'is_finished': False}
-    print(f"putting first {msg}")
-    queue.put(msg)
+    # print(f"putting first {msg}")
+    # queue.put(msg)
     time.sleep(5)
     # instance_list[idx].is_running = True
     msg['is_running'] = True
@@ -508,6 +501,7 @@ class GUI:
             close_button.pack(side='top', padx=5, pady=5)
             run_tab.close_button = close_button
             instance_tab.notebook.add(run_tab, text='Run')
+            instance_tab.notebook.run_tab = run_tab
 
         if qc:
             qc_instance = cur_instance.qc_instance
@@ -559,6 +553,7 @@ class GUI:
             input_field.bind("<Return>", update_scrollbar_and_canvas_from_input)
 
             instance_tab.notebook.add(qc_tab, text='QC')
+            instance_tab.notebook.qc_tab = qc_tab
 
         return instance_tab
 
@@ -590,8 +585,8 @@ class GUI:
                     if self.status_list[idx] == 'running':
                         print(f'finished {idx}')
                         self.status_list[idx] = 'finished'
-                        self.tab_list[idx].notebook.tab(0).ss_button['text'] = 'Finished'
-                        self.tab_list[idx].notebook.tab(0).ss_button.config(state=tk.DISABLED)
+                        self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Finished'
+                        self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.DISABLED)
                         # Automatically create qc tab
                         self.create_instance(
                             qc_param={'cm_obj': self.instance_list[idx].run_instance.cmobj_path},
@@ -602,12 +597,12 @@ class GUI:
                     if self.status_list[idx] == 'idle':
                         self.status_list[idx] = 'running'
                         print(f'running {idx}')
-                        self.tab_list[idx].notebook.tab(0).ss_button['text'] = 'Stop'
-                        self.tab_list[idx].notebook.tab(0).ss_button.config(state=tk.NORMAL)
+                        self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Stop'
+                        self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.NORMAL)
                 else:
                     raise NotImplementedError(f"Invalid message received: {msg}")
-                    self.tab_list[idx].notebook.tab(0).ss_button['text'] = 'Start'
-                    self.tab_list[idx].notebook.tab(0).ss_button.config(state=tk.NORMAL)
+                    self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Start'
+                    self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.NORMAL)
         except queue.Empty:
             pass
         finally:
@@ -625,7 +620,7 @@ class GUI:
         p = Process(target=self.instance_list[idx].run_instance.run, args=())
         p.start()
         self.process_list[idx] = p
-        # p = Process(target=test, args=(queue_lock, self.queue, self.instance_list, idx))
+        # p = Process(target=test, args=(self.queue, idx))
         # p.start()
         # self.process_list[idx] = p
 
