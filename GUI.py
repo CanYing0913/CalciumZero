@@ -11,7 +11,7 @@ from threading import Thread
 import logging
 from multiprocessing import Process, Lock, Queue
 import imagej
-from typing import List, Optional
+from typing import List, Tuple, Optional
 
 
 def test(queue, idx):
@@ -376,7 +376,7 @@ class GUI:
 
         # Function to handle 'OK' button click
         def on_ok():
-            status, msg = self.create_instance(run_params=param_dict, run=True)
+            status, msg = self.create_instance(run_params=param_dict)
             if not status:
                 self.logger.debug(f'Instance creation failed: {msg}')
                 tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}")
@@ -419,7 +419,7 @@ class GUI:
                 tkinter.messagebox.showerror("Error", "No qc file selected.")
                 return
 
-            status, msg = self.create_instance(qc_param={'cm_obj': qc_path}, run=False, qc=True)
+            status, msg = self.create_instance(qc_param={'cm_obj': qc_path})
             if not status:
                 self.logger.debug(f'Instance creation failed: {msg}')
                 tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}")
@@ -431,144 +431,177 @@ class GUI:
         tk.Button(frame_2, text="OK", command=on_ok).pack(side=tk.LEFT, padx=10, pady=10)
         tk.Button(frame_2, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=10, pady=10)
 
-    def create_instance(self, run_params=None, qc_param=None, run=True, qc=False, append=False, append_tabid=None):
-        """ Function to create a new tab with given parameters"""
+    def create_instance(self, run_params=None, qc_param=None, idx=None) -> Tuple[bool, str]:
+        """
+        Create a new instance or fill in an existing instance with run and qc parameters
+        Args:
+            run_params: Parameters for running the instance
+            qc_param: Parameters for creating a QC instance
+            idx: Instance index to append to
+
+        Returns:
+            status: True if successful, False otherwise
+            msg: Error message if status is False
+        """
         # Find corresponding idx to use
-        if append:
-            assert append_tabid is not None and qc, "Invalid append parameters."
-            assert not run, "When appending qc to instance, run must be False."
-            idx = append_tabid
-        else:
+        if idx is None:
             # Find next available index
             try:
                 idx = self.instance_list.index(None)
             except ValueError:
                 return False, "Maximum number of instances reached."
-
-        if append:
-            cur_instance = self.instance_list[idx]
-        else:
             cur_instance = CalciumZero()
-            # run will only be True if append is False
-            if run:
-                run_instance = Pipeline(
-                    queue=self.queue,
-                    queue_id=idx,
-                    logger=self.logger
-                )
-                cur_instance.run_instance = run_instance
-                for item in ['input_path', 'output_path', 'run']:
-                    if item not in run_params:
-                        return False, f"Missing parameter {item}."
-                run_instance.update(params_dict=run_params)  # Setup parameters
+        else:
+            cur_instance = self.instance_list[idx]
+        # TODO: customized tab name
+        cur_tab = self.create_tab(idx)
+        self.tab_list[idx] = cur_tab
+
+        if run_params:
+            run_instance = Pipeline(
+                queue=self.queue,
+                queue_id=idx,
+                logger=self.logger
+            )
+            for item in ['input_path', 'output_path', 'run']:
+                if item not in run_params:
+                    return False, f"Missing parameter {item}."
+            run_instance.update(params_dict=run_params)  # Setup parameters
+            cur_instance.run_instance = run_instance
+            self.instance_list[idx] = cur_instance
+            self.create_run_tab(idx)
         # QC can be created initially OR appended to an existing instance
-        if qc:
-            qc_instance = QC(qc_param['cm_obj'])
+        if qc_param:
+            qc_instance = QC(qc_param['cm_obj'], debug=True)
             cur_instance.qc_instance = qc_instance
+            self.create_qc_tab(idx)
 
         self.instance_list[idx] = cur_instance
         self.status_list[idx] = 'idle'
         self.process_list[idx] = None
 
-        cur_tab = self.create_tab(self.root.notebook, idx, append=append, run=run, qc=qc)
-        # TODO: customized tab name
         self.root.notebook.add(cur_tab, text='New Instance')
-        self.tab_list[idx] = cur_tab
+        if hasattr(self.root.notebook, "tabs_list"):
+            self.root.notebook.tabs_list.append(cur_tab)
+        else:
+            self.root.notebook.tabs_list = [cur_tab]
         return True, idx
 
-    def create_tab(self, parent, idx, append=False, run=False, qc=False):
+    def create_run_tab(self, idx: int) -> None:
+        """
+        Create a run tab for the instance at idx position
+        Args:
+            idx: Instance index
+
+        Returns:
+
+        """
+        # 1. Get instance tab.
+        instance_tab = self.create_tab(idx)
         cur_instance = self.instance_list[idx]
-        if append:
-            instance_tab = parent.tab(idx)
-            instance_tab.qc = qc
+        # Create run tab
+        run_tab = ttk.Frame()
+        run_tab.pack(expand=True, fill='both')
+        ss_button = ttk.Button(run_tab, text='Start', command=lambda id=instance_tab.id: self.run_instance(id))
+        ss_button.pack(side='top', padx=5, pady=5)
+        run_tab.ss_button = ss_button
+
+        close_button = ttk.Button(run_tab, text='Close',
+                                  command=lambda id=instance_tab.id: self.close_instance(id))
+        close_button.pack(side='top', padx=5, pady=5)
+        run_tab.close_button = close_button
+        instance_tab.notebook.add(run_tab, text='Run')
+        instance_tab.notebook.run_tab = run_tab
+
+    def create_qc_tab(self, idx: int) -> None:
+        """
+            Create a CaImAn QC tab for the instance at idx position
+            Args:
+                idx: Instance index
+
+            Returns:
+
+        """
+        cur_instance = self.instance_list[idx]
+        # 1. Get instance tab.
+        instance_tab = self.create_tab(idx)
+        # 2. Create QC tab
+        qc_instance = cur_instance.qc_instance
+        qc_tab = ttk.Frame()
+        qc_tab.pack(expand=True, fill='both')
+
+        # #
+        # from tifffile import TiffFile
+        # qc_tab.movie = TiffFile(movie_path)
+        qc_instance.qc_tab = qc_tab
+
+        max_h, max_w = 500, 800
+        h_, w_ = qc_instance.movie[0][0].shape if qc_instance.movie else 500, 800
+        if h_ > max_h or w_ > max_w:
+            h_, w_ = int(h_ * min(max_h / h_, max_w / w_)), int(w_ * min(max_h / h_, max_w / w_))
+        qc_tab.canvas = tk.Canvas(qc_tab, width=w_, height=h_)
+        qc_tab.canvas.pack()
+        # qc_instance.show_frame(0)
+
+        container = ttk.Frame(qc_tab)
+        container.pack()
+
+        # Define a callback function to update the scrollbar and canvas
+        def update_scrollbar_and_canvas(value):
+            frame_idx = int(value)
+            qc_instance.show_frame(frame_idx)
+            # Update the input field with the current frame number
+            input_field.delete(0, tk.END)
+            input_field.insert(0, str(frame_idx))
+
+        # Define a callback function to update the scrollbar and canvas when the user types in the input field
+        def update_scrollbar_and_canvas_from_input(event):
+            try:
+                frame_idx = int(input_field.get())
+                if 0 <= frame_idx < len(qc_instance.movie):
+                    qc_tab.scrollbar.set(frame_idx)
+                    qc_instance.show_frame(frame_idx)
+            except ValueError:
+                pass
+
+        # qc_tab.scrollbar = tk.Scale(container, from_=0, to=len(qc_instance.movie[0]) - 1, orient="horizontal",
+        #                             command=update_scrollbar_and_canvas, showvalue=False)
+        # qc_tab.scrollbar.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Create an input field next to the scrollbar
+        input_field = tk.Entry(container)
+        input_field.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Bind the input field to the update_scrollbar_and_canvas_from_input function
+        input_field.bind("<Return>", update_scrollbar_and_canvas_from_input)
+
+        instance_tab.notebook.add(qc_tab, text='QC')
+        instance_tab.notebook.qc_tab = qc_tab
+
+    def create_tab(self, idx):
+        # Get instance tab. If not exist, create one
+        if self.tab_list[idx]:
+            return self.tab_list[idx]
         else:
-            instance_tab = ttk.Frame(parent)
+            instance_tab = ttk.Frame(self.root.notebook)
             instance_tab.pack(expand=True, fill='both')
             instance_tab.id = idx
-            instance_tab.run, instance_tab.qc = run, qc
             instance_tab.notebook = ttk.Notebook(instance_tab)
             instance_tab.notebook.pack(expand=True, fill='both')
+            return instance_tab
 
-        if run:
-            run_tab = ttk.Frame()
-            run_tab.pack(expand=True, fill='both')
-            ss_button = ttk.Button(run_tab, text='Start', command=lambda id=instance_tab.id: self.run_instance(id))
-            ss_button.pack(side='top', padx=5, pady=5)
-            run_tab.ss_button = ss_button
-
-            close_button = ttk.Button(run_tab, text='Close',
-                                      command=lambda id=instance_tab.id: self.close_instance(id))
-            close_button.pack(side='top', padx=5, pady=5)
-            run_tab.close_button = close_button
-            instance_tab.notebook.add(run_tab, text='Run')
-            instance_tab.notebook.run_tab = run_tab
-
-        if qc:
-            qc_instance = cur_instance.qc_instance
-            qc_tab = ttk.Frame()
-            qc_tab.pack(expand=True, fill='both')
-
-            # #
-            # from tifffile import TiffFile
-            # qc_tab.movie = TiffFile(movie_path)
-            qc_instance.qc_tab = qc_tab
-
-            max_h, max_w = 500, 800
-            h_, w_ = qc_instance.movie[0][0].shape
-            if h_ > max_h or w_ > max_w:
-                h_, w_ = int(h_ * min(max_h / h_, max_w / w_)), int(w_ * min(max_h / h_, max_w / w_))
-            qc_tab.canvas = tk.Canvas(qc_tab, width=w_, height=h_)
-            qc_tab.canvas.pack()
-            qc_instance.show_frame(0)
-
-            container = ttk.Frame(qc_tab)
-            container.pack()
-
-            # Define a callback function to update the scrollbar and canvas
-            def update_scrollbar_and_canvas(value):
-                frame_idx = int(value)
-                qc_instance.show_frame(frame_idx)
-                # Update the input field with the current frame number
-                input_field.delete(0, tk.END)
-                input_field.insert(0, str(frame_idx))
-
-            # Define a callback function to update the scrollbar and canvas when the user types in the input field
-            def update_scrollbar_and_canvas_from_input(event):
-                try:
-                    frame_idx = int(input_field.get())
-                    if 0 <= frame_idx < len(qc_instance.movie):
-                        qc_tab.scrollbar.set(frame_idx)
-                        qc_instance.show_frame(frame_idx)
-                except ValueError:
-                    pass
-            qc_tab.scrollbar = tk.Scale(container, from_=0, to=len(qc_instance.movie[0]) - 1, orient="horizontal",
-                                        command=update_scrollbar_and_canvas, showvalue=False)
-            qc_tab.scrollbar.pack(side=tk.LEFT, padx=5, pady=5)
-
-            # Create an input field next to the scrollbar
-            input_field = tk.Entry(container)
-            input_field.pack(side=tk.LEFT, padx=5, pady=5)
-
-            # Bind the input field to the update_scrollbar_and_canvas_from_input function
-            input_field.bind("<Return>", update_scrollbar_and_canvas_from_input)
-
-            instance_tab.notebook.add(qc_tab, text='QC')
-            instance_tab.notebook.qc_tab = qc_tab
-
-        return instance_tab
-
-    def close_instance(self, id: int):
+    def close_instance(self, idx: int):
         # Delete Pipeline instance and running Process
-        if id < len(self.process_list):
-            try:
-                self.process_list[id].terminate()
-                self.process_list[id] = None
-            except AttributeError:
-                pass
-        self.instance_list[id] = None
+        assert idx < self.TAB_MAX
+        try:
+            self.process_list[idx].terminate()
+            self.process_list[idx] = None
+        except AttributeError:
+            pass
+        self.instance_list[idx] = None
         # Delete tab
-        self.tab_list[id].destroy()
-        self.tab_list[id] = None
+        self.tab_list[idx].destroy()
+        self.tab_list[idx] = None
 
     def instance_monitor(self):
         assert len(self.instance_list) == len(self.tab_list)
@@ -578,9 +611,6 @@ class GUI:
                 print(msg)
                 # idx = msg.idx
                 idx = msg['idx']
-                if not self.tab_list[idx].run:
-                    self.logger.error(f"Message received for a non-running instance {idx}.")
-                    raise NotImplementedError(f"Message received for a non-running instance {idx}.")
                 if msg['is_finished']:
                     if self.status_list[idx] == 'running':
                         print(f'finished {idx}')
@@ -590,7 +620,7 @@ class GUI:
                         # Automatically create qc tab
                         self.create_instance(
                             qc_param={'cm_obj': self.instance_list[idx].run_instance.cmobj_path},
-                            run=False, qc=True, append=True, append_tabid=idx
+                            idx=idx
                         )
                 # elif msg.is_running:
                 elif msg['is_running']:
@@ -617,12 +647,12 @@ class GUI:
             self.logger.debug(f'not ready, message: {msg}')
             raise Warning("Instance not ready")
         print(f'running {idx}')
-        p = Process(target=self.instance_list[idx].run_instance.run, args=())
-        p.start()
-        self.process_list[idx] = p
-        # p = Process(target=test, args=(self.queue, idx))
+        # p = Process(target=self.instance_list[idx].run_instance.run, args=())
         # p.start()
         # self.process_list[idx] = p
+        p = Process(target=test, args=(self.queue, idx))
+        p.start()
+        self.process_list[idx] = p
 
     def setup(self):
         def on_close():
