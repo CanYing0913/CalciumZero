@@ -644,19 +644,26 @@ class Pipeline(object):
 
 class QC:
     __slots__ = [
-        'cmn_obj_path',
+        'cmnobj_path',
         'cmn_obj',
         'movie',
         'current_frame',
         'qc_tab',
     ]
 
-    def __init__(self, cmn_obj_path):
-        from pickle import load
-        self.cmn_obj_path = cmn_obj_path
-        self.cmn_obj = load(open(cmn_obj_path, 'rb'))
-        self.movie = self.cmn_obj.input_files
-        self.current_frame = 0
+    def __init__(self, cmnobj_path=None, debug=False):
+        if debug:
+            self.cmnobj_path = None
+            self.cmn_obj = None
+            self.movie = None
+            self.current_frame = 0
+            self.qc_tab = None
+        else:
+            from pickle import load
+            self.cmnobj_path = cmnobj_path
+            self.cmn_obj = load(open(cmnobj_path, 'rb'))
+            self.movie = self.cmn_obj.input_files
+            self.current_frame = 0
 
     def show_frame(self, frame_number):
         from PIL import Image, ImageTk
