@@ -474,9 +474,9 @@ class GUI:
         if qc_param:
             qc_instance = QC(qc_param['cm_obj'], debug=True)
             cur_instance.qc_instance = qc_instance
+            self.instance_list[idx] = cur_instance
             self.create_qc_tab(idx)
 
-        self.instance_list[idx] = cur_instance
         self.status_list[idx] = 'idle'
         self.process_list[idx] = None
 

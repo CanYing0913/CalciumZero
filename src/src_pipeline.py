@@ -680,3 +680,7 @@ class CalciumZero:
         'run_instance',
         'qc_instance',
     ]
+
+    def __init__(self):
+        self.run_instance = None
+        self.qc_instance = None
