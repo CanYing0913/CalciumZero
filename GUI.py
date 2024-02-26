@@ -47,6 +47,7 @@ class MyTk(tk.Tk):
 class GUI:
     __slots__ = [
         'logger',
+        'debug',
         # GUI fields
         'root',
         'TAB_MAX',
@@ -76,17 +77,13 @@ class GUI:
         # Set the position of the window to the center of the screen
         window.geometry(f'{width}x{height}+{center_x}+{center_y}')
 
-    def __init__(self):
+    def __init__(self, debug=False):
+        self.debug = debug
         # Set up logging
         from datetime import datetime
         log_folder = Path(__file__).parent.joinpath("log")
         log_folder.mkdir(exist_ok=True)
         log_name = log_folder.joinpath(Path('log_' + datetime.now().strftime("%y%m%d_%H%M%S") + '.txt'))
-        # logging.basicConfig(
-        #     level=logging.DEBUG,
-        #     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        #     filename=log_name, filemode='w',
-        # )
         self.logger = logging.getLogger('GUI')
         self.logger.setLevel(logging.DEBUG)
         console_handler = logging.StreamHandler()
@@ -515,11 +512,11 @@ class GUI:
 
     def create_qc_tab(self, idx: int) -> None:
         """
-            Create a CaImAn QC tab for the instance at idx position
-            Args:
-                idx: Instance index
+        Create a CaImAn QC tab for the instance at idx position
+        Args:
+            idx: Instance index
 
-            Returns:
+        Returns:
 
         """
         cur_instance = self.instance_list[idx]
