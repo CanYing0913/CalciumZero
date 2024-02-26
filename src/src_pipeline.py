@@ -665,14 +665,9 @@ class QC:
             self.movie = self.cmn_obj.input_files
             self.current_frame = 0
 
-    def show_frame(self, frame_number):
-        from PIL import Image, ImageTk
-        self.current_frame = int(frame_number)
-        frame = self.movie[0][self.current_frame]
-        frame = Image.fromarray(frame)
-        frame = ImageTk.PhotoImage(frame)
-        self.qc_tab.canvas.create_image(0, 0, anchor="nw", image=frame)
-        self.qc_tab.canvas.image = frame  # Keep a reference to prevent garbage collection
+    def show_frame(self, frame_idx, image_idx=0) -> np.ndarray:
+        frame = self.movie[image_idx][frame_idx]
+        return frame
 
 
 class CalciumZero:
