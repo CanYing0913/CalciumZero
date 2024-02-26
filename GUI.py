@@ -12,6 +12,7 @@ import logging
 from multiprocessing import Process, Lock, Queue
 import imagej
 from typing import List, Tuple, Optional
+from PIL import Image, ImageTk
 
 
 def test(queue, idx):
@@ -469,7 +470,7 @@ class GUI:
             self.create_run_tab(idx)
         # QC can be created initially OR appended to an existing instance
         if qc_param:
-            qc_instance = QC(qc_param['cm_obj'], debug=True)
+            qc_instance = QC(qc_param['cm_obj'], debug=False)
             cur_instance.qc_instance = qc_instance
             self.instance_list[idx] = cur_instance
             self.create_qc_tab(idx)
@@ -527,50 +528,53 @@ class GUI:
         qc_tab = ttk.Frame()
         qc_tab.pack(expand=True, fill='both')
 
-        # #
-        # from tifffile import TiffFile
-        # qc_tab.movie = TiffFile(movie_path)
         qc_instance.qc_tab = qc_tab
 
         max_h, max_w = 500, 800
-        h_, w_ = qc_instance.movie[0][0].shape if qc_instance.movie else 500, 800
+        h_, w_ = qc_instance.movie[0][0].shape
         if h_ > max_h or w_ > max_w:
             h_, w_ = int(h_ * min(max_h / h_, max_w / w_)), int(w_ * min(max_h / h_, max_w / w_))
         qc_tab.canvas = tk.Canvas(qc_tab, width=w_, height=h_)
         qc_tab.canvas.pack()
-        # qc_instance.show_frame(0)
 
         container = ttk.Frame(qc_tab)
         container.pack()
 
         # Define a callback function to update the scrollbar and canvas
-        def update_scrollbar_and_canvas(value):
+        def update_canvas_from_scrollbar(value):
             frame_idx = int(value)
-            qc_instance.show_frame(frame_idx)
+            cur_frame = qc_instance.show_frame(frame_idx)
+
+            cur_frame = Image.fromarray(cur_frame)
+            cur_frame = ImageTk.PhotoImage(cur_frame)
+            qc_tab.canvas.create_image(0, 0, anchor="nw", image=cur_frame)
+            qc_tab.canvas.image = cur_frame  # Keep a reference to prevent garbage collection
             # Update the input field with the current frame number
-            input_field.delete(0, tk.END)
-            input_field.insert(0, str(frame_idx))
+            qc_tab.input_field.delete(0, tk.END)
+            qc_tab.input_field.insert(0, str(frame_idx))
 
         # Define a callback function to update the scrollbar and canvas when the user types in the input field
-        def update_scrollbar_and_canvas_from_input(event):
+        def update_canvas_from_input(event):
             try:
-                frame_idx = int(input_field.get())
-                if 0 <= frame_idx < len(qc_instance.movie):
+                frame_idx = int(qc_tab.input_field.get())
+                if 0 <= frame_idx < len(qc_instance.movie[0]):
                     qc_tab.scrollbar.set(frame_idx)
-                    qc_instance.show_frame(frame_idx)
+                    update_canvas_from_scrollbar(frame_idx)
             except ValueError:
-                pass
+                qc_tab.scrollbar.set(0)
+                qc_tab.input_field.delete(0, tk.END)
+                qc_tab.input_field.insert(0, "0")
 
-        # qc_tab.scrollbar = tk.Scale(container, from_=0, to=len(qc_instance.movie[0]) - 1, orient="horizontal",
-        #                             command=update_scrollbar_and_canvas, showvalue=False)
-        # qc_tab.scrollbar.pack(side=tk.LEFT, padx=5, pady=5)
+        qc_tab.scrollbar = tk.Scale(container, from_=0, to=len(qc_instance.movie[0]) - 1, orient="horizontal",
+                                    command=update_canvas_from_scrollbar, showvalue=False)
+        qc_tab.scrollbar.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Create an input field next to the scrollbar
-        input_field = tk.Entry(container)
-        input_field.pack(side=tk.LEFT, padx=5, pady=5)
+        qc_tab.input_field = tk.Entry(container, width=5)
+        qc_tab.input_field.pack(side=tk.LEFT, padx=5, pady=5)
 
-        # Bind the input field to the update_scrollbar_and_canvas_from_input function
-        input_field.bind("<Return>", update_scrollbar_and_canvas_from_input)
+        # Bind the input field to the update_canvas_from_input function
+        qc_tab.input_field.bind("<Return>", update_canvas_from_input)
 
         instance_tab.notebook.add(qc_tab, text='QC')
         instance_tab.notebook.qc_tab = qc_tab
