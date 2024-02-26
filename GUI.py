@@ -147,10 +147,10 @@ class GUI:
         # Add 'New' Menu Item
         # Function to create a parameter dialog
 
-        file_menu.add_command(label="New Instance", command=self.new_instance_dialog)
+        file_menu.add_command(label="New Instance", command=self.new_run_dialog)
         file_menu.add_command(label="New QC", command=self.new_qc_dialog)
 
-    def new_instance_dialog(self):
+    def new_run_dialog(self):
         with open(Path(__file__).parent.joinpath("config.json"), "r") as f:
             param_dict = json.load(f)
         # Create a simple dialog window
@@ -224,12 +224,12 @@ class GUI:
         slider.set(param_dict['crop']['threshold'])
 
         # Validate input numbers
-        def validate_numbers(num, type):
+        def validate_numbers(num, type_d):
             if num == '':
-                return (True, 0) if type is int else (True, 0.0)
+                return (True, 0) if type_d is int else (True, 0.0)
             else:
                 try:
-                    return (True, int(num)) if type is int else (True, float(num))
+                    return (True, int(num)) if type_d is int else (True, float(num))
                 except ValueError:
                     return False, None
 
