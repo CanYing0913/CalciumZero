@@ -527,6 +527,7 @@ class GUI:
         qc_instance = cur_instance.qc_instance
         qc_tab = ttk.Frame()
         qc_tab.pack(expand=True, fill='both')
+        qc_tab.movie_idx = 0
 
         qc_instance.qc_tab = qc_tab
 
@@ -536,16 +537,37 @@ class GUI:
             h_, w_ = int(h_ * min(max_h / h_, max_w / w_)), int(w_ * min(max_h / h_, max_w / w_))
         qc_tab.canvas = tk.Canvas(qc_tab, width=w_, height=h_)
         qc_tab.canvas.pack()
-
         container = ttk.Frame(qc_tab)
         container.pack()
+
+        container_1 = ttk.Frame(container)
+        container_1.pack()
+
+        def on_listbox_select(event):
+            # Get the index of the selected item in the Listbox
+            selected_index = qc_tab.listbox.curselection()
+            if selected_index:  # Ensure an item is selected
+                qc_tab.movie_idx = int(selected_index[0])
+                update_canvas_from_scrollbar(0)
+
+        qc_tab.listbox = tk.Listbox(container_1, selectmode=tk.SINGLE)
+        qc_tab.listbox.pack(side=tk.LEFT, fill='y')
+        for i in range(len(qc_instance.movie)):
+            qc_tab.listbox.insert(tk.END, f"Movie {i}")
+        qc_tab.listbox.config(height=qc_tab.listbox.size())
+        qc_tab.listbox.bind("<<ListboxSelect>>", on_listbox_select)
+
+        container_2 = ttk.Frame(container)
+        container_2.pack()
 
         # Define a callback function to update the scrollbar and canvas
         def update_canvas_from_scrollbar(value):
             frame_idx = int(value)
-            cur_frame = qc_instance.show_frame(frame_idx)
+            cur_frame = qc_instance.show_frame(frame_idx, qc_tab.movie_idx)
 
             cur_frame = Image.fromarray(cur_frame)
+            cur_frame = cur_frame.convert("L")  # Convert to grayscale mode
+            cur_frame = cur_frame.resize((w_, h_), Image.ANTIALIAS)
             cur_frame = ImageTk.PhotoImage(cur_frame)
             qc_tab.canvas.create_image(0, 0, anchor="nw", image=cur_frame)
             qc_tab.canvas.image = cur_frame  # Keep a reference to prevent garbage collection
@@ -565,16 +587,21 @@ class GUI:
                 qc_tab.input_field.delete(0, tk.END)
                 qc_tab.input_field.insert(0, "0")
 
-        qc_tab.scrollbar = tk.Scale(container, from_=0, to=len(qc_instance.movie[0]) - 1, orient="horizontal",
+        qc_tab.scrollbar = tk.Scale(container_2, from_=0, to=len(qc_instance.movie[0]) - 1, orient="horizontal",
                                     command=update_canvas_from_scrollbar, showvalue=False)
         qc_tab.scrollbar.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Create an input field next to the scrollbar
-        qc_tab.input_field = tk.Entry(container, width=5)
+        qc_tab.input_field = tk.Entry(container_2, width=5)
         qc_tab.input_field.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Bind the input field to the update_canvas_from_input function
         qc_tab.input_field.bind("<Return>", update_canvas_from_input)
+
+        close_button = ttk.Button(qc_tab, text='Close',
+                                  command=lambda id=instance_tab.id: self.close_instance(id))
+        close_button.pack(side='top', padx=5, pady=5)
+        qc_tab.close_button = close_button
 
         instance_tab.notebook.add(qc_tab, text='QC')
         instance_tab.notebook.qc_tab = qc_tab
@@ -599,6 +626,7 @@ class GUI:
             self.process_list[idx] = None
         except AttributeError:
             pass
+        del self.instance_list[idx]
         self.instance_list[idx] = None
         # Delete tab
         self.tab_list[idx].destroy()

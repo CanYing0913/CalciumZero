@@ -661,7 +661,8 @@ class QC:
         else:
             from pickle import load
             self.cmnobj_path = cmnobj_path
-            self.cmn_obj = load(open(cmnobj_path, 'rb'))
+            with open(cmnobj_path, 'rb') as f:
+                self.cmn_obj = load(f)
             self.movie = self.cmn_obj.input_files
             self.current_frame = 0
 
