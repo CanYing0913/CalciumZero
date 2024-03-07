@@ -19,6 +19,7 @@
             "fnames": "",
             "fr": 10,
             "decay_time": 0.4,
+            "motion_correct": false,
             "pw_rigid": false,
             "max_shifts": [
                 5,

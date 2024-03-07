@@ -373,6 +373,16 @@ class GUI:
 
         # Function to handle 'OK' button click
         def on_ok():
+            if param_dict['run'][2]:
+                # Handle caiman fnames
+                fname = param_dict['input_path'][:-4]
+                if param_dict['run'][0]:
+                    fname += '_crop'
+                if param_dict['run'][1]:
+                    fname += '_stab'
+                fname = fname + '.tif'
+                self.logger.debug(f'expect fname: {fname}')
+                param_dict['caiman']['mc_dict']['fnames'] = [fname]
             status, msg = self.create_instance(run_params=param_dict)
             if not status:
                 self.logger.debug(f'Instance creation failed: {msg}')
