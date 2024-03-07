@@ -58,6 +58,8 @@ class GUI:
         'tab_list',
         'status_list',
         'queue',
+        'log_queue',
+        'log_th'
     ]
 
     def center(self, window, width: int, height: int):
@@ -101,6 +103,7 @@ class GUI:
         # TODO:Read Configuration files
         pass
         self.queue = Queue()
+        self.log_queue = Queue()
 
         # Instance-related List
         self.TAB_MAX = 4
@@ -258,10 +261,6 @@ class GUI:
                 trans_button.select()  # Set the Translation Radiobutton as the default selection
                 var.trace_add("write",
                               lambda *args, text=var, key=dname: on_entry_change(text.get(), key))
-
-                # Create a dummy Radiobutton with a value that is not used
-                # dummy_button = tk.Radiobutton(container, variable=StrVar, value="dummy", state="disabled")
-                # dummy_button.select()  # Set the dummy Radiobutton as the default selection
             else:
                 # Text entry for numbers
                 entry_text = tk.StringVar(value=d)
@@ -459,7 +458,7 @@ class GUI:
             run_instance = Pipeline(
                 queue=self.queue,
                 queue_id=idx,
-                logger=self.logger
+                log_queue=self.log_queue
             )
             for item in ['input_path', 'output_path', 'run']:
                 if item not in run_params:
@@ -646,11 +645,12 @@ class GUI:
                         self.status_list[idx] = 'finished'
                         self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Finished'
                         self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.DISABLED)
-                        # Automatically create qc tab
-                        self.create_instance(
-                            qc_param={'cm_obj': self.instance_list[idx].run_instance.cmobj_path},
-                            idx=idx
-                        )
+                        if msg['cm']:
+                            # Automatically create qc tab
+                            self.create_instance(
+                                qc_param={'cm_obj': self.instance_list[idx].run_instance.cmobj_path},
+                                idx=idx
+                            )
                 # elif msg.is_running:
                 elif msg['is_running']:
                     if self.status_list[idx] == 'idle':
@@ -665,7 +665,17 @@ class GUI:
         except queue.Empty:
             pass
         finally:
-            self.root.after(500, self.instance_monitor)
+            self.root.after(1000, self.instance_monitor)
+
+    def log_monitor(self):
+        try:
+            while True:
+                msg = self.log_queue.get_nowait()
+                self.logger.debug(msg)
+        except queue.Empty:
+            pass
+        finally:
+            self.root.after(1000, self.log_monitor)
 
     def run_instance(self, idx):
         if self.instance_list[idx].run_instance.is_running or self.instance_list[idx].run_instance.is_finished:
@@ -676,12 +686,12 @@ class GUI:
             self.logger.debug(f'not ready, message: {msg}')
             raise Warning("Instance not ready")
         print(f'running {idx}')
-        # p = Process(target=self.instance_list[idx].run_instance.run, args=())
-        # p.start()
-        # self.process_list[idx] = p
-        p = Process(target=test, args=(self.queue, idx))
+        p = Process(target=self.instance_list[idx].run_instance.run, args=())
         p.start()
         self.process_list[idx] = p
+        # p = Process(target=test, args=(self.queue, idx))
+        # p.start()
+        # self.process_list[idx] = p
 
     def setup(self):
         def on_close():
@@ -694,6 +704,7 @@ class GUI:
     def gui(self):
         try:
             self.instance_monitor()
+            self.log_monitor()
             self.root.mainloop()
         except Exception as e:
             self.logger.error(e)

@@ -6,8 +6,6 @@ Copyright Yian Wang (canying0913@gmail.com) - 2022
 import argparse
 from multiprocessing import Pool
 import imagej
-from pathlib import Path
-import os
 from time import perf_counter
 from src.src_caiman import *
 # Retrieve source
@@ -114,11 +112,11 @@ def parse():
 
 
 class Pipeline(object):
-    def __init__(self, queue=None, queue_id=0, logger=None):
+    def __init__(self, queue=None, queue_id=0, log_queue=None):
         # GUI-related
         self.queue = queue
         self.queue_id = queue_id
-        self.logger = logger
+        self.log_queue = log_queue
         self.params_dict = {
             'run': [True, True, True],
             'crop': {'margin': 200},
@@ -216,8 +214,8 @@ class Pipeline(object):
         self.pc_obj = []
 
     def log_print(self, txt: str):
-        if self.logger:
-            self.logger.debug(txt)
+        if self.log_queue:
+            self.log_queue.put(txt)
         else:
             print(txt)
             if self.log is not None:
@@ -407,9 +405,9 @@ class Pipeline(object):
             fname_mc = mc.fname_tot_els if pw_rigid else mc.fname_tot_rig
             if pw_rigid:
                 bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                             np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+                                             np.max(np.abs(mc.y_shifts_els)))).astype(int)
             else:
-                bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
+                bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
                 plt.figure()
                 plt.subplot(1, 2, 1)
                 plt.imshow(mc.total_template_rig)  # % plot template
@@ -552,7 +550,8 @@ class Pipeline(object):
 
     def run(self):
         msg = {
-            'idx': self.queue_id, 'is_running': False, 'is_finished': False
+            'idx': self.queue_id, 'is_running': False, 'is_finished': False,
+            'cm': True if self.do_s2 else False
         }
         # TODO: need to adjust imm1_list, imm2_list, according to which section is the first section
         if not self.do_s0:
