@@ -129,7 +129,7 @@ class Pipeline(object):
             },
             'caiman': {
                 "mc_dict": {
-                    'fnames': "",
+                    'fnames': [""],
                     'fr': frate,
                     'decay_time': decay_time,
                     'pw_rigid': pw_rigid,
@@ -202,7 +202,7 @@ class Pipeline(object):
         # CaImAn related variables
         self.do_s2 = False
         self.caiman_obj = None
-        self.clog = False
+        self.clog = True
         self.csave = False
         self.s2_root = ''
         self.done_s2 = False
@@ -282,6 +282,7 @@ class Pipeline(object):
                 self.input_list = [value['input_path']]
                 self.work_dir = value['output_path']
                 self.do_s0, self.do_s1, self.do_s2 = value['run']
+                self.params_dict = value
                 continue
             if key in self.params_dict['caiman'].keys():
                 self.params_dict['caiman'][key] = value
@@ -293,13 +294,6 @@ class Pipeline(object):
                 self.params_dict['caiman']['params_dict'][key] = value
                 continue
             setattr(self, key, value)
-
-    def handle_cm_opts(self, window, event, values):
-        event_name = event.split('-')[-1]
-        if event_name in self.params_dict.keys():
-            self.params_dict[event_name] = values[event]
-        elif event_name in self.mc_dict.keys():
-            self.mc_dict[event_name] = values[event]
 
     def ready(self):
         if not self.input_list:
@@ -395,7 +389,6 @@ class Pipeline(object):
                 level=logging.DEBUG)
         fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.imm2_list]
         self.outpath_s2 = [str(Path(self.work_dir).joinpath(remove_suffix(f, '.tif') + '_caiman.tif')) for f in fnames]
-        self.handle_cm_opts(None, 'fnames', fnames)
         opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])
         # Motion Correction
         if motion_correct:
