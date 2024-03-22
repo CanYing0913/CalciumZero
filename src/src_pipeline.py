@@ -344,7 +344,7 @@ class Pipeline(object):
         for idx, fname_i in enumerate(self.input_list):
             image_i = tifffile.imread(str(Path(self.input_root).joinpath(fname_i)))
             finalxcnts = finalxcntss[idx]
-            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.params_dict['crop']['margin'], finalxcnts)
+            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.params_dict['crop']['threshold'], finalxcnts)
             # Handle output path
             fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
             fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
