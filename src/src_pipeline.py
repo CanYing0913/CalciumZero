@@ -117,6 +117,7 @@ class Pipeline(object):
         self.queue = queue
         self.queue_id = queue_id
         self.log_queue = log_queue
+        self.logger = None
         self.params_dict = {
             'run': [True, True, True],
             'crop': {'margin': 200},
@@ -216,6 +217,8 @@ class Pipeline(object):
     def log_print(self, txt: str):
         if self.log_queue:
             self.log_queue.put(txt)
+        elif self.logger:
+            self.logger.debug(txt)
         else:
             print(txt)
             if self.log is not None:
@@ -422,7 +425,7 @@ class Pipeline(object):
         Yr, dims, T = cm.load_memmap(fname_mmap)
         images = Yr.T.reshape((T,) + dims, order='F')
 
-        opts.change_params(self.params_dict['caiman']['param_dict'])
+        opts.change_params(self.params_dict['caiman']['params_dict'])
         # Inspect summary images and set parameters
         # compute some summary images (correlation and peak to noise)
         cn_filter, pnr = cm.summary_images.correlation_pnr(images[::10], gSig=gSig[0],
