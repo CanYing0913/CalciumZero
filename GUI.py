@@ -517,6 +517,10 @@ class GUI:
                                   command=lambda id=instance_tab.id: self.close_instance(id))
         close_button.pack(side='top', padx=5, pady=5)
         run_tab.close_button = close_button
+
+        param_button = ttk.Button(run_tab, text='Show Params',
+                                  command=lambda id=instance_tab.id: self.show_params(id))
+        param_button.pack(side='top', padx=5, pady=5)
         instance_tab.notebook.add(run_tab, text='Run')
         instance_tab.notebook.run_tab = run_tab
 
@@ -702,6 +706,233 @@ class GUI:
         # p = Process(target=test, args=(self.queue, idx))
         # p.start()
         # self.process_list[idx] = p
+
+    def show_params(self, index: int):
+        """
+        Show a dialog to adjust parameters for the instance at index position
+        Args:
+            index:
+        Returns:
+
+        """
+        param_dict = self.instance_list[index].run_instance.params_dict
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Param Adjustment")
+        self.center(dialog, 800, 600)
+
+        # Add fields for parameters (e.g., tab name)
+        # Add checkboxes
+        def on_checkbox_change(idx, var):
+            value = var.get()
+            param_dict['run'][idx] = True if value else False
+
+        checkbox_frame = tk.Frame(dialog)
+        checkbox_frame.pack()
+        run_1 = tk.BooleanVar(value=param_dict['run'][0])
+        run_2 = tk.BooleanVar(value=param_dict['run'][1])
+        run_3 = tk.BooleanVar(value=param_dict['run'][2])
+        tk.Label(checkbox_frame, text="Run:").pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(checkbox_frame, text="Crop", variable=run_1,
+                       command=lambda n=0, v=run_1: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(checkbox_frame, text="Stabilizer", variable=run_2,
+                       command=lambda n=1, v=run_2: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(checkbox_frame, text="CaImAn", variable=run_3,
+                       command=lambda n=2, v=run_3: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
+
+        # Add param fields for each checkbox
+        notebook = ttk.Notebook(dialog)
+        notebook.pack(expand=True, fill='both')
+
+        # Crop param tab
+        tab_1 = ttk.Frame(notebook)
+        tab_1.pack(expand=True)
+        notebook.add(tab_1, text='Crop')
+
+        def on_slider_change(event):
+            param_dict['crop'].update(threshold=slider.get())
+
+        # Create a container frame for the label and slider
+        container_1 = ttk.Frame(tab_1)
+        container_1.pack(expand=True)
+        # Threshold Label
+        label = ttk.Label(container_1, text=f"Threshold:")
+        label.pack(side=tk.LEFT, padx=5)
+        # Threshold Slider
+        slider = tk.Scale(container_1, from_=0, to=500, orient='horizontal', resolution=10,
+                          command=on_slider_change)
+        slider.set(param_dict['crop']['threshold'])
+        slider.pack(side=tk.LEFT, padx=5)
+
+        # Validate input numbers
+        def validate_numbers(num, type_d):
+            if num == '':
+                return (True, 0) if type_d is int else (True, 0.0)
+            else:
+                try:
+                    return (True, int(num)) if type_d is int else (True, float(num))
+                except ValueError:
+                    return False, None
+
+        # Stabilizer param tab
+        tab_2 = ttk.Frame(notebook)
+        tab_2.pack(expand=True)
+        notebook.add(tab_2, text='Stabilizer')
+        # Stabilizer containers
+        for dname, d in param_dict['stabilizer'].items():
+            def on_entry_change(value, key):
+                status, val = validate_numbers(value, type(d))
+                if not status and key != 'Transformation':
+                    messagebox.showerror("Invalid Input", "Please enter a valid numeric value.")
+                else:
+                    param_dict['stabilizer'][key] = val
+
+            container = ttk.Frame(tab_2)
+            container.pack(expand=True)
+            label = ttk.Label(container, text=dname)
+            label.pack(padx=10, side=tk.LEFT)
+            if type(d) is str:
+                # A selection entry so user can select from a list
+                var = tk.StringVar(value='Translation')
+                trans_button = tk.Radiobutton(container, text="Translation", variable=var, value="Translation")
+                trans_button.pack(padx=10, side=tk.LEFT)
+                affine_button = tk.Radiobutton(container, text="Affine", variable=var, value="Affine")
+                affine_button.pack(padx=10, side=tk.LEFT)
+                trans_button.select()  # Set the Translation Radiobutton as the default selection
+                var.trace_add("write",
+                              lambda *args, text=var, key=dname: on_entry_change(text.get(), key))
+            else:
+                # Text entry for numbers
+                entry_text = tk.StringVar(value=d)
+                entry = ttk.Entry(container, textvariable=entry_text)
+                entry.pack(padx=10, side=tk.LEFT)
+                entry_text.trace_add("write",
+                                     lambda *args, text=entry_text, key=dname: on_entry_change(text.get(), key))
+
+        # CaImAn param tab
+        tab_3 = ttk.Frame(notebook)
+        tab_3.pack(expand=True)
+        notebook.add(tab_3, text='CaImAn')
+        # CaImAn containers
+        for dname, d in param_dict['caiman'].items():
+
+            container_outer = ttk.Frame(tab_3)
+            container_outer.pack(side=tk.LEFT, expand=True, fill='both', padx=5, pady=5)
+            for k, v in d.items():
+                def on_entry_change(value, key, dname=dname):
+                    if type(value) is str:
+                        status, val = validate_numbers(value, type(v))
+                        if not status:
+                            if key not in ['border_nan', 'method_init', 'method_deconvolution']:
+                                messagebox.showerror("Invalid Input", "Please enter a valid numeric value.")
+                            else:
+                                if value == "None":
+                                    param_dict['caiman'][dname][key] = None
+                                else:
+                                    param_dict['caiman'][dname][key] = value
+                        # Numbers
+                        else:
+                            param_dict['caiman'][dname][key] = val
+                    elif type(value) is bool:
+                        param_dict['caiman'][dname][key] = True
+                    elif type(value) is list:
+                        status, val = validate_numbers(value[0], type(v))
+                        if not status:
+                            messagebox.showerror("Invalid Input", "Please enter a valid numeric value.")
+                        else:
+                            param_dict['caiman'][key] = [int(vi) if vi != '' else 0 for vi in value]
+                    else:
+                        raise NotImplementedError(f"Unknown type {type(value)} for value {value}.")
+
+                if k == "fnames":
+                    continue
+                # Create a container frame for the label and entry
+                container = ttk.Frame(container_outer)
+                container.pack(expand=True)
+                # Label
+                label = ttk.Label(container, text=f"{k}:")
+                label.pack(side=tk.LEFT, padx=5)
+                # Entry type 1: strings
+                if type(v) is str:
+                    if k == 'border_nan':
+                        var = tk.StringVar(value=v)
+
+                        container_inner = ttk.Frame(container)
+                        container_inner.pack()
+
+                        # Radiobutton for True
+                        copy_radio = tk.Radiobutton(container_inner, text="copy", variable=var, value="copy")
+                        copy_radio.pack(side=tk.LEFT, padx=5)
+
+                        # Radiobutton for False
+                        none_radio = tk.Radiobutton(container_inner, text="None", variable=var, value="None")
+                        none_radio.pack(side=tk.LEFT, padx=5)
+
+                        var.trace_add("write",
+                                      lambda *args, text=var, key=k: on_entry_change(text.get(), key))
+                    elif k == 'method_init':
+                        pass
+                    else:  # "method_deconvolution"
+                        pass
+                # Entry type 2: True / False
+                elif type(v) is bool:
+                    var = tk.StringVar(value="True" if v else "False")
+
+                    container_inner = ttk.Frame(container)
+                    container_inner.pack()
+
+                    # Radiobutton for True
+                    true_radio = tk.Radiobutton(container_inner, text="True", variable=var, value="True")
+                    true_radio.pack(side=tk.LEFT, padx=5)
+
+                    # Radiobutton for False
+                    false_radio = tk.Radiobutton(container_inner, text="False", variable=var, value="False")
+                    false_radio.pack(side=tk.LEFT, padx=5)
+
+                    var.trace_add("write",
+                                  lambda *args, text=var, key=k: on_entry_change(
+                                      True if text.get() == "True" else False, key))
+                # Entry type 3: list[int, int]
+                elif type(v) is list:
+                    var = tk.StringVar(value=v[0])
+                    container_inner = ttk.Frame(container)
+                    container_inner.pack()
+                    entry_1 = ttk.Entry(container_inner, textvariable=var, width=10)
+                    entry_1.pack(side=tk.LEFT, padx=5)
+                    entry_2 = ttk.Entry(container_inner, textvariable=var, width=10)
+                    entry_2.pack(side=tk.LEFT, padx=5)
+                    var.trace_add("write",
+                                  lambda *args, text=var, key=k: on_entry_change([text.get(), text.get()], key))
+                # Entry type 4: numbers
+                else:
+                    entry_text = tk.StringVar(value=v)
+                    entry = ttk.Entry(container, textvariable=entry_text)
+                    entry.pack(side=tk.LEFT, padx=5)
+                    entry_text.trace_add("write",
+                                         lambda *args, text=entry_text, key=k: on_entry_change(text.get(), key))
+
+        # Function to handle 'OK' button click
+        def on_ok():
+            if param_dict['run'][2]:
+                # Handle caiman fnames
+                fname = param_dict['input_path'][:-4]
+                if param_dict['run'][0]:
+                    fname += '_crop'
+                if param_dict['run'][1]:
+                    fname += '_stab'
+                fname = fname + '.tif'
+                self.logger.debug(f'expect fname: {fname}')
+                param_dict['caiman']['mc_dict']['fnames'] = [fname]
+            status, msg = self.create_instance(run_params=param_dict)
+            if not status:
+                self.logger.debug(f'Instance creation failed: {msg}')
+                tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}")
+                return
+            dialog.destroy()
+            self.logger.debug(f'New instance created and added to position {msg}.')
+
+        # OK and Cancel buttons
+        tk.Button(dialog, text="OK", command=on_ok).pack(side="left", padx=10, pady=10)
+        tk.Button(dialog, text="Cancel", command=dialog.destroy).pack(side="right", padx=10, pady=10)
 
     def setup(self):
         def on_close():
