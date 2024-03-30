@@ -711,7 +711,7 @@ class GUI:
         """
         Show a dialog to adjust parameters for the instance at index position
         Args:
-            index:
+            index: Instance index
         Returns:
 
         """
