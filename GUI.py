@@ -240,12 +240,16 @@ class GUI:
         notebook.add(tab_2, text='Stabilizer')
         # Stabilizer containers
         for dname, d in param_dict['stabilizer'].items():
-            def on_entry_change(value, key):
-                status, val = validate_numbers(value, type(d))
-                if not status and key != 'Transformation':
-                    messagebox.showerror("Invalid Input", "Please enter a valid numeric value.")
+            def on_entry_change_stab(value, key):
+                print(value, key)
+                if key == 'Transformation':
+                    param_dict['stabilizer'][key] = value
                 else:
-                    param_dict['stabilizer'][key] = val
+                    status, val = validate_numbers(value, type(d))
+                    if not status:
+                        messagebox.showerror("Invalid Input", "Please enter a valid numeric value.")
+                    else:
+                        param_dict['stabilizer'][key] = val
 
             container = ttk.Frame(tab_2)
             container.pack(expand=True)
@@ -260,14 +264,14 @@ class GUI:
                 affine_button.pack(padx=10, side=tk.LEFT)
                 trans_button.select()  # Set the Translation Radiobutton as the default selection
                 var.trace_add("write",
-                              lambda *args, text=var, key=dname: on_entry_change(text.get(), key))
+                              lambda *args, text=var, key=dname: on_entry_change_stab(text.get(), key))
             else:
                 # Text entry for numbers
                 entry_text = tk.StringVar(value=d)
                 entry = ttk.Entry(container, textvariable=entry_text)
                 entry.pack(padx=10, side=tk.LEFT)
                 entry_text.trace_add("write",
-                                     lambda *args, text=entry_text, key=dname: on_entry_change(text.get(), key))
+                                     lambda *args, text=entry_text, key=dname: on_entry_change_stab(text.get(), key))
 
         # CaImAn param tab
         tab_3 = ttk.Frame(notebook)
