@@ -203,7 +203,7 @@ class Pipeline(object):
         # CaImAn related variables
         self.do_s2 = False
         self.caiman_obj = None
-        self.clog = True
+        self.clog = False  # True
         self.csave = False
         self.s2_root = ''
         self.done_s2 = False
