@@ -431,7 +431,7 @@ class Pipeline(object):
         cn_filter, pnr = cm.summary_images.correlation_pnr(images[::10], gSig=gSig[0],
                                                            swap_dim=False)  # change swap dim if output looks weird, it is a problem with tiffile
         # inspect the summary images and set the parameters
-        nb_inspect_correlation_pnr(cn_filter, pnr)
+        # nb_inspect_correlation_pnr(cn_filter, pnr)
 
         # Run the CNMF-E algorithm
         start_time_cnmf = perf_counter()
