@@ -395,6 +395,7 @@ class Pipeline(object):
         ps2(f"caiman sets input: {fnames}, output path: {self.outpath_s2}")
         opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])
         # Motion Correction
+        ps2(f"Running motion correction...")
         if motion_correct:
             # do motion correction rigid
             mc = MotionCorrect(fnames, dview=None, **opts.get_group('motion'))

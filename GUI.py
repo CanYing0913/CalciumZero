@@ -665,10 +665,11 @@ class GUI:
                         self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.DISABLED)
                         if msg['cm']:
                             # Automatically create qc tab
-                            self.create_instance(
-                                qc_param={'cm_obj': self.instance_list[idx].run_instance.cmobj_path},
-                                idx=idx
-                            )
+                            # self.create_instance(
+                            #     qc_param={'cm_obj': self.instance_list[idx].run_instance.cmobj_path},
+                            #     idx=idx
+                            # )
+                            pass
                 # elif msg.is_running:
                 elif msg['is_running']:
                     if self.status_list[idx] == 'idle':
