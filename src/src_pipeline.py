@@ -392,6 +392,7 @@ class Pipeline(object):
                 level=logging.DEBUG)
         fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.imm2_list]
         self.outpath_s2 = [str(Path(self.work_dir).joinpath(remove_suffix(f, '.tif') + '_caiman.tif')) for f in fnames]
+        ps2(f"caiman sets input: {fnames}, output path: {self.outpath_s2}")
         opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])
         # Motion Correction
         if motion_correct:
@@ -404,15 +405,15 @@ class Pipeline(object):
                                              np.max(np.abs(mc.y_shifts_els)))).astype(int)
             else:
                 bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
-                plt.figure()
-                plt.subplot(1, 2, 1)
-                plt.imshow(mc.total_template_rig)  # % plot template
-                plt.subplot(1, 2, 2)
-                plt.plot(mc.shifts_rig)  # % plot rigid shifts
-                plt.legend(['x shifts', 'y shifts'])
-                plt.xlabel('frames')
-                plt.ylabel('pixels')
-                plt.show()
+                # plt.figure()
+                # plt.subplot(1, 2, 1)
+                # plt.imshow(mc.total_template_rig)  # % plot template
+                # plt.subplot(1, 2, 2)
+                # plt.plot(mc.shifts_rig)  # % plot rigid shifts
+                # plt.legend(['x shifts', 'y shifts'])
+                # plt.xlabel('frames')
+                # plt.ylabel('pixels')
+                # plt.show()
 
             bord_px = 0 if border_nan == 'copy' else bord_px
             fname_mmap = cm.save_memmap(fname_mc, base_name='memmap_', order='C', border_to_0=bord_px)
@@ -434,6 +435,7 @@ class Pipeline(object):
         # nb_inspect_correlation_pnr(cn_filter, pnr)
 
         # Run the CNMF-E algorithm
+        ps2(f"Running CNMF-E...")
         start_time_cnmf = perf_counter()
         cnm = cnmf.CNMF(n_processes=8, dview=None, Ain=Ain, params=opts)
         cnm.fit(images)
@@ -472,7 +474,7 @@ class Pipeline(object):
 
         for i in myidx:
             coordinate2 = np.reshape(cnm.estimates.A[:, i].toarray(), dims, order='F')
-            # %% generate boolean indexing
+            # generate boolean indexing
             bl2 = coordinate2 > 0
             ct2 = np.sum(bl2)
             blm = merged > 0
