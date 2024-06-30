@@ -346,12 +346,13 @@ class Pipeline(object):
             finalxcnts = finalxcntss[idx]
             image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.params_dict['crop']['threshold'], finalxcnts)
             # Handle output path
-            fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
-            fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
-            ps0(f"Using paths: {fname_crop_o} to save cropped result.")
+            fname_crop_out = Path(self.work_dir).joinpath(Path(fname_i).stem + "_crop.tif")
+            # fname_crop_root = str(fname_crop_out.name)
+            fname_crop_out = str(fname_crop_out)
+            ps0(f"Using paths: {fname_crop_out} to save cropped result.")
             # Save imm1 data to files
-            tifffile.imwrite(fname_crop_o, image_crop_o)
-            self.imm1_list.append(fname_crop_root)
+            tifffile.imwrite(fname_crop_out, image_crop_o)
+            self.imm1_list.append(fname_crop_out)
         self.done_s0 = True
         end_time = perf_counter()
         ps0(f"Detection finished in {int(end_time - start_time)} s.")
@@ -365,6 +366,7 @@ class Pipeline(object):
         results = []
         start_time = perf_counter()
         idx = 0
+        # ps1(f"Using files {self.imm1_list} for stabilizer.")
         while idx < len(self.imm1_list):
             imm1_list = [self.imm1_list[idx + i] for i in range(self.process) if idx + i < len(self.imm1_list)]
             idx += self.process
@@ -393,10 +395,11 @@ class Pipeline(object):
         fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.imm2_list]
         self.outpath_s2 = [str(Path(self.work_dir).joinpath(remove_suffix(f, '.tif') + '_caiman.tif')) for f in fnames]
         ps2(f"caiman sets input: {fnames}, output path: {self.outpath_s2}")
+        self.params_dict['caiman']['mc_dict']['fnames'] = fnames
         opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])
         # Motion Correction
-        ps2(f"Running motion correction...")
-        if motion_correct:
+        if self.params_dict['caiman']['mc_dict']['motion_correct']:
+            ps2(f"Running motion correction...")
             # do motion correction rigid
             mc = MotionCorrect(fnames, dview=None, **opts.get_group('motion'))
             mc.motion_correct(save_movie=True)
@@ -419,6 +422,7 @@ class Pipeline(object):
             bord_px = 0 if border_nan == 'copy' else bord_px
             fname_mmap = cm.save_memmap(fname_mc, base_name='memmap_', order='C', border_to_0=bord_px)
         else:  # if no motion correction just memory map the file
+            ps2(f"Motion correction skipped.")
             bord_px = 0
             fname_mmap = cm.save_memmap(fnames, base_name='memmap_', order='C', border_to_0=0, dview=None)
         ps2(f"mmap file saved to {fname_mmap}")
