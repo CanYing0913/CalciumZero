@@ -541,7 +541,7 @@ class GUI:
         # 1. Get instance tab.
         instance_tab = self.create_tab(idx)
         # 2. Create QC tab
-        qc_instance = cur_instance.qc_instance
+        qc_instance: QC = cur_instance.qc_instance
         qc_tab = ttk.Frame()
         qc_tab.pack(expand=True, fill='both')
         qc_tab.movie_idx = 0
@@ -549,7 +549,7 @@ class GUI:
         qc_instance.qc_tab = qc_tab
 
         max_h, max_w = 500, 800
-        h_, w_ = qc_instance.movie[0][0].shape
+        h_, w_ = qc_instance.movies[0][0].shape
         if h_ > max_h or w_ > max_w:
             h_, w_ = int(h_ * min(max_h / h_, max_w / w_)), int(w_ * min(max_h / h_, max_w / w_))
         qc_tab.canvas = tk.Canvas(qc_tab, width=w_, height=h_)
@@ -569,7 +569,7 @@ class GUI:
 
         qc_tab.listbox = tk.Listbox(container_1, selectmode=tk.SINGLE)
         qc_tab.listbox.pack(side=tk.LEFT, fill='y')
-        for i in range(len(qc_instance.movie)):
+        for i in range(len(qc_instance.movies)):
             qc_tab.listbox.insert(tk.END, f"Movie {i}")
         qc_tab.listbox.config(height=qc_tab.listbox.size())
         qc_tab.listbox.bind("<<ListboxSelect>>", on_listbox_select)
@@ -580,7 +580,11 @@ class GUI:
         # Define a callback function to update the scrollbar and canvas
         def update_canvas_from_scrollbar(value):
             frame_idx = int(value)
-            cur_frame = qc_instance.show_frame(frame_idx, qc_tab.movie_idx)
+            if qc_tab.roi_enabled:
+                ROI_index = qc_tab.roi_idx
+            else:
+                ROI_index = None
+            cur_frame = qc_instance.show_frame(image_idx=qc_tab.movie_idx, frame_idx=frame_idx, ROI_idx=ROI_index)
 
             cur_frame = Image.fromarray(cur_frame)
             cur_frame = cur_frame.convert("L")  # Convert to grayscale mode
@@ -596,15 +600,16 @@ class GUI:
         def update_canvas_from_input(event):
             try:
                 frame_idx = int(qc_tab.input_field.get())
-                if 0 <= frame_idx < len(qc_instance.movie[0]):
+                if 0 <= frame_idx < qc_instance.image_shape(qc_tab.movie_idx)[0]:
                     qc_tab.scrollbar.set(frame_idx)
                     update_canvas_from_scrollbar(frame_idx)
             except ValueError:
+                tk.messagebox.showerror("Invalid Input", "Please enter a valid frame number.")
                 qc_tab.scrollbar.set(0)
                 qc_tab.input_field.delete(0, tk.END)
                 qc_tab.input_field.insert(0, "0")
 
-        qc_tab.scrollbar = tk.Scale(container_2, from_=0, to=len(qc_instance.movie[0]) - 1, orient="horizontal",
+        qc_tab.scrollbar = tk.Scale(container_2, from_=0, to=qc_instance.n_images - 1, orient="horizontal",
                                     command=update_canvas_from_scrollbar, showvalue=False)
         qc_tab.scrollbar.pack(side=tk.LEFT, padx=5, pady=5)
 
@@ -614,6 +619,26 @@ class GUI:
 
         # Bind the input field to the update_canvas_from_input function
         qc_tab.input_field.bind("<Return>", update_canvas_from_input)
+
+        # A ROI checkbox to show the ROI
+        def on_roi_en_change():
+            qc_tab.roi_enabled = roi_en.get()
+            if qc_tab.roi_enabled:
+                # qc_tab.roi_scrollbar.config(state=tk.NORMAL)
+                pass
+            else:
+                # qc_tab.roi_scrollbar.config(state=tk.DISABLED)
+                pass
+        qc_tab.roi_enabled = False
+        roi_en = tk.BooleanVar(value=False)
+        qc_tab.roi_cb = tk.Checkbutton(container_2, text="Show ROI", variable=roi_en)
+        qc_tab.roi_cb.pack(side=tk.LEFT, padx=5, pady=5)
+        # ROI scrollbar
+        qc_tab.roi_idx = tk.IntVar(value=0)
+        qc_tab.roi_scrollbar = tk.Scale(container_2, from_=0, to=qc_instance.n_ROIs - 1, orient="horizontal",
+                                        variable=qc_tab.roi_idx, showvalue=True)
+        qc_tab.roi_scrollbar.config(state=tk.DISABLED)
+        qc_tab.roi_scrollbar.pack(side=tk.LEFT, padx=5, pady=5)
 
         close_button = ttk.Button(qc_tab, text='Close',
                                   command=lambda id=instance_tab.id: self.close_instance(id))

@@ -1,4 +1,3 @@
-import sys
 from GUI import GUI
 
 

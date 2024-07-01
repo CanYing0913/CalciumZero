@@ -7,6 +7,7 @@ import argparse
 from multiprocessing import Pool
 import imagej
 from time import perf_counter
+from typing import Optional
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
@@ -601,54 +602,13 @@ class Pipeline(object):
             msg['is_finished'] = True
             self.queue.put(msg)
 
-    def load_setting(self, settings):
-        self.QCimage_s2 = self.cache.joinpath(settings['QC']['s2_image'])
-
-    def qc_s2(self, frame_idx, ROI_idx):
-        from cv2 import resize
-        frame_per_file = len(self.caiman_obj.input_files[0])
-        image_idx = frame_idx // frame_per_file
-        frame_idx %= frame_per_file
-        ROI = np.reshape(self.caiman_obj.estimates.A[:, ROI_idx].toarray(), self.caiman_obj.dims, order='F')
-        # ROI = np.array(ROI, dtype=np.uint8)
-        w, h = ROI.shape
-        new_w = int(200 * h / w)
-        ROI = resize(ROI, (new_w, 200))
-        y, x = np.unravel_index(ROI.argmax(), ROI.shape)
-        image_raw = self.caiman_obj.input_files[image_idx][frame_idx]
-        w_r, h_r = ROI.shape
-        new_w_r = int(200 * h_r / w_r)
-        image_raw = resize(image_raw, (new_w_r, 200))
-        ROI_temp = ROI * 255 + image_raw
-        ROI_temp = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 2)
-        return ROI_temp
-
-    # def qc_caiman_movie(self):
-    #     if self.ij is None:
-    #         try:
-    #             self.ij = imagej.init(self.ijp, mode='interactive')
-    #         except Exception as e:
-    #             raise RuntimeError("ImageJ not initialized.")
-    #     if self.QCimage_s2 is None:
-    #         raise RuntimeError("QC image not found.")
-    #     if self.caiman_obj.outpath_s2 == '':
-    #         raise RuntimeError("No caiman output path.")
-    #     elif not Path(self.outpath_s2).exists():
-    #         raise RuntimeError(f"Caiman output path {self.outpath_s2} not found.")
-    #
-    #     # Start playing output movie
-    #     dataset = self.ij.IJ.run("Bio-Formats Importer",
-    #                              f"open={self.caiman_obj.outpath_s2} autoscale color_mode=Grayscale rois_import=[ROI manager] "
-    #                              f"view=Hyperstack stack_order=XYCZT")
-    #     # dataset = self.ij.io().open(self.outpath_s2)
-    #     # self.ij.ui().show(dataset)
-
 
 class QC:
     __slots__ = [
         'cmnobj_path',
         'cmn_obj',
-        'movie',
+        'data',
+        'movies',
         'current_frame',
         'qc_tab',
     ]
@@ -657,20 +617,63 @@ class QC:
         if debug:
             self.cmnobj_path = None
             self.cmn_obj = None
-            self.movie = None
+            self.data = None
+            self.movies = None
             self.current_frame = 0
             self.qc_tab = None
         else:
-            from pickle import load
             self.cmnobj_path = cmnobj_path
-            with open(cmnobj_path, 'rb') as f:
-                self.cmn_obj = load(f)
-            self.movie = self.cmn_obj.input_files
-            self.current_frame = 0
+            self._load_data()
 
-    def show_frame(self, frame_idx, image_idx=0) -> np.ndarray:
-        frame = self.movie[image_idx][frame_idx]
-        return frame
+    def _load_data(self):
+        from pickle import load
+        with open(self.cmnobj_path, 'rb') as f:
+            self.cmn_obj = load(f)
+        self.data = self.cmn_obj.estimates
+        self.movies = self.cmn_obj.input_files
+        self.current_frame = 0
+
+    @property
+    def n_images(self):
+        return len(self.movies)
+
+    def image_shape(self, image_idx: int = 0):
+        return self.movies[image_idx].shape
+
+    @property
+    def n_ROIs(self):
+        return self.data.A.shape[1]
+
+    def show_frame(self, image_idx: int = 0, frame_idx: int = 0, ROI_idx: Optional[int] = None):
+        from cv2 import resize
+        # 1. Check image index, and frame index.
+        assert image_idx < len(self.movies), f"Image index {image_idx} out of range."
+        frame_range = len(self.movies[image_idx])
+        assert frame_idx < frame_range, \
+            f"Frame index {frame_idx} out of range of image{image_idx}:{frame_range}."
+        # 2. Scale image to 200 pixels height
+        image_raw = self.movies[image_idx][frame_idx]
+        w_r, h_r = image_raw.shape
+        new_w_r = int(200 * h_r / w_r)
+        image_raw = resize(image_raw, (new_w_r, 200))
+        # 3. ROI handling
+        if ROI_idx:
+            # 3.1. Check ROI index
+            ROI_range = self.data.estimates.A.shape[1]
+            assert ROI_idx < ROI_range, f"ROI index {ROI_idx} out of range:{ROI_range}."
+            # 3.2. Get ROI, scale it to 200 pixels height
+            ROI = np.reshape(self.data.estimates.A[:, ROI_idx].toarray(), self.data.dims, order='F')
+            # ROI = np.array(ROI, dtype=np.uint8)
+            w_roi, h_roi = ROI.shape
+            new_w_roi = int(200 * h_roi / w_roi)
+            ROI = resize(ROI, (new_w_roi, 200))
+            y, x = np.unravel_index(ROI.argmax(), ROI.shape)
+            # 3.3. Overlay ROI on image and draw a box around the ROI
+            ROI_temp = ROI * 255 + image_raw
+            movie_with_ROIbox = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 2)
+            return movie_with_ROIbox
+        else:
+            return image_raw
 
 
 class CalciumZero:
