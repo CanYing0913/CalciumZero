@@ -390,7 +390,7 @@ class GUI:
             status, msg = self.create_instance(run_params=param_dict)
             if not status:
                 self.logger.debug(f'Instance creation failed: {msg}')
-                tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}")
+                tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}", parent=dialog)
                 return
             dialog.destroy()
             self.logger.debug(f'New instance created and added to position {msg}.')
@@ -637,13 +637,14 @@ class GUI:
 
     def close_instance(self, idx: int):
         # Delete Pipeline instance and running Process
-        assert idx < self.TAB_MAX
+        assert idx < self.TAB_MAX, f"Invalid index={idx} to close."
+        self.logger.debug(f'Closing instance {idx}.')
         try:
             self.process_list[idx].terminate()
             self.process_list[idx] = None
         except AttributeError:
             pass
-        del self.instance_list[idx]
+        # del self.instance_list[idx]
         self.instance_list[idx] = None
         # Delete tab
         self.tab_list[idx].destroy()
