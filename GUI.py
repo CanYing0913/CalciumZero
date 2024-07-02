@@ -596,7 +596,7 @@ class GUI:
         qc_tab.listbox.pack(side=tk.LEFT, fill='y')
         for i in range(len(qc_instance.movies)):
             qc_tab.listbox.insert(tk.END, f"Movie {i}")
-        qc_tab.listbox.insert(tk.END, "test")
+        # qc_tab.listbox.insert(tk.END, "test")
         qc_tab.listbox.config(height=qc_tab.listbox.size())
         qc_tab.listbox.bind("<<ListboxSelect>>", on_listbox_select)
 
@@ -612,10 +612,12 @@ class GUI:
             qc_tab.roi_enabled = roi_en.get()
             if qc_tab.roi_enabled:
                 qc_tab.roi_scrollbar.config(state=tk.NORMAL)
-                pass
+                qc_tab.roi_input.config(state=tk.NORMAL)
+                update_roi_idx_from_scrollbar(event=None)
             else:
                 qc_tab.roi_scrollbar.config(state=tk.DISABLED)
-                pass
+                qc_tab.roi_input.config(state=tk.DISABLED)
+            update_roi_idx_from_scrollbar(event=None)
 
         qc_roi_container = ttk.Frame(qc_tab_container)
         qc_roi_container.pack(side=tk.LEFT)
@@ -623,12 +625,35 @@ class GUI:
         roi_en = tk.BooleanVar(value=False)
         qc_tab.roi_cb = tk.Checkbutton(qc_roi_container, text="Show ROI", variable=roi_en, command=on_roi_en_change)
         qc_tab.roi_cb.pack()
+
         # ROI scrollbar
+        def update_roi_idx_from_scrollbar(event):
+            qc_tab.roi_input.delete(0, tk.END)
+            qc_tab.roi_input.insert(0, str(qc_tab.roi_idx.get()))
+            update_canvas_from_input(event=event)
+
+        def update_roi_idx_from_input(event):
+            try:
+                roi_idx = int(qc_tab.roi_input.get())
+                qc_tab.roi_scrollbar.set(roi_idx)
+                assert qc_tab.roi_idx.get() == roi_idx
+                update_roi_idx_from_scrollbar(event)
+            except ValueError:
+                tk.messagebox.showerror("Invalid Input", "Please enter a valid ROI index number.")
+                qc_tab.roi_scrollbar.set(0)
+                qc_tab.roi_input.delete(0, tk.END)
+                qc_tab.roi_input.insert(0, "0")
         qc_tab.roi_idx = tk.IntVar(value=0)
         qc_tab.roi_scrollbar = tk.Scale(qc_roi_container, from_=0, to=qc_instance.n_ROIs - 1, orient="horizontal",
-                                        variable=qc_tab.roi_idx, showvalue=True)
+                                        variable=qc_tab.roi_idx, showvalue=False, resolution=1,
+                                        command=update_roi_idx_from_scrollbar)
         qc_tab.roi_scrollbar.config(state=tk.DISABLED)
         qc_tab.roi_scrollbar.pack(side=tk.LEFT, padx=5, pady=5)
+        # Create an input field next to the scrollbar
+        qc_tab.roi_input = tk.Entry(qc_roi_container, width=5)
+        qc_tab.roi_input.pack(side=tk.LEFT, padx=5, pady=5)
+        # Bind the input field to the update_canvas_from_input function
+        qc_tab.roi_input.bind("<Return>", update_roi_idx_from_input)
 
         container = ttk.Frame(qc_tab)
         container.pack()
