@@ -629,7 +629,7 @@ class QC:
         from pickle import load
         with open(self.cmnobj_path, 'rb') as f:
             self.cmn_obj = load(f)
-        self.data = self.cmn_obj.estimates
+        self.data = self.cmn_obj
         self.movies = self.cmn_obj.input_files
         self.current_frame = 0
 
@@ -642,7 +642,7 @@ class QC:
 
     @property
     def n_ROIs(self):
-        return self.data.A.shape[1]
+        return self.data.estimates.A.shape[1]
 
     def show_frame(self, image_idx: int = 0, frame_idx: int = 0, ROI_idx: Optional[int] = None):
         from cv2 import resize

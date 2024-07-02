@@ -555,7 +555,7 @@ class GUI:
         def update_canvas_from_scrollbar(value):
             frame_idx = int(value)
             if qc_tab.roi_enabled:
-                ROI_index = qc_tab.roi_idx
+                ROI_index = qc_tab.roi_idx.get()
             else:
                 ROI_index = None
             cur_frame = qc_instance.show_frame(image_idx=qc_tab.movie_idx, frame_idx=frame_idx, ROI_idx=ROI_index)
