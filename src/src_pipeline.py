@@ -8,6 +8,7 @@ from multiprocessing import Pool
 import imagej
 from time import perf_counter
 from typing import Optional
+from pathlib import Path
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
