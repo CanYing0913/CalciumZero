@@ -1,0 +1,166 @@
+name: Build installers
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '.github/**'
+      - 'readme.md'
+      - '*.ipynb'
+      - 'Fiji.app/**'
+      - docs/**
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  Build-Windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+
+      - name: Setup conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          channels: conda-forge, anaconda
+          channel-priority: true
+          mamba-version: "*"
+          activate-environment: cz
+
+      - name: Install dependencies
+        run: |
+          mamba install -n cz -c conda-forge python numpy caiman pyimagej openjdk=8 seaborn cx_Freeze
+#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+
+      - name: build installer Windows
+        shell: powershell
+        run: |
+          mkdir cache
+          python setup.py bdist_msi
+#      - name: test
+#        shell: powershell
+#        run: |
+#          dir dist
+      - name: Release
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout distribution
+          mv -Path dist/CalciumZero-0.1-win64.msi -Destination CalciumZero-0.1-win64.msi -Force
+          Remove-Item -Path dist -Recurse
+          Remove-Item -Path build -Recurse
+          git lfs install
+          git lfs track CalciumZero-0.1-win64.msi
+          git add .gitattributes
+          git add CalciumZero-0.1-win64.msi
+          git commit -m "Pushing new Windows installer"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          branch: distribution
+
+  build-linux:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+
+      - name: Setup conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          mamba-version: "*"
+          channels: conda-forge, anaconda
+          auto-activate-base: false
+          activate-environment: cz
+          environment-file: envs/cz.yaml
+
+#      - name: Install cx_Freeze
+#        run: |
+#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+
+      - name: Build
+        run: |
+          which python
+          mkdir cache
+          python setup.py bdist_appimage # CalciumZero-0.1-x86_64.AppImage
+
+      - name: Release
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout distribution
+          mv dist/CalciumZero-0.1-x86_64.AppImage CalciumZero-0.1-x86_64.AppImage
+          rm -rf dist build
+          git lfs install
+          git lfs track CalciumZero-0.1-x86_64.AppImage
+          git add .gitattributes
+          git add CalciumZero-0.1-x86_64.AppImage
+          git commit -m "Pushing new Linux AppImage"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          branch: distribution
+
+
+  Build-MacOS:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+      - name: Setup conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          channels: conda-forge, anaconda, defaults
+          channel-priority: true
+          mamba-version: "*"
+          activate-environment: cz
+      - name: Install dependencies
+        run: |
+          mamba install -n cz -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn cx_Freeze
+#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+      - name: build disk file MacOS
+        shell: bash -l {0}
+        run: |
+          mkdir cache
+          python setup.py bdist_dmg
+#      - name: test
+#        shell: bash -l {0}
+#        run: |
+#          ls build
+      - name: Commit files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout distribution
+          mv build/CalciumZero-0.1.dmg CalciumZero-0.1.dmg
+          rm -r dist
+          rm -r build
+          git lfs install
+          git lfs track CalciumZero-0.1.dmg
+          git add CalciumZero-0.1.dmg
+          git add .gitattributes
+          git commit -m "Pushing new MacOS installer"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          force: true
+          branch: distribution

@@ -6,8 +6,9 @@ Copyright Yian Wang (canying0913@gmail.com) - 2022
 import argparse
 from multiprocessing import Pool
 import imagej
+from time import perf_counter
+from typing import Optional
 from pathlib import Path
-from os import path
 from src.src_caiman import *
 # Retrieve source
 from src.src_detection import *
@@ -113,7 +114,63 @@ def parse():
 
 
 class Pipeline(object):
-    def __init__(self):
+    def __init__(self, queue=None, queue_id=0, log_queue=None):
+        # GUI-related
+        self.queue = queue
+        self.queue_id = queue_id
+        self.log_queue = log_queue
+        self.logger = None
+        self.params_dict = {
+            'run': [True, True, True],
+            'crop': {'margin': 200},
+            'stabilizer': {
+                'Transformation': 'Translation',
+                'MAX_Pyramid_level': 1.0,
+                'update_coefficient': 0.90,
+                'MAX_iteration': 200,
+                'error_tolerance': 1E-7
+            },
+            'caiman': {
+                "mc_dict": {
+                    'fnames': [""],
+                    'fr': frate,
+                    'decay_time': decay_time,
+                    'pw_rigid': pw_rigid,
+                    'max_shifts': max_shifts,
+                    'gSig_filt': gSig_filt,
+                    'strides': strides,
+                    'overlaps': overlaps,
+                    'max_deviation_rigid': max_deviation_rigid,
+                    'border_nan': border_nan
+                },
+                "params_dict": {'method_init': 'corr_pnr',  # use this for 1 photon
+                                'K': K,
+                                'gSig': gSig,
+                                'gSiz': gSiz,
+                                'merge_thr': merge_thr,
+                                'p': p,
+                                'tsub': tsub,
+                                'ssub': ssub,
+                                'rf': rf,
+                                'stride': stride_cnmf,
+                                'only_init': True,  # set it to True to run CNMF-E
+                                'nb': gnb,
+                                'nb_patch': nb_patch,
+                                'method_deconvolution': 'oasis',  # could use 'cvxpy' alternatively
+                                'low_rank_background': low_rank_background,
+                                'update_background_components': True,
+                                # sometimes setting to False improve the results
+                                'min_corr': min_corr,
+                                'min_pnr': min_pnr,
+                                'normalize_init': False,  # just leave as is
+                                'center_psf': True,  # leave as is for 1 photon
+                                'ssub_B': ssub_B,
+                                'ring_size_factor': ring_size_factor,
+                                }
+            }
+        }
+        self.is_running = False
+        self.is_finished = False
         # Control sequence
         self.skip_0 = self.skip_1 = False
         self.work_dir = ''
@@ -125,15 +182,14 @@ class Pipeline(object):
         self.do_s0 = False
         self.input_root = ''
         self.input_list = []
-        self.margin = 200
         self.imm1_list = []  # Intermediate result list 1, relative path
         self.done_s0 = False
         self.QCimage_s0_raw = None
         self.QCimage_s0 = None
         # ImageJ stabilizer related variables
         self.do_s1 = False
-        self.ijp = path.abspath(path.join(path.dirname(path.abspath(__file__)), '..', 'Fiji.app'))
-        self.ij = imagej.init(str(self.ijp), mode='interactive')
+        self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
+        # self.ij = imagej.init(str(self.ijp), mode='interactive')
         self.s1_params = [
             'Translation',
             '1.0',
@@ -149,23 +205,26 @@ class Pipeline(object):
         # CaImAn related variables
         self.do_s2 = False
         self.caiman_obj = None
-        self.clog = False
+        self.clog = False  # True
         self.csave = False
         self.s2_root = ''
         self.done_s2 = False
         self.outpath_s2 = ''
+        self.cmobj_path = ''
         self.QCimage_s2 = None
         # Peak Caller related
         self.do_s3 = False
         self.pc_obj = []
 
-    def pprint(self, txt: str):
-        """
-        Customized print function that both print to stdout and log file
-        """
-        print(txt)
-        if self.log is not None:
-            self.log.write(txt + '\n')
+    def log_print(self, txt: str):
+        if self.log_queue:
+            self.log_queue.put(txt)
+        elif self.logger:
+            self.logger.debug(txt)
+        else:
+            print(txt)
+            if self.log is not None:
+                self.log.write(txt + '\n')
 
     def parse(self):
         # Retrieve calling parameters
@@ -182,7 +241,7 @@ class Pipeline(object):
         if not arguments.no_log:
             log_path = os.path.join(self.work_dir, 'log.txt')
             self.log = open(log_path, 'w')
-            self.pprint(f"log file is stored @ {log_path}")
+            self.log_print(f"log file is stored @ {log_path}")
         # Segmentation and cropping related variables
         self.input_root = arguments.input_root
         self.input_list = arguments.input
@@ -191,9 +250,9 @@ class Pipeline(object):
         if not self.skip_1:
             self.ij = imagej.init(arguments.imagej_path, mode='headless')
             self.ijp = arguments.imagej_path
-            self.pprint(f"ImageJ initialized with version {self.ij.getVersion()}.")
+            self.log_print(f"ImageJ initialized with version {self.ij.getVersion()}.")
             self.s1_params = arguments.ij_params
-            print_param(self.s1_params, self.pprint)
+            print_param(self.s1_params, self.log_print)
         # CaImAn related variables
         # TODO: add caiman parameters
         self.clog = arguments.clog
@@ -215,13 +274,30 @@ class Pipeline(object):
     def update(self, **kwargs):
         for key, value in kwargs.items():
             if not hasattr(self, key):
-                print(f'the requested key {key} does not exist.')
+                self.log_print(f'the requested key {key} does not exist.')
                 continue
             if key == 'input_list':
                 if len(value) == 1 and 'cmn_obj' in value[0]:
                     with open(str(Path(self.input_root).joinpath(value[0])), 'rb') as f:
                         self.caiman_obj = pickle.load(f)
                         continue
+
+            # Setup extra params other than s0-s2
+            if key == 'params_dict':
+                self.input_list = [value['input_path']]
+                self.work_dir = value['output_path']
+                self.do_s0, self.do_s1, self.do_s2 = value['run']
+                self.params_dict = value
+                continue
+            if key in self.params_dict['caiman'].keys():
+                self.params_dict['caiman'][key] = value
+                continue
+            if key in self.params_dict['caiman']['mc_dict'].keys():
+                self.params_dict['caiman']['mc_dict'][key] = value
+                continue
+            if key in self.params_dict['caiman']['params_dict'].keys():
+                self.params_dict['caiman']['params_dict'][key] = value
+                continue
             setattr(self, key, value)
 
     def ready(self):
@@ -234,7 +310,7 @@ class Pipeline(object):
                 if '.tif' not in input_file:
                     return False, f'Wrong input format for crop: {input_file}'
         if self.do_s1:
-            if self.ijp == '' or self.s1_params == []:
+            if self.ijp == '':
                 return False, 'ImageJ not ready'
             for input_file in self.input_list:
                 if '.tif' not in input_file:
@@ -252,8 +328,9 @@ class Pipeline(object):
         """
 
         def ps0(text: str):
-            self.pprint(f"***[S0 - Detection]: {text}")
+            self.log_print(f"***[S0 - Detection]: {text}")
 
+        start_time = perf_counter()
         # Segmentation and cropping
         # Scanning for bounding box for multiple input
         with Pool(processes=self.process) as pool:
@@ -269,87 +346,85 @@ class Pipeline(object):
         for idx, fname_i in enumerate(self.input_list):
             image_i = tifffile.imread(str(Path(self.input_root).joinpath(fname_i)))
             finalxcnts = finalxcntss[idx]
-            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.margin, finalxcnts)
+            image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.params_dict['crop']['threshold'], finalxcnts)
             # Handle output path
-            fname_crop_root = remove_suffix(fname_i, '.tif') + '_crop.tif'
-            fname_crop_o = os.path.join(self.work_dir, fname_crop_root)
-            ps0(f"Using paths: {fname_crop_o} to save cropped result.")
+            fname_crop_out = Path(self.work_dir).joinpath(Path(fname_i).stem + "_crop.tif")
+            # fname_crop_root = str(fname_crop_out.name)
+            fname_crop_out = str(fname_crop_out)
+            ps0(f"Using paths: {fname_crop_out} to save cropped result.")
             # Save imm1 data to files
-            tifffile.imwrite(fname_crop_o, image_crop_o)
-            self.imm1_list.append(fname_crop_root)
+            tifffile.imwrite(fname_crop_out, image_crop_o)
+            self.imm1_list.append(fname_crop_out)
         self.done_s0 = True
-        return
+        end_time = perf_counter()
+        ps0(f"Detection finished in {int(end_time - start_time)} s.")
 
     def s1(self):
         def ps1(text: str):
-            self.pprint(f"***[S1 - ImageJ stabilizer]: {text}")
+            self.log_print(f"***[S1 - ImageJ stabilizer]: {text}")
 
         # ImageJ Stabilizer
         ps1(f"Stabilizer Starting.")
         results = []
-        start_t = time()
+        start_time = perf_counter()
         idx = 0
+        # ps1(f"Using files {self.imm1_list} for stabilizer.")
         while idx < len(self.imm1_list):
             imm1_list = [self.imm1_list[idx + i] for i in range(self.process) if idx + i < len(self.imm1_list)]
             idx += self.process
             with Pool(processes=len(imm1_list)) as pool:
                 results = pool.starmap(run_plugin,
                                        [(
-                                        self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir, self.s1_params)
-                                        for imm1 in imm1_list])
-        end_t = time()
-        duration = end_t - start_t
-        ps1(f"Stabilizer finished. total of {int(duration)} s.")
+                                           self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir,
+                                           self.params_dict['stabilizer'])
+                                           for imm1 in imm1_list])
+        end_time = perf_counter()
+        ps1(f"Stabilizer finished in {int(end_time - start_time)} s.")
         self.imm2_list = results  # note here is absolute path list
 
     def s2(self):
         def ps2(txt: str):
-            self.pprint(f"***[S2 - caiman]: {txt}")
+            self.log_print(f"***[S2 - caiman]: {txt}")
 
-        # TODO: caiman
+        self.cmobj_path = os.path.join(self.work_dir, "cmn_obj.cmobj")
+
+        start_time = perf_counter()
         if self.clog:
+            ps2(f"caiman logging enabled.")
             logging.basicConfig(
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
         fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.imm2_list]
         self.outpath_s2 = [str(Path(self.work_dir).joinpath(remove_suffix(f, '.tif') + '_caiman.tif')) for f in fnames]
-        mc_dict = {
-            'fnames': fnames,
-            'fr': frate,
-            'decay_time': decay_time,
-            'pw_rigid': pw_rigid,
-            'max_shifts': max_shifts,
-            'gSig_filt': gSig_filt,
-            'strides': strides,
-            'overlaps': overlaps,
-            'max_deviation_rigid': max_deviation_rigid,
-            'border_nan': border_nan
-        }
-        opts = params.CNMFParams(params_dict=mc_dict)
+        ps2(f"caiman sets input: {fnames}, output path: {self.outpath_s2}")
+        self.params_dict['caiman']['mc_dict']['fnames'] = fnames
+        opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])
         # Motion Correction
-        if motion_correct:
+        if self.params_dict['caiman']['mc_dict']['motion_correct']:
+            ps2(f"Running motion correction...")
             # do motion correction rigid
             mc = MotionCorrect(fnames, dview=None, **opts.get_group('motion'))
             mc.motion_correct(save_movie=True)
             fname_mc = mc.fname_tot_els if pw_rigid else mc.fname_tot_rig
             if pw_rigid:
                 bord_px = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                             np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+                                             np.max(np.abs(mc.y_shifts_els)))).astype(int)
             else:
-                bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
-                plt.figure()
-                plt.subplot(1, 2, 1)
-                plt.imshow(mc.total_template_rig)  # % plot template
-                plt.subplot(1, 2, 2)
-                plt.plot(mc.shifts_rig)  # % plot rigid shifts
-                plt.legend(['x shifts', 'y shifts'])
-                plt.xlabel('frames')
-                plt.ylabel('pixels')
-                plt.show()
+                bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
+                # plt.figure()
+                # plt.subplot(1, 2, 1)
+                # plt.imshow(mc.total_template_rig)  # % plot template
+                # plt.subplot(1, 2, 2)
+                # plt.plot(mc.shifts_rig)  # % plot rigid shifts
+                # plt.legend(['x shifts', 'y shifts'])
+                # plt.xlabel('frames')
+                # plt.ylabel('pixels')
+                # plt.show()
 
             bord_px = 0 if border_nan == 'copy' else bord_px
             fname_mmap = cm.save_memmap(fname_mc, base_name='memmap_', order='C', border_to_0=bord_px)
         else:  # if no motion correction just memory map the file
+            ps2(f"Motion correction skipped.")
             bord_px = 0
             fname_mmap = cm.save_memmap(fnames, base_name='memmap_', order='C', border_to_0=0, dview=None)
         ps2(f"mmap file saved to {fname_mmap}")
@@ -358,44 +433,22 @@ class Pipeline(object):
         Yr, dims, T = cm.load_memmap(fname_mmap)
         images = Yr.T.reshape((T,) + dims, order='F')
 
-        opts.change_params(params_dict={'method_init': 'corr_pnr',  # use this for 1 photon
-                                        'K': K,
-                                        'gSig': gSig,
-                                        'gSiz': gSiz,
-                                        'merge_thr': merge_thr,
-                                        'p': p,
-                                        'tsub': tsub,
-                                        'ssub': ssub,
-                                        'rf': rf,
-                                        'stride': stride_cnmf,
-                                        'only_init': True,  # set it to True to run CNMF-E
-                                        'nb': gnb,
-                                        'nb_patch': nb_patch,
-                                        'method_deconvolution': 'oasis',  # could use 'cvxpy' alternatively
-                                        'low_rank_background': low_rank_background,
-                                        'update_background_components': True,
-                                        # sometimes setting to False improve the results
-                                        'min_corr': min_corr,
-                                        'min_pnr': min_pnr,
-                                        'normalize_init': False,  # just leave as is
-                                        'center_psf': True,  # leave as is for 1 photon
-                                        'ssub_B': ssub_B,
-                                        'ring_size_factor': ring_size_factor,
-                                        }
-                           )
+        opts.change_params(self.params_dict['caiman']['params_dict'])
         # Inspect summary images and set parameters
         # compute some summary images (correlation and peak to noise)
         cn_filter, pnr = cm.summary_images.correlation_pnr(images[::10], gSig=gSig[0],
                                                            swap_dim=False)  # change swap dim if output looks weird, it is a problem with tiffile
         # inspect the summary images and set the parameters
-        nb_inspect_correlation_pnr(cn_filter, pnr)
+        # nb_inspect_correlation_pnr(cn_filter, pnr)
 
         # Run the CNMF-E algorithm
-        start_time_cnmf = time()
+        ps2(f"Running CNMF-E...")
+        start_time_cnmf = perf_counter()
         cnm = cnmf.CNMF(n_processes=8, dview=None, Ain=Ain, params=opts)
         cnm.fit(images)
-        exec_time_cnmf = time() - start_time_cnmf
-        ps2(f"it takes {exec_time_cnmf // 60}m, {int(exec_time_cnmf % 60)}s to complete.")
+        end_time_cnmf = perf_counter()
+        exec_time_cnmf = end_time_cnmf - start_time_cnmf
+        ps2(f"cnmf takes {exec_time_cnmf // 60}m, {int(exec_time_cnmf % 60)}s to complete.")
         # ## Component Evaluation
         # the components are evaluated in three ways:
         #   a) the shape of each component must be correlated with the data
@@ -428,7 +481,7 @@ class Pipeline(object):
 
         for i in myidx:
             coordinate2 = np.reshape(cnm.estimates.A[:, i].toarray(), dims, order='F')
-            # %% generate boolean indexing
+            # generate boolean indexing
             bl2 = coordinate2 > 0
             ct2 = np.sum(bl2)
             blm = merged > 0
@@ -464,10 +517,12 @@ class Pipeline(object):
                 [2, 0, 1])
             denoised.save(self.outpath_s2)
             ps2(f"caiman denoised movie saved to {self.outpath_s2}")
-        path = os.path.join(self.work_dir, "cmn_obj.cmobj")
-        with open(path, "wb") as f:
+        with open(self.cmobj_path, "wb") as f:
             pickle.dump(cnm, f)
-            ps2(f"object cnm dumped to {path}.")
+            ps2(f"object cnm dumped to {self.cmobj_path}.")
+        end_time = perf_counter()
+        exec_time = end_time - start_time
+        ps2(f"caiman finished in {exec_time // 60}m, {int(exec_time % 60)} s.")
 
     def s3(self):
         # peak_caller
@@ -499,6 +554,10 @@ class Pipeline(object):
         self.pc_obj.append(pc_obj2)
 
     def run(self):
+        msg = {
+            'idx': self.queue_id, 'is_running': False, 'is_finished': False,
+            'cm': True if self.do_s2 else False
+        }
         # TODO: need to adjust imm1_list, imm2_list, according to which section is the first section
         if not self.do_s0:
             self.s1_root = self.input_root
@@ -508,7 +567,10 @@ class Pipeline(object):
         if not self.do_s2 and self.do_s3:
             assert 'cmn_obj' in self.input_list
 
-        start_time = time()
+        start_time = perf_counter()
+        if self.queue:
+            msg['is_running'] = True
+            self.queue.put(msg)
         # First, decide which section to start execute
         if self.do_s0:
             # Do cropping
@@ -524,57 +586,103 @@ class Pipeline(object):
             self.s2()
             end_time_caiman = time()
             exec_t = end_time_caiman - start_time_caiman
-            self.pprint(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
+            self.log_print(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
             self.done_s2 = True
 
         # Peak_caller part
         if self.do_s3:
             self.s3()
 
-        end_time = time()
-        exec_t = end_time - start_time
-        self.pprint(f"[INFO] pipeline.run() takes {exec_t // 60}m {int(exec_t % 60)}s to run in total.")
-        if self.log is not None:
+        end_time = perf_counter()
+        exec_time = end_time - start_time
+        self.log_print(f"[INFO] pipeline.run() takes {exec_time // 60}m {int(exec_time % 60)}s.")
+        if self.log is not None and not self.log.closed:
             self.log.close()
+        if self.queue:
+            msg['is_running'] = False
+            msg['is_finished'] = True
+            self.queue.put(msg)
 
-    def load_setting(self, settings):
-        self.QCimage_s2 = self.cache.joinpath(settings['QC']['s2_image'])
 
-    def qc_s2(self, frame_idx, ROI_idx):
+class QC:
+    __slots__ = [
+        'cmnobj_path',
+        'cmn_obj',
+        'data',
+        'movies',
+        'current_frame',
+        'qc_tab',
+    ]
+
+    def __init__(self, cmnobj_path=None, debug=False):
+        if debug:
+            self.cmnobj_path = None
+            self.cmn_obj = None
+            self.data = None
+            self.movies = None
+            self.current_frame = 0
+            self.qc_tab = None
+        else:
+            self.cmnobj_path = cmnobj_path
+            self._load_data()
+
+    def _load_data(self):
+        from pickle import load
+        with open(self.cmnobj_path, 'rb') as f:
+            self.cmn_obj = load(f)
+        self.data = self.cmn_obj
+        self.movies = self.cmn_obj.input_files
+        self.current_frame = 0
+
+    @property
+    def n_images(self):
+        return len(self.movies)
+
+    def image_shape(self, image_idx: int = 0):
+        return self.movies[image_idx].shape
+
+    @property
+    def n_ROIs(self):
+        return self.data.estimates.A.shape[1]
+
+    def show_frame(self, image_idx: int = 0, frame_idx: int = 0, ROI_idx: Optional[int] = None):
         from cv2 import resize
-        frame_per_file = len(self.caiman_obj.input_files[0])
-        image_idx = frame_idx // frame_per_file
-        frame_idx %= frame_per_file
-        ROI = np.reshape(self.caiman_obj.estimates.A[:, ROI_idx].toarray(), self.caiman_obj.dims, order='F')
-        # ROI = np.array(ROI, dtype=np.uint8)
-        w, h = ROI.shape
-        new_w = int(200 * h / w)
-        ROI = resize(ROI, (new_w, 200))
-        y, x = np.unravel_index(ROI.argmax(), ROI.shape)
-        image_raw = self.caiman_obj.input_files[image_idx][frame_idx]
-        w_r, h_r = ROI.shape
+        # 1. Check image index, and frame index.
+        assert image_idx < len(self.movies), f"Image index {image_idx} out of range."
+        frame_range = len(self.movies[image_idx])
+        assert frame_idx < frame_range, \
+            f"Frame index {frame_idx} out of range of image{image_idx}:{frame_range}."
+        # 2. Scale image to 200 pixels height
+        image_raw = self.movies[image_idx][frame_idx]
+        w_r, h_r = image_raw.shape
         new_w_r = int(200 * h_r / w_r)
         image_raw = resize(image_raw, (new_w_r, 200))
-        ROI_temp = ROI * 255 + image_raw
-        ROI_temp = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 2)
-        return ROI_temp
+        # 3. ROI handling
+        if ROI_idx:
+            # 3.1. Check ROI index
+            ROI_range = self.data.estimates.A.shape[1]
+            assert ROI_idx < ROI_range, f"ROI index {ROI_idx} out of range:{ROI_range}."
+            # 3.2. Get ROI, scale it to 200 pixels height
+            ROI = np.reshape(self.data.estimates.A[:, ROI_idx].toarray(), self.data.dims, order='F')
+            # ROI = np.array(ROI, dtype=np.uint8)
+            w_roi, h_roi = ROI.shape
+            new_w_roi = int(200 * h_roi / w_roi)
+            ROI = resize(ROI, (new_w_roi, 200))
+            y, x = np.unravel_index(ROI.argmax(), ROI.shape)
+            # 3.3. Overlay ROI on image and draw a box around the ROI
+            ROI_temp = ROI * 255 + image_raw
+            movie_with_ROIbox = cv2.rectangle(ROI_temp, (x, y), (x + 15, y + 15), (255, 0, 0), 2)
+            return movie_with_ROIbox
+        else:
+            return image_raw
 
-    def qc_caiman_movie(self):
-        if self.ij is None:
-            try:
-                self.ij = imagej.init(self.ijp, mode='interactive')
-            except Exception as e:
-                raise RuntimeError("ImageJ not initialized.")
-        if self.QCimage_s2 is None:
-            raise RuntimeError("QC image not found.")
-        if self.outpath_s2 == '':
-            raise RuntimeError("No caiman output path.")
-        elif not Path(self.outpath_s2).exists():
-            raise RuntimeError(f"Caiman output path {self.outpath_s2} not found.")
 
-        # Start playing output movie
-        dataset = self.ij.IJ.run("Bio-Formats Importer",
-                                 f"open={self.outpath_s2} autoscale color_mode=Grayscale rois_import=[ROI manager] "
-                                 f"view=Hyperstack stack_order=XYCZT")
-        # dataset = self.ij.io().open(self.outpath_s2)
-        # self.ij.ui().show(dataset)
+class CalciumZero:
+    __slots__ = [
+        'run_instance',
+        'qc_instance',
+    ]
+
+    def __init__(self):
+        self.run_instance = None
+        self.qc_instance = None

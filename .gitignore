@@ -1,13 +1,15 @@
 __pycache__/
 .ipynb_checkpoints/
-java/
 .idea/
 .vscode/
 venv/
 cache/
+log/**
 # for testing
 #Fiji.app/**
+caiman_data/
 test/
+log/
 .eggs/
 *.csv
 cmn_obj

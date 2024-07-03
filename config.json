@@ -1,0 +1,74 @@
+{
+    "run": [
+        false,
+        false,
+        false
+    ],
+    "crop": {
+        "threshold": 200
+    },
+    "stabilizer": {
+        "Transformation": "Translation",
+        "MAX_Pyramid_level": 1.0,
+        "update_coefficient": 0.90,
+        "MAX_iteration": 200,
+        "error_tolerance": 1E-7
+    },
+    "caiman": {
+        "mc_dict": {
+            "fnames": "",
+            "fr": 10,
+            "decay_time": 0.4,
+            "motion_correct": false,
+            "pw_rigid": false,
+            "max_shifts": [
+                5,
+                5
+            ],
+            "gSig_filt": [
+                3,
+                3
+            ],
+            "strides": [
+                48,
+                48
+            ],
+            "overlaps": [
+                24,
+                24
+            ],
+            "max_deviation_rigid": 3,
+            "border_nan": "copy"
+        },
+        "params_dict": {
+            "method_init": "corr_pnr",
+            "K": 6,
+            "gSig": [
+                3,
+                3
+            ],
+            "gSiz": [
+                13,
+                13
+            ],
+            "merge_thr": 0.85,
+            "p": 2,
+            "tsub": 2,
+            "ssub": 1,
+            "rf": 20,
+            "stride": 10,
+            "only_init": true,
+            "nb": 0,
+            "nb_patch": 0,
+            "method_deconvolution": "oasis",
+            "low_rank_background": null,
+            "update_background_components": true,
+            "min_corr": 0.9,
+            "min_pnr": 10,
+            "normalize_init": false,
+            "center_psf": true,
+            "ssub_B": 2,
+            "ring_size_factor": 1.4
+        }
+    }
+}
