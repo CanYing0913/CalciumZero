@@ -36,8 +36,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          mamba install -n cz -c conda-forge python numpy caiman pyimagej openjdk=8 seaborn pysimplegui
-          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+          mamba install -n cz -c conda-forge python numpy caiman pyimagej openjdk=8 seaborn cx_Freeze
+#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
 
       - name: build installer Windows
         shell: powershell
@@ -89,9 +89,9 @@ jobs:
           activate-environment: cz
           environment-file: envs/cz.yaml
 
-      - name: Install cx_Freeze
-        run: |
-          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+#      - name: Install cx_Freeze
+#        run: |
+#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
 
       - name: Build
         run: |
@@ -135,8 +135,8 @@ jobs:
           activate-environment: cz
       - name: Install dependencies
         run: |
-          mamba install -n cz -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn pysimplegui
-          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+          mamba install -n cz -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn cx_Freeze
+#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
       - name: build disk file MacOS
         shell: bash -l {0}
         run: |

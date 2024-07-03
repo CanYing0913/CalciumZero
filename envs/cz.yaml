@@ -9,4 +9,4 @@ dependencies:
   - pyimagej
   - caiman
   - seaborn
-  - pysimplegui
+  - cx_Freeze
