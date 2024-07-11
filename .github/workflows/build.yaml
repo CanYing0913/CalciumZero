@@ -1,18 +1,20 @@
 name: Build installers
 
 on:
-  push:
-    branches:
-      - master
-    paths-ignore:
-      - '.github/**'
-      - 'readme.md'
-      - '*.ipynb'
-      - 'Fiji.app/**'
-      - docs/**
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch:
+
+#  push:
+#    branches:
+#      - master
+#    paths-ignore:
+#      - '.github/**'
+#      - 'readme.md'
+#      - '*.ipynb'
+#      - 'Fiji.app/**'
+#      - docs/**
+#  pull_request:
+#    branches:
+#      - master
 
 jobs:
   Build-Windows:
