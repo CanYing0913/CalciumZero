@@ -18,7 +18,7 @@ def run_plugin(ijp, fname, work_dir, s1_params):
             return input_string[:-len(suffix)]
         return input_string
 
-    ij = imagej.init(ijp, mode='headless')
+    ij = imagej.init(str(ijp), mode='headless')
     fname_out = Path(fname).stem + '_stab.tif'
     fname_out = Path(work_dir).joinpath(fname_out)
     imp = ij.IJ.openImage(fname)
