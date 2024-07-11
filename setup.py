@@ -5,7 +5,7 @@ from cx_Freeze import setup, Executable
 build_exe_options = {
     "excludes": ['PyQt5'],
     'packages': ['imagej', 'caiman', 'ipyparallel', 'skimage', 'seaborn'],
-    'include_files': ['config.ini', 'cache', 'Fiji.app'],
+    'include_files': ['cache', 'Fiji.app'],
     'silent_level': '1'
 }
 
