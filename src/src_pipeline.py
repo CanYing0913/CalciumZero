@@ -10,7 +10,6 @@ from time import perf_counter
 from typing import Optional
 from pathlib import Path
 from src.src_caiman import *
-# Retrieve source
 from src.src_detection import *
 from src.src_stabilizer import print_param, run_plugin
 from src.src_peak_caller import PeakCaller
@@ -78,13 +77,13 @@ def parse():
     if not os.path.exists(arguments.imagej_path):
         if not arguments.skip_1:
             raise OSError(f"[ERROR]: ImageJ path does not exist: {arguments.imagej_path}")
-    arguments.ij_params = [
-        arguments.ij_trans,
-        arguments.ij_maxpl,
-        arguments.ij_upco,
-        arguments.ij_maxiter,
-        arguments.ij_errtol
-    ]
+    arguments.ij_params = {
+        "Transformation": arguments.ij_trans,
+        "MAX_Pyramid_level": arguments.ij_maxpl,
+        "update_coefficient": arguments.ij_upco,
+        "MAX_iteration": arguments.ij_maxiter,
+        "error_tolerance": arguments.ij_errtol
+    }
     # work_dir path
     # arguments.work_dir = Path(arguments.work_dir)
     if not os.path.exists(arguments.work_dir):
@@ -184,24 +183,13 @@ class Pipeline(object):
         self.input_list = []
         self.imm1_list = []  # Intermediate result list 1, relative path
         self.done_s0 = False
-        self.QCimage_s0_raw = None
-        self.QCimage_s0 = None
         # ImageJ stabilizer related variables
         self.do_s1 = False
         self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
         # self.ij = imagej.init(str(self.ijp), mode='interactive')
-        self.s1_params = [
-            'Translation',
-            '1.0',
-            '0.90',
-            '200',
-            '1E-7'
-        ]
         self.s1_root = ''
         self.imm2_list = []  # Intermediate result list 2, relative path
         self.done_s1 = False
-        self.QCimage_s1_raw = None
-        self.QCimage_s1 = None
         # CaImAn related variables
         self.do_s2 = False
         self.caiman_obj = None
@@ -211,7 +199,6 @@ class Pipeline(object):
         self.done_s2 = False
         self.outpath_s2 = ''
         self.cmobj_path = ''
-        self.QCimage_s2 = None
         # Peak Caller related
         self.do_s3 = False
         self.pc_obj = []
@@ -248,11 +235,10 @@ class Pipeline(object):
         self.margin = arguments.margin
         # ImageJ related
         if not self.skip_1:
-            self.ij = imagej.init(arguments.imagej_path, mode='headless')
             self.ijp = arguments.imagej_path
             self.log_print(f"ImageJ initialized with version {self.ij.getVersion()}.")
-            self.s1_params = arguments.ij_params
-            print_param(self.s1_params, self.log_print)
+            self.params_dict['stabilizer'] = arguments.ij_params
+            print_param(self.params_dict['stabilizer'], self.log_print)
         # CaImAn related variables
         # TODO: add caiman parameters
         self.clog = arguments.clog
@@ -446,6 +432,7 @@ class Pipeline(object):
         start_time_cnmf = perf_counter()
         cnm = cnmf.CNMF(n_processes=8, dview=None, Ain=Ain, params=opts)
         cnm.fit(images)
+        setattr(cnm, 'images', images)
         end_time_cnmf = perf_counter()
         exec_time_cnmf = end_time_cnmf - start_time_cnmf
         ps2(f"cnmf takes {exec_time_cnmf // 60}m, {int(exec_time_cnmf % 60)}s to complete.")
@@ -510,6 +497,7 @@ class Pipeline(object):
         setattr(cnm, 'dims', dims)
         # Save input files to *.cmobj file
         setattr(cnm, 'input_files', [tifffile.imread(fname) for fname in fnames])
+        setattr(cnm, 'bord_px', bord_px)
         self.caiman_obj = cnm
         # reconstruct denoised movie
         if self.csave:

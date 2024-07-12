@@ -13,6 +13,7 @@ from multiprocessing import Process, Lock, Queue
 import imagej
 from typing import List, Tuple, Optional
 from PIL import Image, ImageTk
+from src.utils import *
 
 
 def test(queue, idx):
@@ -83,24 +84,8 @@ class GUI:
     def __init__(self, debug=False):
         self.debug = debug
         # Set up logging
-        from datetime import datetime
-        log_folder = Path(__file__).parent.joinpath("log")
-        log_folder.mkdir(exist_ok=True)
-        log_name = log_folder.joinpath(Path('log_' + datetime.now().strftime("%y%m%d_%H%M%S") + '.txt'))
-        self.logger = logging.getLogger('GUI')
-        self.logger.setLevel(logging.DEBUG)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
-        file_handler = logging.FileHandler(log_name)
-        file_handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                                      datefmt='%y-%m-%d %H:%M:%S')
-        console_handler.setFormatter(formatter)
-        file_handler.setFormatter(formatter)
-        self.logger.addHandler(console_handler)
-        self.logger.addHandler(file_handler)
-        self.logger.debug('Logging setup finished.')
-        # TODO:Read Configuration files
+        self.logger = setup_logger(__file__)
+        # TODO: Read Configuration files if needed.
         pass
         self.queue = Queue()
         self.log_queue = Queue()
@@ -147,7 +132,6 @@ class GUI:
 
         # Add 'New' Menu Item
         # Function to create a parameter dialog
-
         file_menu.add_command(label="New Instance", command=self.new_run_dialog)
         file_menu.add_command(label="New QC", command=self.new_qc_dialog)
 
