@@ -5,6 +5,7 @@ __pycache__/
 venv/
 cache/
 log/**
+.DS_Store
 # for testing
 #Fiji.app/**
 caiman_data/
