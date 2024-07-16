@@ -381,7 +381,7 @@ class Pipeline(object):
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
         fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.imm2_list]
-        self.outpath_s2 = [str(Path(self.work_dir).joinpath(remove_suffix(f, '.tif') + '_caiman.tif')) for f in fnames]
+        self.outpath_s2 = [str(Path(self.work_dir).joinpath(Path(f).stem + '_caiman.tif')) for f in fnames]
         ps2(f"caiman sets input: {fnames}, output path: {self.outpath_s2}")
         self.params_dict['caiman']['mc_dict']['fnames'] = fnames
         opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])

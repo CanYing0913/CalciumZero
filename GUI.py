@@ -49,6 +49,7 @@ class MyTk(tk.Tk):
 class GUI:
     __slots__ = [
         'logger',
+        'project_path',
         'debug',
         # GUI fields
         'root',
@@ -84,7 +85,13 @@ class GUI:
     def __init__(self, debug=False):
         self.debug = debug
         # Set up logging
-        self.logger = setup_logger(__file__)
+        self.project_path = Path(__file__).parent
+        if self.project_path.is_dir():
+            self.logger = setup_logger(self.project_path)
+        else:
+            self.project_path = Path.cwd()
+            print(f"Project path: {self.project_path}")
+            self.logger = setup_logger(self.project_path)
         # TODO: Read Configuration files if needed.
         pass
         self.queue = Queue()
@@ -136,7 +143,7 @@ class GUI:
         file_menu.add_command(label="New QC", command=self.new_qc_dialog)
 
     def new_run_dialog(self):
-        with open(Path(__file__).parent.joinpath("config.json"), "r") as f:
+        with open(self.project_path.joinpath("config.json"), "r") as f:
             param_dict = json.load(f)
         # Create a simple dialog window
         dialog = tk.Toplevel(self.root)
@@ -462,6 +469,7 @@ class GUI:
                 if item not in run_params:
                     return False, f"Missing parameter {item}."
             run_instance.update(params_dict=run_params)  # Setup parameters
+            run_instance.update(ijp=str(self.project_path.joinpath("Fiji.app")))
             cur_instance.run_instance = run_instance
             self.instance_list[idx] = cur_instance
             self.create_run_tab(idx)

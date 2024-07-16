@@ -1,12 +1,11 @@
-
 import logging
 
 from datetime import datetime
 from pathlib import Path
 
 
-def setup_logger(path: str) -> logging.Logger:
-    log_folder = Path(path).parent.joinpath("log")
+def setup_logger(path) -> logging.Logger:
+    log_folder = Path(path).joinpath("log")
     log_folder.mkdir(exist_ok=True)
     log_path = log_folder.joinpath(Path('log_' + datetime.now().strftime("%y%m%d_%H%M%S") + '.txt'))
     logger = logging.getLogger('GUI')

@@ -2,10 +2,18 @@ from cx_Freeze import setup, Executable
 
 # Dependencies are automatically detected, but they might need fine-tuning
 build_exe_options = {
+    # "base": "console",
     "build_exe": "dist",
+    "includes": [
+        "caiman",
+    ],
+    "packages": [
+        "z5py",
+    ],
     "include_files": [
         "Fiji.app",
-        "config.json"
+        "config.json",
+        "log"
     ],
 
 }
@@ -17,7 +25,7 @@ executables = [
     Executable(
         "main.py",
         copyright="Copyright (C) 2024 CalciumZero",
-        base="gui",
+        base="console",
         # icon="icon.ico",
         target_name="CalciumZero",
         shortcut_name="CalciumZero",
