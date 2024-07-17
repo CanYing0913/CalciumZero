@@ -1,115 +1,108 @@
 """
 Source file for pipeline in general, OOP workflow
-Last edited on Dec.31 2022
-Copyright Yian Wang (canying0913@gmail.com) - 2022
+Last edited on July 17, 2024
+Copyright @ Yian Wang (canying0913@gmail.com) - 2024
 """
 import argparse
 from multiprocessing import Pool
-import imagej
 from time import perf_counter
-from typing import Optional
+from typing import Optional, Tuple, List
 from pathlib import Path
 from src.src_caiman import *
 from src.src_detection import *
-from src.src_stabilizer import print_param, run_plugin
+from src.src_stabilizer import run_plugin
 from src.src_peak_caller import PeakCaller
 
 
-def remove_suffix(input_string, suffix):
-    if suffix and str(input_string).endswith(suffix):
-        return str(input_string)[:-len(suffix)]
-    return str(input_string)
-
-
-def parse():
-    """
-    Parse function for argparse
-    """
-    # Set up description
-    desp = 'Automated pipeline for CaImAn processing.\nIf you have multiple inputs, please place them within a ' \
-           'single folder without any other files.'
-    parser = argparse.ArgumentParser(description=desp)
-    # Set up arguments
-    # Control parameters
-    parser.add_argument('-no_log', default=False, action='store_true',
-                        help='Specified if do not want to have terminal printouts saved to a separate file.')
-    parser.add_argument('-ijp', '--imagej-path', type=str, metavar='ImageJ-Path', required=True,
-                        help='Path to local Fiji ImageJ fiji folder.')
-    parser.add_argument('-wd', '--work-dir', type=str, metavar='Work-Dir', required=True,
-                        help='Path to a working folder where all intermediate and overall results are stored. If not '
-                             'exist then will create one automatically.')
-    parser.add_argument('-input', type=str, metavar='INPUT', required=True,
-                        help='Path to input/inputs folder. If you have multiple inputs file, please place them inside '
-                             'a single folder. If you only have one input, either provide direct path or the path to'
-                             ' the folder containing the input(without any other files!)')
-    parser.add_argument('-do_s0', default=True, action="store_false", required=False, help='Skip cropping if specified')
-    parser.add_argument('-do_s1', default=True, action="store_false", required=False,
-                        help='Skip Stabilizer if specified.')
-    parser.add_argument('-do_s2', default=True, action="store_false", required=False,
-                        help='Skip CaImAn if specified.')
-    # Functional parameters
-    parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
-                        help='Margin in terms of pixels for auto-cropping. Default to be 200.')
-    parser.add_argument('-ij_trans', default=0, type=int, required=False,
-                        help='ImageJ stabilizer parameter - Transformation. You have to specify -ij_param to use it. '
-                             'Default to translation, set it to 1 if want to set it to affine.')
-    parser.add_argument('-ij_maxpl', default=1, type=float, required=False,
-                        help='ImageJ stabilizer parameter - MAX_Pyramid_level. You have to specify -ij_param to use '
-                             'it. Default to be 1.0.')
-    parser.add_argument('-ij_upco', default=0.90, type=float, required=False,
-                        help='ImageJ stabilizer parameter - update_coefficient. You have to specify -ij_param to use '
-                             'it. Default to 0.90.')
-    parser.add_argument('-ij_maxiter', default=200, type=int, required=False,
-                        help='ImageJ stabilizer parameter - MAX_iteration. You have to specify -ij_param to use it. '
-                             'Default to 200.')
-    parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
-                        help='ImageJ stabilizer parameter - error_rolerance. You have to specify -ij_param to use '
-                             'it. Default to 1E-7.')
-    parser.add_argument('-clog', default=False, action='store_true',
-                        help='True if enable logging for caiman part. Default to be false.')
-    parser.add_argument('-csave', default=False, action='store_true',
-                        help='True if want to save denoised movie. Default to be false.')
-    # Parse the arguments
-    arguments = parser.parse_args()
-    # Post-process arguments
-    # ImageJ path and param
-    # arguments.imagej_path = Path(arguments.imagej_path)
-    if not os.path.exists(arguments.imagej_path):
-        if not arguments.skip_1:
-            raise OSError(f"[ERROR]: ImageJ path does not exist: {arguments.imagej_path}")
-    arguments.ij_params = {
-        "Transformation": arguments.ij_trans,
-        "MAX_Pyramid_level": arguments.ij_maxpl,
-        "update_coefficient": arguments.ij_upco,
-        "MAX_iteration": arguments.ij_maxiter,
-        "error_tolerance": arguments.ij_errtol
-    }
-    # work_dir path
-    # arguments.work_dir = Path(arguments.work_dir)
-    if not os.path.exists(arguments.work_dir):
-        print(f"Working directory {arguments.work_dir} does not exist. Attempting to create one.")
-        try:
-            Path(arguments.work_dir).mkdir(parents=True, exist_ok=False)
-        except OSError:
-            print(f"[ERROR]: OSError detected. Please check if disk exists or privilege level satisfies.")
-            exit(1)
-    # input folder path
-    arguments.input = str(arguments.input)  # To suppress IDE warning
-    if os.path.exists(arguments.input):
-        if os.path.isdir(arguments.input):
-            # Path to a folder of multiple inputs.
-            arguments.input_root = arguments.input
-            arguments.input = [f for f in os.listdir(arguments.input_root) if f[-4:] == '.tif']
-        else:
-            # Path to a single input file.
-            temp = os.path.basename(arguments.input)
-            if temp[-4:] != ".tif":
-                raise FileNotFoundError(f"The input file {arguments.input} is not a tiff file.")
-            arguments.input_root = remove_suffix(arguments.input, temp)
-            arguments.input = [temp]
-    else:
-        raise FileNotFoundError(f"[ERROR]: Input file path {arguments.input} does not exist.")
-    return arguments
+# def parse():
+#     """
+#     Parse function for argparse
+#     """
+#     # Set up description
+#     desp = 'Automated pipeline for CaImAn processing.\nIf you have multiple inputs, please place them within a ' \
+#            'single folder without any other files.'
+#     parser = argparse.ArgumentParser(description=desp)
+#     # Set up arguments
+#     # Control parameters
+#     parser.add_argument('-no_log', default=False, action='store_true',
+#                         help='Specified if do not want to have terminal printouts saved to a separate file.')
+#     parser.add_argument('-ijp', '--imagej-path', type=str, metavar='ImageJ-Path', required=True,
+#                         help='Path to local Fiji ImageJ fiji folder.')
+#     parser.add_argument('-wd', '--work-dir', type=str, metavar='Work-Dir', required=True,
+#                         help='Path to a working folder where all intermediate and overall results are stored. If not '
+#                              'exist then will create one automatically.')
+#     parser.add_argument('-input', type=str, metavar='INPUT', required=True,
+#                         help='Path to input/inputs folder. If you have multiple inputs file, please place them inside '
+#                              'a single folder. If you only have one input, either provide direct path or the path to'
+#                              ' the folder containing the input(without any other files!)')
+#     parser.add_argument('-do_s0', default=True, action="store_false", required=False, help='Skip cropping if specified')
+#     parser.add_argument('-do_s1', default=True, action="store_false", required=False,
+#                         help='Skip Stabilizer if specified.')
+#     parser.add_argument('-do_s2', default=True, action="store_false", required=False,
+#                         help='Skip CaImAn if specified.')
+#     # Functional parameters
+#     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
+#                         help='Margin in terms of pixels for auto-cropping. Default to be 200.')
+#     parser.add_argument('-ij_trans', default=0, type=int, required=False,
+#                         help='ImageJ stabilizer parameter - Transformation. You have to specify -ij_param to use it. '
+#                              'Default to translation, set it to 1 if want to set it to affine.')
+#     parser.add_argument('-ij_maxpl', default=1, type=float, required=False,
+#                         help='ImageJ stabilizer parameter - MAX_Pyramid_level. You have to specify -ij_param to use '
+#                              'it. Default to be 1.0.')
+#     parser.add_argument('-ij_upco', default=0.90, type=float, required=False,
+#                         help='ImageJ stabilizer parameter - update_coefficient. You have to specify -ij_param to use '
+#                              'it. Default to 0.90.')
+#     parser.add_argument('-ij_maxiter', default=200, type=int, required=False,
+#                         help='ImageJ stabilizer parameter - MAX_iteration. You have to specify -ij_param to use it. '
+#                              'Default to 200.')
+#     parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
+#                         help='ImageJ stabilizer parameter - error_rolerance. You have to specify -ij_param to use '
+#                              'it. Default to 1E-7.')
+#     parser.add_argument('-clog', default=False, action='store_true',
+#                         help='True if enable logging for caiman part. Default to be false.')
+#     parser.add_argument('-csave', default=False, action='store_true',
+#                         help='True if want to save denoised movie. Default to be false.')
+#     # Parse the arguments
+#     arguments = parser.parse_args()
+#     # Post-process arguments
+#     # ImageJ path and param
+#     # arguments.imagej_path = Path(arguments.imagej_path)
+#     if not os.path.exists(arguments.imagej_path):
+#         if not arguments.skip_1:
+#             raise OSError(f"[ERROR]: ImageJ path does not exist: {arguments.imagej_path}")
+#     arguments.ij_params = {
+#         "Transformation": arguments.ij_trans,
+#         "MAX_Pyramid_level": arguments.ij_maxpl,
+#         "update_coefficient": arguments.ij_upco,
+#         "MAX_iteration": arguments.ij_maxiter,
+#         "error_tolerance": arguments.ij_errtol
+#     }
+#     # work_dir path
+#     # arguments.work_dir = Path(arguments.work_dir)
+#     if not os.path.exists(arguments.work_dir):
+#         print(f"Working directory {arguments.work_dir} does not exist. Attempting to create one.")
+#         try:
+#             Path(arguments.work_dir).mkdir(parents=True, exist_ok=False)
+#         except OSError:
+#             print(f"[ERROR]: OSError detected. Please check if disk exists or privilege level satisfies.")
+#             exit(1)
+#     # input folder path
+#     arguments.input = str(arguments.input)  # To suppress IDE warning
+#     if os.path.exists(arguments.input):
+#         if os.path.isdir(arguments.input):
+#             # Path to a folder of multiple inputs.
+#             arguments.input_root = arguments.input
+#             arguments.input = [f for f in os.listdir(arguments.input_root) if f[-4:] == '.tif']
+#         else:
+#             # Path to a single input file.
+#             temp = os.path.basename(arguments.input)
+#             if temp[-4:] != ".tif":
+#                 raise FileNotFoundError(f"The input file {arguments.input} is not a tiff file.")
+#             arguments.input_root = remove_suffix(arguments.input, temp)
+#             arguments.input = [temp]
+#     else:
+#         raise FileNotFoundError(f"[ERROR]: Input file path {arguments.input} does not exist.")
+#     return arguments
 
 
 class Pipeline(object):
@@ -171,31 +164,24 @@ class Pipeline(object):
         self.is_running = False
         self.is_finished = False
         # Control sequence
-        self.skip_0 = self.skip_1 = False
         self.work_dir = ''
         self.log = None
         self.process = 2
-        self.cache = Path(__file__).parent.parent.joinpath('cache')
-        self.cache.mkdir(exist_ok=True, parents=False)
         # Segmentation and cropping related variables
         self.do_s0 = False
         self.input_root = ''
         self.input_list = []
-        self.imm1_list = []  # Intermediate result list 1, relative path
         self.done_s0 = False
         # ImageJ stabilizer related variables
         self.do_s1 = False
         self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
         # self.ij = imagej.init(str(self.ijp), mode='interactive')
-        self.s1_root = ''
-        self.imm2_list = []  # Intermediate result list 2, relative path
         self.done_s1 = False
         # CaImAn related variables
         self.do_s2 = False
         self.caiman_obj = None
         self.clog = False  # True
         self.csave = False
-        self.s2_root = ''
         self.done_s2 = False
         self.outpath_s2 = ''
         self.cmobj_path = ''
@@ -213,60 +199,55 @@ class Pipeline(object):
             if self.log is not None:
                 self.log.write(txt + '\n')
 
-    def parse(self):
-        # Retrieve calling parameters
-        arguments = parse()
-
-        # Must only specify one skip
-        assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
-        self.s1_root = self.s2_root = self.work_dir
-        # Use parameters to set up pipeline global info
-        # Control related
-        self.work_dir = arguments.work_dir
-        self.skip_0 = arguments.skip_0
-        self.skip_1 = arguments.skip_1
-        if not arguments.no_log:
-            log_path = os.path.join(self.work_dir, 'log.txt')
-            self.log = open(log_path, 'w')
-            self.log_print(f"log file is stored @ {log_path}")
-        # Segmentation and cropping related variables
-        self.input_root = arguments.input_root
-        self.input_list = arguments.input
-        self.margin = arguments.margin
-        # ImageJ related
-        if not self.skip_1:
-            self.ijp = arguments.imagej_path
-            self.log_print(f"ImageJ initialized with version {self.ij.getVersion()}.")
-            self.params_dict['stabilizer'] = arguments.ij_params
-            print_param(self.params_dict['stabilizer'], self.log_print)
-        # CaImAn related variables
-        # TODO: add caiman parameters
-        self.clog = arguments.clog
-        self.csave = arguments.csave
-        # TODO: add peak_caller parameters
-        pass
-        # Get control params to determine dest list
-        # TODO: need extra care for caiman mmap generation
-
-        # End of parser. Start of post-parse processing.
-        if self.skip_0:
-            self.s1_root = self.input_root
-            self.imm1_list = self.input_list
-        elif self.skip_1:
-            self.s2_root = self.input_root
-            self.imm2_list = self.input_list
-        return None
+    # def parse(self):
+    #     # Retrieve calling parameters
+    #     arguments = parse()
+    #
+    #     # Must only specify one skip
+    #     assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
+    #     self.s1_root = self.s2_root = self.work_dir
+    #     # Use parameters to set up pipeline global info
+    #     # Control related
+    #     self.work_dir = arguments.work_dir
+    #     self.skip_0 = arguments.skip_0
+    #     self.skip_1 = arguments.skip_1
+    #     if not arguments.no_log:
+    #         log_path = os.path.join(self.work_dir, 'log.txt')
+    #         self.log = open(log_path, 'w')
+    #         self.log_print(f"log file is stored @ {log_path}")
+    #     # Segmentation and cropping related variables
+    #     self.input_root = arguments.input_root
+    #     self.input_list = arguments.input
+    #     self.margin = arguments.margin
+    #     # ImageJ related
+    #     if not self.skip_1:
+    #         self.ijp = arguments.imagej_path
+    #         self.log_print(f"ImageJ initialized with version {self.ij.getVersion()}.")
+    #         self.params_dict['stabilizer'] = arguments.ij_params
+    #         print_param(self.params_dict['stabilizer'], self.log_print)
+    #     # CaImAn related variables
+    #     # TODO: add caiman parameters
+    #     self.clog = arguments.clog
+    #     self.csave = arguments.csave
+    #     # TODO: add peak_caller parameters
+    #     pass
+    #     # Get control params to determine dest list
+    #     # TODO: need extra care for caiman mmap generation
+    #
+    #     # End of parser. Start of post-parse processing.
+    #     if self.skip_0:
+    #         self.s1_root = self.input_root
+    #         self.imm1_list = self.input_list
+    #     elif self.skip_1:
+    #         self.s2_root = self.input_root
+    #         self.imm2_list = self.input_list
+    #     return None
 
     def update(self, **kwargs):
         for key, value in kwargs.items():
             if not hasattr(self, key):
                 self.log_print(f'the requested key {key} does not exist.')
                 continue
-            if key == 'input_list':
-                if len(value) == 1 and 'cmn_obj' in value[0]:
-                    with open(str(Path(self.input_root).joinpath(value[0])), 'rb') as f:
-                        self.caiman_obj = pickle.load(f)
-                        continue
 
             # Setup extra params other than s0-s2
             if key == 'params_dict':
@@ -305,47 +286,43 @@ class Pipeline(object):
             pass
         return True, ''
 
-    def s0(self):
-        """
-        Function to run segmentation, detection and cropping.
-
-        Parameters:
-
-        """
-
+    def s0(self, file_list) -> Tuple[List[Path], List[Path]]:
         def ps0(text: str):
             self.log_print(f"***[S0 - Detection]: {text}")
 
         start_time = perf_counter()
         # Segmentation and cropping
         # Scanning for bounding box for multiple input
+        filenames_seg = []
+        filenames_crop = []
         with Pool(processes=self.process) as pool:
-            fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.input_list]
-            results = pool.map(scan, fnames)
+            # filenames = [str(Path(self.input_root).joinpath(fname)) for fname in self.input_list]
+            filenames = file_list
+            results = pool.map(scan, filenames)
         x1, y1, x2, y2 = reduce_bbs(results)
-        for idx, fname in enumerate(fnames):
-            fpath_seg = Path(self.work_dir).joinpath(Path(Path(fname).stem + "_seg.tif"))
-            tifffile.imwrite(fpath_seg, results[idx][-1])
+        for idx, file in enumerate(filenames):
+            filename_seg = Path(self.work_dir).joinpath(Path(file).stem + "_seg.tif")
+            tifffile.imwrite(str(filename_seg), results[idx][-1])
+            filenames_seg.append(filename_seg)
         finalxcntss = [result[4] for result in results]
 
         # Apply the uniform bb one-by-one to each input image
-        for idx, fname_i in enumerate(self.input_list):
-            image_i = tifffile.imread(str(Path(self.input_root).joinpath(fname_i)))
+        for idx, filename_in in enumerate(filenames):
+            image_i = tifffile.imread(filename_in)
             finalxcnts = finalxcntss[idx]
             image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.params_dict['crop']['threshold'], finalxcnts)
             # Handle output path
-            fname_crop_out = Path(self.work_dir).joinpath(Path(fname_i).stem + "_crop.tif")
-            # fname_crop_root = str(fname_crop_out.name)
-            fname_crop_out = str(fname_crop_out)
-            ps0(f"Using paths: {fname_crop_out} to save cropped result.")
+            filename_out = Path(self.work_dir).joinpath(Path(filename_in).stem + "_crop.tif")
+            ps0(f"Using paths: {filename_out} to save cropped result.")
             # Save imm1 data to files
-            tifffile.imwrite(fname_crop_out, image_crop_o)
-            self.imm1_list.append(fname_crop_out)
+            tifffile.imwrite(str(filename_out), image_crop_o)
+            filenames_crop.append(filename_out)
         self.done_s0 = True
         end_time = perf_counter()
         ps0(f"Detection finished in {int(end_time - start_time)} s.")
+        return filenames_crop, filenames_seg
 
-    def s1(self):
+    def s1(self, file_list: List[Path]) -> List[Path]:
         def ps1(text: str):
             self.log_print(f"***[S1 - ImageJ stabilizer]: {text}")
 
@@ -354,25 +331,26 @@ class Pipeline(object):
         results = []
         start_time = perf_counter()
         idx = 0
-        # ps1(f"Using files {self.imm1_list} for stabilizer.")
-        while idx < len(self.imm1_list):
-            imm1_list = [self.imm1_list[idx + i] for i in range(self.process) if idx + i < len(self.imm1_list)]
+        ps1(f"Using files {file_list} for stabilizer.")
+        while idx < len(file_list):
+            imm1_list = [file_list[idx + i] for i in range(self.process) if idx + i < len(file_list)]
             idx += self.process
-            with Pool(processes=len(imm1_list)) as pool:
+            with Pool(processes=len(file_list)) as pool:
                 results = pool.starmap(run_plugin,
                                        [(
-                                           self.ijp, str(Path(self.s1_root).joinpath(imm1)), self.work_dir,
+                                           self.ijp, str(file), self.work_dir,
                                            self.params_dict['stabilizer'])
-                                           for imm1 in imm1_list])
+                                           for file in imm1_list])
         end_time = perf_counter()
         ps1(f"Stabilizer finished in {int(end_time - start_time)} s.")
-        self.imm2_list = results  # note here is absolute path list
+        ps1(f'Stabilizer result are placed in {results}.')
+        return results
 
-    def s2(self):
+    def s2(self, file_list) -> Tuple[Path, Optional[List[Path]]]:
         def ps2(txt: str):
             self.log_print(f"***[S2 - caiman]: {txt}")
 
-        self.cmobj_path = os.path.join(self.work_dir, "cmn_obj.cmobj")
+        self.cmobj_path = Path(self.work_dir).joinpath("cmn_obj.cmobj")
 
         start_time = perf_counter()
         if self.clog:
@@ -380,16 +358,16 @@ class Pipeline(object):
             logging.basicConfig(
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
-        fnames = [str(Path(self.input_root).joinpath(fname)) for fname in self.imm2_list]
-        self.outpath_s2 = [str(Path(self.work_dir).joinpath(Path(f).stem + '_caiman.tif')) for f in fnames]
-        ps2(f"caiman sets input: {fnames}, output path: {self.outpath_s2}")
-        self.params_dict['caiman']['mc_dict']['fnames'] = fnames
+        filenames_in = file_list
+        self.outpath_s2 = [Path(self.work_dir).joinpath(Path(f).stem + '_caiman.tif') for f in filenames_in]
+        ps2(f"caiman sets input: {filenames_in}, output path: {self.outpath_s2}")
+        self.params_dict['caiman']['mc_dict']['fnames'] = filenames_in
         opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])
         # Motion Correction
         if self.params_dict['caiman']['mc_dict']['motion_correct']:
             ps2(f"Running motion correction...")
             # do motion correction rigid
-            mc = MotionCorrect(fnames, dview=None, **opts.get_group('motion'))
+            mc = MotionCorrect(filenames_in, dview=None, **opts.get_group('motion'))
             mc.motion_correct(save_movie=True)
             fname_mc = mc.fname_tot_els if pw_rigid else mc.fname_tot_rig
             if pw_rigid:
@@ -412,7 +390,7 @@ class Pipeline(object):
         else:  # if no motion correction just memory map the file
             ps2(f"Motion correction skipped.")
             bord_px = 0
-            fname_mmap = cm.save_memmap(fnames, base_name='memmap_', order='C', border_to_0=0, dview=None)
+            fname_mmap = cm.save_memmap(filenames_in, base_name='memmap_', order='C', border_to_0=0, dview=None)
         ps2(f"mmap file saved to {fname_mmap}")
 
         # load memory mappable file
@@ -496,14 +474,14 @@ class Pipeline(object):
         cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
         setattr(cnm, 'dims', dims)
         # Save input files to *.cmobj file
-        setattr(cnm, 'input_files', [tifffile.imread(fname) for fname in fnames])
+        setattr(cnm, 'input_files', [tifffile.imread(fname) for fname in filenames_in])
         setattr(cnm, 'bord_px', bord_px)
         self.caiman_obj = cnm
         # reconstruct denoised movie
         if self.csave:
             denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose(
                 [2, 0, 1])
-            denoised.save(self.outpath_s2)
+            denoised.save(str(self.outpath_s2))
             ps2(f"caiman denoised movie saved to {self.outpath_s2}")
         with open(self.cmobj_path, "wb") as f:
             pickle.dump(cnm, f)
@@ -511,19 +489,19 @@ class Pipeline(object):
         end_time = perf_counter()
         exec_time = end_time - start_time
         ps2(f"caiman finished in {exec_time // 60}m, {int(exec_time % 60)} s.")
+        return self.cmobj_path, self.outpath_s2
 
-    def s3(self):
+    def s3(self, file_list):
         # peak_caller
         # slice_num = _
         if not self.do_s2:
-            with open(Path(self.input_root).joinpath(self.input_list[0]), 'rb') as f:
-                self.caiman_obj = pickle.load(f)
+            pass
         data = self.caiman_obj.estimates.f
 
         # TODO: get slice number to know how many to pass to peak caller
         # filename = join(self.work_dir, '')
         # demo: a single image
-        filename = Path(self.work_dir).joinpath("out") if not self.do_s2 else self.imm2_list[0]
+        filename = file_list
         pc_obj1 = PeakCaller(data, filename)
         pc_obj1.Detrender_2()
         pc_obj1.Find_Peak()
@@ -547,11 +525,6 @@ class Pipeline(object):
             'cm': True if self.do_s2 else False
         }
         # TODO: need to adjust imm1_list, imm2_list, according to which section is the first section
-        if not self.do_s0:
-            self.s1_root = self.input_root
-            self.imm1_list = self.input_list
-        if not self.do_s1:
-            self.imm2_list = self.input_list
         if not self.do_s2 and self.do_s3:
             assert 'cmn_obj' in self.input_list
 
@@ -560,18 +533,19 @@ class Pipeline(object):
             msg['is_running'] = True
             self.queue.put(msg)
         # First, decide which section to start execute
+        file_list = self.input_list
         if self.do_s0:
             # Do cropping
-            self.s0()
+            file_list, _ = self.s0(file_list)
             self.done_s0 = True
         if self.do_s1:
             # Do stabilizer
-            self.s1()
+            file_list = self.s1(file_list)
             self.done_s1 = True
         if self.do_s2:
             # CaImAn part
             start_time_caiman = time()
-            self.s2()
+            file_list = self.s2(file_list)
             end_time_caiman = time()
             exec_t = end_time_caiman - start_time_caiman
             self.log_print(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
