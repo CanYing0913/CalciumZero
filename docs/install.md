@@ -24,6 +24,11 @@
 It is recommended to use [mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html) to manage the environment. To install mamba, follow instructions on its [official website](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html).
 
 For following commands, replace `<env_name>` with the name of your environment.  
+Step0. Clone the repository.
+```bash
+git clone https://github.com/CanYing0913/CalciumZero.git
+cd CalciumZero
+```
 Step1. Follow instructions to install mamba (usually a mini-forge). After that, activate mamba in your shell or open a mini-forge terminal based on your operating system:
 ```bash
 mamba create -n <env_name> -f envs/cz.yaml  # this command assumes you are in the root directory of the project
