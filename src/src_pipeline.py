@@ -390,7 +390,8 @@ class Pipeline(object):
         else:  # if no motion correction just memory map the file
             ps2(f"Motion correction skipped.")
             bord_px = 0
-            fname_mmap = cm.save_memmap(filenames_in, base_name='memmap_', order='C', border_to_0=0, dview=None)
+            fname_mmap = cm.save_memmap([str(filename) for filename in filenames_in],
+                                        base_name='memmap_', order='C', border_to_0=0, dview=None)
         ps2(f"mmap file saved to {fname_mmap}")
 
         # load memory mappable file
