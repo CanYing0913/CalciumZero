@@ -26,7 +26,11 @@ It is recommended to use [mamba](https://mamba.readthedocs.io/en/latest/installa
 For following commands, replace `<env_name>` with the name of your environment.  
 Step1. Follow instructions to install mamba (usually a mini-forge). After that, activate mamba in your shell or open a mini-forge terminal based on your operating system:
 ```bash
-mamba env create -n <env_name> -f envs/cz.yaml  # this command assumes you are in the root directory of the project
+mamba create -n <env_name> -f envs/cz.yaml  # this command assumes you are in the root directory of the project
+```
+If the command above does not work, try the following:
+```bash
+mamba create -n <env_name> -c conda-forge -c anaconda caiman pyimagej openjdk=8
 ```
 Step2. To run the application, activate the environment everytime:
 ```bash
