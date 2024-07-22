@@ -7,7 +7,7 @@ cache/
 log/**
 .DS_Store
 # for testing
-#Fiji.app/**
+Fiji.app/**
 caiman_data/
 test/
 log/

@@ -1,18 +1,19 @@
+import json
 import queue
 import time
+import platform
+import requests
+import zipfile
 import tkinter as tk
 import tkinter.messagebox
+from multiprocessing import Process, Queue
 from tkinter import ttk, filedialog, messagebox
-from src.src_pipeline import Pipeline, QC, CalciumZero
-from src.message import Message
-import json
-from pathlib import Path
-from threading import Thread
-import logging
-from multiprocessing import Process, Lock, Queue
-import imagej
 from typing import List, Tuple, Optional
+from shutil import copy
+
 from PIL import Image, ImageTk
+
+from src.src_pipeline import Pipeline, QC, CalciumZero
 from src.utils import *
 
 
@@ -36,6 +37,7 @@ class MyTk(tk.Tk):
     # @override
     def __init__(self, logger, *args, **kwargs):
         self.logger = logger
+        self.screen_width = self.screen_height = 0
         super().__init__(*args, **kwargs)
 
     # @override
@@ -90,8 +92,10 @@ class GUI:
             self.logger = setup_logger(self.project_path)
         else:
             self.project_path = Path.cwd()
-            print(f"Project path: {self.project_path}")
+            print(f"Project fpath: {self.project_path}")
             self.logger = setup_logger(self.project_path)
+        self.logger.debug(f"Project path set to {self.project_path}")
+        self.prepare_imagej()
         # TODO: Read Configuration files if needed.
         pass
         self.queue = Queue()
@@ -128,6 +132,44 @@ class GUI:
         # Set up the app
         self.setup()
         self.logger.debug('GUI setup finished.')
+
+    def prepare_imagej(self):
+        # Check if installed
+        if Path(self.project_path).joinpath('Fiji.app').exists():
+            self.logger.debug(f"ImageJ already installed in {self.project_path}.")
+            return
+        system = platform.system()
+        match system:
+            case 'Windows':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-win64.zip'
+            case 'Linux':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-linux64.zip'
+            case 'Darwin':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-macosx.zip'
+            case _:
+                raise ValueError(f"Unsupported system: {system}")
+        self.logger.debug(f"On {system}, downloading ImageJ from {url}")
+        # Download and unzip
+        r = requests.get(url)
+        if r.status_code == 200:
+            temp_path = Path(self.project_path).joinpath('fiji.zip')
+            try:
+                with open(temp_path, 'wb') as temp_file:
+                    temp_file.write(r.content)
+                with zipfile.ZipFile(str(temp_path), 'r') as zip_ref:
+                    zip_ref.extractall(self.project_path)
+            finally:
+                temp_path.unlink()
+        else:
+            raise ConnectionError(f"Failed to download ImageJ from {url}. Status code: {r.status_code}")
+        self.logger.debug(f"ImageJ installed in {self.project_path}.")
+        try:
+            copy(str(self.project_path.joinpath('resource').joinpath('Image_Stabilizer_Headless.class')),
+                 str(self.project_path.joinpath('Fiji.app').joinpath('plugins').joinpath(
+                     'Image_Stabilizer_Headless.class')))
+        except Exception as e:
+            self.logger.debug(f"Failed to copy Image_Stabilizer_Headless.class to ImageJ plugins folder. Error: {e}")
+        return str(self.project_path.joinpath('Fiji.app'))
 
     def create_menu(self):
         # Create a Menu Bar
@@ -464,15 +506,14 @@ class GUI:
                 queue=self.queue,
                 queue_id=idx,
                 log_queue=self.log_queue,
-                project_path=self.project_path,
             )
             for item in ['input_path', 'output_path', 'run']:
                 if item not in run_params:
                     return False, f"Missing parameter {item}."
             run_instance.update(params_dict=run_params)  # Setup parameters
-            # ijp = str(self.project_path.joinpath("Fiji.app"))
-            # self.logger.debug(f'ImageJ path set to {ijp}.')
-            # run_instance.update(ijp=ijp)
+            ijp = str(self.project_path.joinpath("Fiji.app"))
+            self.logger.debug(f'ImageJ path set to {ijp}.')
+            run_instance.update(ijp=ijp)
             cur_instance.run_instance = run_instance
             self.instance_list[idx] = cur_instance
             self.create_run_tab(idx)

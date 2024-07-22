@@ -17,104 +17,12 @@ from src.src_stabilizer import run_plugin
 from src.src_peak_caller import PeakCaller
 
 
-# def parse():
-#     """
-#     Parse function for argparse
-#     """
-#     # Set up description
-#     desp = 'Automated pipeline for CaImAn processing.\nIf you have multiple inputs, please place them within a ' \
-#            'single folder without any other files.'
-#     parser = argparse.ArgumentParser(description=desp)
-#     # Set up arguments
-#     # Control parameters
-#     parser.add_argument('-no_log', default=False, action='store_true',
-#                         help='Specified if do not want to have terminal printouts saved to a separate file.')
-#     parser.add_argument('-ijp', '--imagej-path', type=str, metavar='ImageJ-Path', required=True,
-#                         help='Path to local Fiji ImageJ fiji folder.')
-#     parser.add_argument('-wd', '--work-dir', type=str, metavar='Work-Dir', required=True,
-#                         help='Path to a working folder where all intermediate and overall results are stored. If not '
-#                              'exist then will create one automatically.')
-#     parser.add_argument('-input', type=str, metavar='INPUT', required=True,
-#                         help='Path to input/inputs folder. If you have multiple inputs file, please place them inside '
-#                              'a single folder. If you only have one input, either provide direct path or the path to'
-#                              ' the folder containing the input(without any other files!)')
-#     parser.add_argument('-do_s0', default=True, action="store_false", required=False, help='Skip cropping if specified')
-#     parser.add_argument('-do_s1', default=True, action="store_false", required=False,
-#                         help='Skip Stabilizer if specified.')
-#     parser.add_argument('-do_s2', default=True, action="store_false", required=False,
-#                         help='Skip CaImAn if specified.')
-#     # Functional parameters
-#     parser.add_argument('-margin', default=200, type=int, metavar='Margin', required=False,
-#                         help='Margin in terms of pixels for auto-cropping. Default to be 200.')
-#     parser.add_argument('-ij_trans', default=0, type=int, required=False,
-#                         help='ImageJ stabilizer parameter - Transformation. You have to specify -ij_param to use it. '
-#                              'Default to translation, set it to 1 if want to set it to affine.')
-#     parser.add_argument('-ij_maxpl', default=1, type=float, required=False,
-#                         help='ImageJ stabilizer parameter - MAX_Pyramid_level. You have to specify -ij_param to use '
-#                              'it. Default to be 1.0.')
-#     parser.add_argument('-ij_upco', default=0.90, type=float, required=False,
-#                         help='ImageJ stabilizer parameter - update_coefficient. You have to specify -ij_param to use '
-#                              'it. Default to 0.90.')
-#     parser.add_argument('-ij_maxiter', default=200, type=int, required=False,
-#                         help='ImageJ stabilizer parameter - MAX_iteration. You have to specify -ij_param to use it. '
-#                              'Default to 200.')
-#     parser.add_argument('-ij_errtol', default=1E-7, type=float, required=False,
-#                         help='ImageJ stabilizer parameter - error_rolerance. You have to specify -ij_param to use '
-#                              'it. Default to 1E-7.')
-#     parser.add_argument('-clog', default=False, action='store_true',
-#                         help='True if enable logging for caiman part. Default to be false.')
-#     parser.add_argument('-csave', default=False, action='store_true',
-#                         help='True if want to save denoised movie. Default to be false.')
-#     # Parse the arguments
-#     arguments = parser.parse_args()
-#     # Post-process arguments
-#     # ImageJ path and param
-#     # arguments.imagej_path = Path(arguments.imagej_path)
-#     if not os.path.exists(arguments.imagej_path):
-#         if not arguments.skip_1:
-#             raise OSError(f"[ERROR]: ImageJ path does not exist: {arguments.imagej_path}")
-#     arguments.ij_params = {
-#         "Transformation": arguments.ij_trans,
-#         "MAX_Pyramid_level": arguments.ij_maxpl,
-#         "update_coefficient": arguments.ij_upco,
-#         "MAX_iteration": arguments.ij_maxiter,
-#         "error_tolerance": arguments.ij_errtol
-#     }
-#     # work_dir path
-#     # arguments.work_dir = Path(arguments.work_dir)
-#     if not os.path.exists(arguments.work_dir):
-#         print(f"Working directory {arguments.work_dir} does not exist. Attempting to create one.")
-#         try:
-#             Path(arguments.work_dir).mkdir(parents=True, exist_ok=False)
-#         except OSError:
-#             print(f"[ERROR]: OSError detected. Please check if disk exists or privilege level satisfies.")
-#             exit(1)
-#     # input folder path
-#     arguments.input = str(arguments.input)  # To suppress IDE warning
-#     if os.path.exists(arguments.input):
-#         if os.path.isdir(arguments.input):
-#             # Path to a folder of multiple inputs.
-#             arguments.input_root = arguments.input
-#             arguments.input = [f for f in os.listdir(arguments.input_root) if f[-4:] == '.tif']
-#         else:
-#             # Path to a single input file.
-#             temp = os.path.basename(arguments.input)
-#             if temp[-4:] != ".tif":
-#                 raise FileNotFoundError(f"The input file {arguments.input} is not a tiff file.")
-#             arguments.input_root = remove_suffix(arguments.input, temp)
-#             arguments.input = [temp]
-#     else:
-#         raise FileNotFoundError(f"[ERROR]: Input file path {arguments.input} does not exist.")
-#     return arguments
-
-
 class Pipeline(object):
     def __init__(
             self,
             queue=None,
             queue_id=0,
             log_queue=None,
-            project_path=None,
     ):
         # GUI-related
         self.queue = queue
@@ -172,7 +80,6 @@ class Pipeline(object):
         }
         self.is_running = False
         self.is_finished = False
-        self.project_path = Path(project_path)
         # Control sequence
         self.work_dir = ''
         self.log = None
@@ -184,15 +91,7 @@ class Pipeline(object):
         self.done_s0 = False
         # ImageJ stabilizer related variables
         self.do_s1 = False
-        if project_path:
-            self.ijp = Path(project_path).joinpath('Fiji.app')
-            ij = self.prepare_imagej(project_path)
-        else:
-            self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
-            ij = self.prepare_imagej(str(Path(__file__).parent.parent))
-        if ij != str(self.ijp):
-            self.log_print(f"Mismatch ij: installed @ {ij}, expected @ {self.ijp}")
-            raise FileNotFoundError(f"ImageJ not found in {self.ijp}")
+        self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
         self.done_s1 = False
         # CaImAn related variables
         self.do_s2 = False
@@ -215,44 +114,6 @@ class Pipeline(object):
             print(txt)
             if self.log is not None:
                 self.log.write(txt + '\n')
-
-    def prepare_imagej(self, project_path: str):
-        # Check if installed
-        if Path(project_path).joinpath('Fiji.app').exists():
-            self.log_print(f"ImageJ already installed in {project_path}.")
-            return
-        system = platform.system()
-        match system:
-            case 'Windows':
-                url = 'https://downloads.imagej.net/fiji/latest/fiji-win64.zip'
-            case 'Linux':
-                url = 'https://downloads.imagej.net/fiji/latest/fiji-linux64.zip'
-            case 'Darwin':
-                url = 'https://downloads.imagej.net/fiji/latest/fiji-macosx.zip'
-            case _:
-                raise ValueError(f"Unsupported system: {system}")
-        self.log_print(f"On {system}, downloading ImageJ from {url}")
-        # Download and unzip
-        r = requests.get(url)
-        if r.status_code == 200:
-            temp_path = Path(project_path).joinpath('fiji.zip')
-            try:
-                with open(temp_path, 'wb') as temp_file:
-                    temp_file.write(r.content)
-                with zipfile.ZipFile(str(temp_path), 'r') as zip_ref:
-                    zip_ref.extractall(project_path)
-            finally:
-                temp_path.unlink()
-        else:
-            raise ConnectionError(f"Failed to download ImageJ from {url}. Status code: {r.status_code}")
-        self.log_print(f"ImageJ installed in {project_path}.")
-        try:
-            copy(str(self.project_path.joinpath('resource').joinpath('Image_Stabilizer_Headless.class')),
-                 str(self.project_path.joinpath('Fiji.app').joinpath('plugins').joinpath(
-                     'Image_Stabilizer_Headless.class')))
-        except Exception as e:
-            self.log_print(f"Failed to copy Image_Stabilizer_Headless.class to ImageJ plugins folder. Error: {e}")
-        return str(self.project_path.joinpath('Fiji.app'))
 
     def update(self, **kwargs):
         for key, value in kwargs.items():

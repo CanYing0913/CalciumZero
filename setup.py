@@ -2,7 +2,6 @@ from cx_Freeze import setup, Executable
 
 # Dependencies are automatically detected, but they might need fine-tuning
 build_exe_options = {
-    # "base": "console",
     "build_exe": "dist",
     "includes": [
         "caiman",
@@ -11,7 +10,6 @@ build_exe_options = {
         "z5py",
     ],
     "include_files": [
-        "Fiji.app",
         "config.json",
         "log"
     ],
