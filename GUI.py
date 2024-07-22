@@ -463,13 +463,16 @@ class GUI:
             run_instance = Pipeline(
                 queue=self.queue,
                 queue_id=idx,
-                log_queue=self.log_queue
+                log_queue=self.log_queue,
+                project_path=self.project_path,
             )
             for item in ['input_path', 'output_path', 'run']:
                 if item not in run_params:
                     return False, f"Missing parameter {item}."
             run_instance.update(params_dict=run_params)  # Setup parameters
-            run_instance.update(ijp=str(self.project_path.joinpath("Fiji.app")))
+            # ijp = str(self.project_path.joinpath("Fiji.app"))
+            # self.logger.debug(f'ImageJ path set to {ijp}.')
+            # run_instance.update(ijp=ijp)
             cur_instance.run_instance = run_instance
             self.instance_list[idx] = cur_instance
             self.create_run_tab(idx)

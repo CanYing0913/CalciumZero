@@ -3,8 +3,11 @@ Source file for pipeline in general, OOP workflow
 Last edited on July 17, 2024
 Copyright @ Yian Wang (canying0913@gmail.com) - 2024
 """
-import argparse
+import requests
+import zipfile
+import platform
 from multiprocessing import Pool
+from shutil import copy
 from time import perf_counter
 from typing import Optional, Tuple, List
 from pathlib import Path
@@ -106,7 +109,13 @@ from src.src_peak_caller import PeakCaller
 
 
 class Pipeline(object):
-    def __init__(self, queue=None, queue_id=0, log_queue=None):
+    def __init__(
+            self,
+            queue=None,
+            queue_id=0,
+            log_queue=None,
+            project_path=None,
+    ):
         # GUI-related
         self.queue = queue
         self.queue_id = queue_id
@@ -163,6 +172,7 @@ class Pipeline(object):
         }
         self.is_running = False
         self.is_finished = False
+        self.project_path = Path(project_path)
         # Control sequence
         self.work_dir = ''
         self.log = None
@@ -174,8 +184,15 @@ class Pipeline(object):
         self.done_s0 = False
         # ImageJ stabilizer related variables
         self.do_s1 = False
-        self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
-        # self.ij = imagej.init(str(self.ijp), mode='interactive')
+        if project_path:
+            self.ijp = Path(project_path).joinpath('Fiji.app')
+            ij = self.prepare_imagej(project_path)
+        else:
+            self.ijp = Path(__file__).parent.parent.joinpath('Fiji.app')
+            ij = self.prepare_imagej(str(Path(__file__).parent.parent))
+        if ij != str(self.ijp):
+            self.log_print(f"Mismatch ij: installed @ {ij}, expected @ {self.ijp}")
+            raise FileNotFoundError(f"ImageJ not found in {self.ijp}")
         self.done_s1 = False
         # CaImAn related variables
         self.do_s2 = False
@@ -199,49 +216,43 @@ class Pipeline(object):
             if self.log is not None:
                 self.log.write(txt + '\n')
 
-    # def parse(self):
-    #     # Retrieve calling parameters
-    #     arguments = parse()
-    #
-    #     # Must only specify one skip
-    #     assert self.skip_0 is False or self.skip_1 is False, "Duplicate skip param specified."
-    #     self.s1_root = self.s2_root = self.work_dir
-    #     # Use parameters to set up pipeline global info
-    #     # Control related
-    #     self.work_dir = arguments.work_dir
-    #     self.skip_0 = arguments.skip_0
-    #     self.skip_1 = arguments.skip_1
-    #     if not arguments.no_log:
-    #         log_path = os.path.join(self.work_dir, 'log.txt')
-    #         self.log = open(log_path, 'w')
-    #         self.log_print(f"log file is stored @ {log_path}")
-    #     # Segmentation and cropping related variables
-    #     self.input_root = arguments.input_root
-    #     self.input_list = arguments.input
-    #     self.margin = arguments.margin
-    #     # ImageJ related
-    #     if not self.skip_1:
-    #         self.ijp = arguments.imagej_path
-    #         self.log_print(f"ImageJ initialized with version {self.ij.getVersion()}.")
-    #         self.params_dict['stabilizer'] = arguments.ij_params
-    #         print_param(self.params_dict['stabilizer'], self.log_print)
-    #     # CaImAn related variables
-    #     # TODO: add caiman parameters
-    #     self.clog = arguments.clog
-    #     self.csave = arguments.csave
-    #     # TODO: add peak_caller parameters
-    #     pass
-    #     # Get control params to determine dest list
-    #     # TODO: need extra care for caiman mmap generation
-    #
-    #     # End of parser. Start of post-parse processing.
-    #     if self.skip_0:
-    #         self.s1_root = self.input_root
-    #         self.imm1_list = self.input_list
-    #     elif self.skip_1:
-    #         self.s2_root = self.input_root
-    #         self.imm2_list = self.input_list
-    #     return None
+    def prepare_imagej(self, project_path: str):
+        # Check if installed
+        if Path(project_path).joinpath('Fiji.app').exists():
+            self.log_print(f"ImageJ already installed in {project_path}.")
+            return
+        system = platform.system()
+        match system:
+            case 'Windows':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-win64.zip'
+            case 'Linux':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-linux64.zip'
+            case 'Darwin':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-macosx.zip'
+            case _:
+                raise ValueError(f"Unsupported system: {system}")
+        self.log_print(f"On {system}, downloading ImageJ from {url}")
+        # Download and unzip
+        r = requests.get(url)
+        if r.status_code == 200:
+            temp_path = Path(project_path).joinpath('fiji.zip')
+            try:
+                with open(temp_path, 'wb') as temp_file:
+                    temp_file.write(r.content)
+                with zipfile.ZipFile(str(temp_path), 'r') as zip_ref:
+                    zip_ref.extractall(project_path)
+            finally:
+                temp_path.unlink()
+        else:
+            raise ConnectionError(f"Failed to download ImageJ from {url}. Status code: {r.status_code}")
+        self.log_print(f"ImageJ installed in {project_path}.")
+        try:
+            copy(str(self.project_path.joinpath('resource').joinpath('Image_Stabilizer_Headless.class')),
+                 str(self.project_path.joinpath('Fiji.app').joinpath('plugins').joinpath(
+                     'Image_Stabilizer_Headless.class')))
+        except Exception as e:
+            self.log_print(f"Failed to copy Image_Stabilizer_Headless.class to ImageJ plugins folder. Error: {e}")
+        return str(self.project_path.joinpath('Fiji.app'))
 
     def update(self, **kwargs):
         for key, value in kwargs.items():
