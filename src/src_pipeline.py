@@ -3,29 +3,26 @@ Source file for pipeline in general, OOP workflow
 Last edited on July 17, 2024
 Copyright @ Yian Wang (canying0913@gmail.com) - 2024
 """
-import requests
-import zipfile
-import platform
-from multiprocessing import Pool
-from shutil import copy
+from multiprocessing import Pool, Queue
 from time import perf_counter
 from typing import Optional, Tuple, List
-from pathlib import Path
+
 from src.src_caiman import *
 from src.src_detection import *
-from src.src_stabilizer import run_plugin
 from src.src_peak_caller import PeakCaller
+from src.src_stabilizer import run_plugin
+from src.utils import iprint
 
 
 class Pipeline(object):
     def __init__(
             self,
-            queue=None,
-            queue_id=0,
-            log_queue=None,
+            queue: Optional[Queue] = None,
+            queue_id: int = 0,
+            log_queue: Optional[Queue] = None,
     ):
         # GUI-related
-        self.queue = queue
+        self.msg_queue = queue
         self.queue_id = queue_id
         self.log_queue = log_queue
         self.logger = None
@@ -82,7 +79,6 @@ class Pipeline(object):
         self.is_finished = False
         # Control sequence
         self.work_dir = ''
-        self.log = None
         self.process = 2
         # Segmentation and cropping related variables
         self.do_s0 = False
@@ -105,20 +101,18 @@ class Pipeline(object):
         self.do_s3 = False
         self.pc_obj = []
 
-    def log_print(self, txt: str):
+    def log(self, txt: str):
         if self.log_queue:
-            self.log_queue.put(txt)
+            iprint(txt, log_queue=self.log_queue)
         elif self.logger:
-            self.logger.debug(txt)
+            iprint(txt, logger=self.logger)
         else:
-            print(txt)
-            if self.log is not None:
-                self.log.write(txt + '\n')
+            iprint(txt)
 
     def update(self, **kwargs):
         for key, value in kwargs.items():
             if not hasattr(self, key):
-                self.log_print(f'the requested key {key} does not exist.')
+                self.log(f'the requested key {key} does not exist.')
                 continue
 
             # Setup extra params other than s0-s2
@@ -160,7 +154,7 @@ class Pipeline(object):
 
     def s0(self, file_list) -> Tuple[List[Path], List[Path]]:
         def ps0(text: str):
-            self.log_print(f"***[S0 - Detection]: {text}")
+            self.log(f"*[Detection]: {text}")
 
         start_time = perf_counter()
         # Segmentation and cropping
@@ -196,7 +190,7 @@ class Pipeline(object):
 
     def s1(self, file_list: List[Path]) -> List[Path]:
         def ps1(text: str):
-            self.log_print(f"***[S1 - ImageJ stabilizer]: {text}")
+            self.log(f"*[Stabilizer]: {text}")
 
         # ImageJ Stabilizer
         ps1(f"Stabilizer Starting.")
@@ -220,7 +214,7 @@ class Pipeline(object):
 
     def s2(self, file_list) -> Tuple[Path, Optional[List[Path]]]:
         def ps2(txt: str):
-            self.log_print(f"***[S2 - caiman]: {txt}")
+            self.log(f"*[CaImAn]: {txt}")
 
         self.cmobj_path = Path(self.work_dir).joinpath("cmn_obj.cmobj")
 
@@ -365,32 +359,15 @@ class Pipeline(object):
         return self.cmobj_path, self.outpath_s2
 
     def s3(self, file_list):
+        def ps3(txt: str):
+            self.log(f"*[PeakCaller]: {txt}")
         # peak_caller
         # slice_num = _
         if not self.do_s2:
             pass
         data = self.caiman_obj.estimates.f
 
-        # TODO: get slice number to know how many to pass to peak caller
-        # filename = join(self.work_dir, '')
-        # demo: a single image
-        filename = file_list
-        pc_obj1 = PeakCaller(data, filename)
-        pc_obj1.Detrender_2()
-        pc_obj1.Find_Peak()
-        new_series = pc_obj1.Filter_Series('src/finalized_model.sav')
-        pc_obj2 = PeakCaller(new_series, filename)
-        pc_obj2.Detrender_2()
-        pc_obj2.Find_Peak()
-        pc_obj2.Print_ALL_Peaks()
-        pc_obj2.Raster_Plot()
-        pc_obj2.Histogram_Height()
-        pc_obj2.Histogram_Time()
-        pc_obj2.Correlation()
-        # To save results, do something like this:
-        pc_obj2.Synchronization()
-        pc_obj2.Save_Result()
-        self.pc_obj.append(pc_obj2)
+        pass
 
     def run(self):
         msg = {
@@ -402,9 +379,9 @@ class Pipeline(object):
             assert 'cmn_obj' in self.input_list
 
         start_time = perf_counter()
-        if self.queue:
+        if self.msg_queue:
             msg['is_running'] = True
-            self.queue.put(msg)
+            self.msg_queue.put(msg)
         # First, decide which section to start execute
         file_list = self.input_list
         if self.do_s0:
@@ -421,7 +398,7 @@ class Pipeline(object):
             file_list = self.s2(file_list)
             end_time_caiman = time()
             exec_t = end_time_caiman - start_time_caiman
-            self.log_print(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
+            self.log(f"caiman part took {exec_t // 60}m {int(exec_t % 60)}s.")
             self.done_s2 = True
 
         # Peak_caller part
@@ -430,13 +407,11 @@ class Pipeline(object):
 
         end_time = perf_counter()
         exec_time = end_time - start_time
-        self.log_print(f"[INFO] pipeline.run() takes {exec_time // 60}m {int(exec_time % 60)}s.")
-        if self.log is not None and not self.log.closed:
-            self.log.close()
-        if self.queue:
+        self.log(f"[INFO] pipeline.run() takes {exec_time // 60}m {int(exec_time % 60)}s.")
+        if self.msg_queue:
             msg['is_running'] = False
             msg['is_finished'] = True
-            self.queue.put(msg)
+            self.msg_queue.put(msg)
 
 
 class QC:

@@ -20,7 +20,6 @@ from src.utils import *
 def test(queue, idx):
     msg = {'idx': idx, 'is_running': False, 'is_finished': False}
     # print(f"putting first {msg}")
-    # queue.put(msg)
     time.sleep(5)
     # instance_list[idx].is_running = True
     msg['is_running'] = True
@@ -84,6 +83,9 @@ class GUI:
         # Set the position of the window to the center of the screen
         window.geometry(f'{width}x{height}+{center_x}+{center_y}')
 
+    def log(self, msg):
+        iprint(msg, self.logger)
+
     def __init__(self, debug=False):
         self.debug = debug
         # Set up logging
@@ -92,9 +94,8 @@ class GUI:
             self.logger = setup_logger(self.project_path)
         else:
             self.project_path = Path.cwd()
-            print(f"Project fpath: {self.project_path}")
             self.logger = setup_logger(self.project_path)
-        self.logger.debug(f"Project path set to {self.project_path}")
+        self.log(f"Project path set to {self.project_path}")
         self.prepare_imagej()
         # TODO: Read Configuration files if needed.
         pass
@@ -131,12 +132,12 @@ class GUI:
 
         # Set up the app
         self.setup()
-        self.logger.debug('GUI setup finished.')
+        self.log('GUI setup finished.')
 
     def prepare_imagej(self):
         # Check if installed
         if Path(self.project_path).joinpath('Fiji.app').exists():
-            self.logger.debug(f"ImageJ already installed in {self.project_path}.")
+            self.log(f"ImageJ already installed in {self.project_path}.")
             return
         system = platform.system()
         match system:
@@ -148,7 +149,7 @@ class GUI:
                 url = 'https://downloads.imagej.net/fiji/latest/fiji-macosx.zip'
             case _:
                 raise ValueError(f"Unsupported system: {system}")
-        self.logger.debug(f"On {system}, downloading ImageJ from {url}")
+        self.log(f"On {system}, downloading ImageJ from {url}")
         # Download and unzip
         r = requests.get(url)
         if r.status_code == 200:
@@ -162,13 +163,13 @@ class GUI:
                 temp_path.unlink()
         else:
             raise ConnectionError(f"Failed to download ImageJ from {url}. Status code: {r.status_code}")
-        self.logger.debug(f"ImageJ installed in {self.project_path}.")
+        self.log(f"ImageJ installed in {self.project_path}.")
         try:
             copy(str(self.project_path.joinpath('resource').joinpath('Image_Stabilizer_Headless.class')),
                  str(self.project_path.joinpath('Fiji.app').joinpath('plugins').joinpath(
                      'Image_Stabilizer_Headless.class')))
         except Exception as e:
-            self.logger.debug(f"Failed to copy Image_Stabilizer_Headless.class to ImageJ plugins folder. Error: {e}")
+            self.log(f"Failed to copy Image_Stabilizer_Headless.class to ImageJ plugins folder. Error: {e}")
         return str(self.project_path.joinpath('Fiji.app'))
 
     def create_menu(self):
@@ -221,7 +222,7 @@ class GUI:
 
             file_path = filedialog.askopenfilename(parent=dialog, title="Select a file", filetypes=filetypes)
             param_dict['input_path'] = file_path
-            self.logger.debug(f"Selected input file: {file_path}")
+            self.log(f"Selected input file: {file_path}")
 
         tk.Button(ioselect_frame, text="Select input File", command=on_select_file).pack(side=tk.LEFT, padx=5)
 
@@ -229,7 +230,7 @@ class GUI:
         def on_select_folder():
             folder_path = filedialog.askdirectory(parent=dialog, title="Select a folder")
             param_dict['output_path'] = folder_path
-            self.logger.debug(f"Selected output folder: {folder_path}")
+            self.log(f"Selected output folder: {folder_path}")
 
         tk.Button(ioselect_frame, text="Select output Folder", command=on_select_folder).pack(side=tk.LEFT, padx=5)
 
@@ -418,15 +419,15 @@ class GUI:
                 if param_dict['run'][1]:
                     fname += '_stab'
                 fname = fname + '.tif'
-                self.logger.debug(f'expect fname: {fname}')
+                self.log(f'Expect caiman fname: {fname}')
                 param_dict['caiman']['mc_dict']['fnames'] = [fname]
             status, msg = self.create_instance(run_params=param_dict)
             if not status:
-                self.logger.debug(f'Instance creation failed: {msg}')
+                self.log(f'Instance creation failed: {msg}')
                 tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}", parent=dialog)
                 return
             dialog.destroy()
-            self.logger.debug(f'New instance created and added to position {msg}.')
+            self.log(f'New instance created and added to position {msg}.')
 
         # OK and Cancel buttons
         tk.Button(dialog, text="OK", command=on_ok).pack(side="left", padx=10, pady=10)
@@ -449,7 +450,7 @@ class GUI:
             filetypes = [("cmobj", "*.cmobj"), ("cm_obj", "*.cm_obj"), ("All files", "*.*")]
 
             qc_path = filedialog.askopenfilename(parent=dialog, title="Select a file", filetypes=filetypes)
-            self.logger.debug(f"Selected qc file: {qc_path}")
+            self.log(f"Selected qc file: {qc_path}")
 
         tk.Button(frame_1, text="Select QC File", command=on_select_file).pack(side=tk.LEFT, padx=5)
 
@@ -459,17 +460,17 @@ class GUI:
         # Function to handle 'OK' button click
         def on_ok():
             if qc_path is None or qc_path == '':
-                self.logger.debug(f'No qc file selected.')
+                self.log(f'No qc file selected.')
                 tkinter.messagebox.showerror("Error", "No qc file selected.")
                 return
 
             status, msg = self.create_instance(qc_param={'cm_obj': qc_path})
             if not status:
-                self.logger.debug(f'Instance creation failed: {msg}')
+                self.log(f'Instance creation failed: {msg}')
                 tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}")
                 return
             dialog.destroy()
-            self.logger.debug(f'New QC instance created and added to position {msg}.')
+            self.log(f'New QC instance created and added to position {msg}.')
 
         # OK and Cancel buttons
         tk.Button(frame_2, text="OK", command=on_ok).pack(side=tk.LEFT, padx=10, pady=10)
@@ -512,7 +513,7 @@ class GUI:
                     return False, f"Missing parameter {item}."
             run_instance.update(params_dict=run_params)  # Setup parameters
             ijp = str(self.project_path.joinpath("Fiji.app"))
-            self.logger.debug(f'ImageJ path set to {ijp}.')
+            self.log(f'ImageJ path set to {ijp}.')
             run_instance.update(ijp=ijp)
             cur_instance.run_instance = run_instance
             self.instance_list[idx] = cur_instance
@@ -740,7 +741,7 @@ class GUI:
     def close_instance(self, idx: int):
         # Delete Pipeline instance and running Process
         assert idx < self.TAB_MAX, f"Invalid index={idx} to close."
-        self.logger.debug(f'Closing instance {idx}.')
+        self.log(f'Closing instance at position {idx}.')
         try:
             self.process_list[idx].terminate()
             self.process_list[idx] = None
@@ -793,7 +794,7 @@ class GUI:
         try:
             while True:
                 msg = self.log_queue.get_nowait()
-                self.logger.debug(msg)
+                self.log(msg)
         except queue.Empty:
             pass
         finally:
@@ -805,13 +806,13 @@ class GUI:
         # check running ok
         status, msg = self.instance_list[idx].run_instance.ready()
         if not status:
-            self.logger.debug(f'not ready, message: {msg}')
+            self.log(f'Instance not ready for running, message: {msg}')
             raise Warning("Instance not ready")
         print(f'running {idx}')
         p = Process(target=self.instance_list[idx].run_instance.run, args=())
         p.start()
         self.process_list[idx] = p
-        # p = Process(target=test, args=(self.queue, idx))
+        # p = Process(target=test, args=(self.msg_queue, idx))
         # p.start()
         # self.process_list[idx] = p
 
@@ -1028,15 +1029,15 @@ class GUI:
                 if param_dict['run'][1]:
                     fname += '_stab'
                 fname = fname + '.tif'
-                self.logger.debug(f'expect fname: {fname}')
+                self.log(f'expect fname: {fname}')
                 param_dict['caiman']['mc_dict']['fnames'] = [fname]
             status, msg = self.create_instance(run_params=param_dict)
             if not status:
-                self.logger.debug(f'Instance creation failed: {msg}')
+                self.log(f'Instance creation failed: {msg}')
                 tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}")
                 return
             dialog.destroy()
-            self.logger.debug(f'New instance created and added to position {msg}.')
+            self.log(f'New instance created and added to position {msg}.')
 
         # OK and Cancel buttons
         tk.Button(dialog, text="OK", command=on_ok).pack(side="left", padx=10, pady=10)
@@ -1046,7 +1047,7 @@ class GUI:
         def on_close():
             if messagebox.askokcancel("Quit", "Do you want to quit the application?"):
                 self.root.destroy()
-                self.logger.debug('GUI closed.')
+                self.log('GUI closed.')
 
         self.root.protocol("WM_DELETE_WINDOW", on_close)
 
