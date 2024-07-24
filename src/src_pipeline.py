@@ -9,7 +9,7 @@ from typing import Optional, Tuple, List
 
 from src.src_caiman import *
 from src.src_detection import *
-from src.src_peak_caller import PeakCaller
+from src.src_peak_caller import PC
 from src.src_stabilizer import run_plugin
 from src.utils import iprint
 
@@ -153,9 +153,6 @@ class Pipeline(object):
         return True, ''
 
     def s0(self, file_list) -> Tuple[List[Path], List[Path]]:
-        def ps0(text: str):
-            self.log(f"*[Detection]: {text}")
-
         start_time = perf_counter()
         # Segmentation and cropping
         # Scanning for bounding box for multiple input
@@ -179,25 +176,22 @@ class Pipeline(object):
             image_crop_o = apply_bb_3d(image_i, (x1, y1, x2, y2), self.params_dict['crop']['threshold'], finalxcnts)
             # Handle output path
             filename_out = Path(self.work_dir).joinpath(Path(filename_in).stem + "_crop.tif")
-            ps0(f"Using paths: {filename_out} to save cropped result.")
+            self.log(f"*[Detection]: Using paths: {filename_out} to save cropped result.")
             # Save imm1 data to files
             tifffile.imwrite(str(filename_out), image_crop_o)
             filenames_crop.append(filename_out)
         self.done_s0 = True
         end_time = perf_counter()
-        ps0(f"Detection finished in {int(end_time - start_time)} s.")
+        self.log(f"*[Detection]: Detection finished in {int(end_time - start_time)} s.")
         return filenames_crop, filenames_seg
 
     def s1(self, file_list: List[Path]) -> List[Path]:
-        def ps1(text: str):
-            self.log(f"*[Stabilizer]: {text}")
-
         # ImageJ Stabilizer
-        ps1(f"Stabilizer Starting.")
+        self.log(f"*[Stabilizer]: Stabilizer Starting.")
         results = []
         start_time = perf_counter()
         idx = 0
-        ps1(f"Using files {file_list} for stabilizer.")
+        self.log(f"*[Stabilizer]: Using files {file_list} for stabilizer.")
         while idx < len(file_list):
             imm1_list = [file_list[idx + i] for i in range(self.process) if idx + i < len(file_list)]
             idx += self.process
@@ -208,30 +202,27 @@ class Pipeline(object):
                                            self.params_dict['stabilizer'])
                                            for file in imm1_list])
         end_time = perf_counter()
-        ps1(f"Stabilizer finished in {int(end_time - start_time)} s.")
-        ps1(f'Stabilizer result are placed in {results}.')
+        self.log(f"*[Stabilizer]: Stabilizer finished in {int(end_time - start_time)} s.")
+        self.log(f'*[Stabilizer]: Stabilizer result are placed in {results}.')
         return results
 
     def s2(self, file_list) -> Tuple[Path, Optional[List[Path]]]:
-        def ps2(txt: str):
-            self.log(f"*[CaImAn]: {txt}")
-
         self.cmobj_path = Path(self.work_dir).joinpath("cmn_obj.cmobj")
 
         start_time = perf_counter()
         if self.clog:
-            ps2(f"caiman logging enabled.")
+            self.log(f"*[CaImAn]: caiman logging enabled.")
             logging.basicConfig(
                 format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
                 level=logging.DEBUG)
         filenames_in = file_list
         self.outpath_s2 = [Path(self.work_dir).joinpath(Path(f).stem + '_caiman.tif') for f in filenames_in]
-        ps2(f"caiman sets input: {filenames_in}, output path: {self.outpath_s2}")
+        self.log(f"*[CaImAn]: caiman sets input: {filenames_in}, output path: {self.outpath_s2}")
         self.params_dict['caiman']['mc_dict']['fnames'] = filenames_in
         opts = params.CNMFParams(params_dict=self.params_dict['caiman']['mc_dict'])
         # Motion Correction
         if self.params_dict['caiman']['mc_dict']['motion_correct']:
-            ps2(f"Running motion correction...")
+            self.log(f"*[CaImAn]: Running motion correction...")
             # do motion correction rigid
             mc = MotionCorrect(filenames_in, dview=None, **opts.get_group('motion'))
             mc.motion_correct(save_movie=True)
@@ -254,11 +245,11 @@ class Pipeline(object):
             bord_px = 0 if border_nan == 'copy' else bord_px
             fname_mmap = cm.save_memmap(fname_mc, base_name='memmap_', order='C', border_to_0=bord_px)
         else:  # if no motion correction just memory map the file
-            ps2(f"Motion correction skipped.")
+            self.log(f"*[CaImAn]: Motion correction skipped.")
             bord_px = 0
             fname_mmap = cm.save_memmap([str(filename) for filename in filenames_in],
                                         base_name='memmap_', order='C', border_to_0=0, dview=None)
-        ps2(f"mmap file saved to {fname_mmap}")
+        self.log(f"*[CaImAn]: mmap file saved to {fname_mmap}")
 
         # load memory mappable file
         Yr, dims, T = cm.load_memmap(fname_mmap)
@@ -273,14 +264,14 @@ class Pipeline(object):
         # nb_inspect_correlation_pnr(cn_filter, pnr)
 
         # Run the CNMF-E algorithm
-        ps2(f"Running CNMF-E...")
+        self.log(f"*[CaImAn]: Running CNMF-E...")
         start_time_cnmf = perf_counter()
         cnm = cnmf.CNMF(n_processes=8, dview=None, Ain=Ain, params=opts)
         cnm.fit(images)
         setattr(cnm, 'images', images)
         end_time_cnmf = perf_counter()
         exec_time_cnmf = end_time_cnmf - start_time_cnmf
-        ps2(f"cnmf takes {exec_time_cnmf // 60}m, {int(exec_time_cnmf % 60)}s to complete.")
+        self.log(f"*[CaImAn]: cnmf takes {exec_time_cnmf // 60}m, {int(exec_time_cnmf % 60)}s to complete.")
         # ## Component Evaluation
         # the components are evaluated in three ways:
         #   a) the shape of each component must be correlated with the data
@@ -294,9 +285,9 @@ class Pipeline(object):
                                    'use_cnn': False})
         cnm.estimates.evaluate_components(images, cnm.params, dview=None)
 
-        ps2(' ***** ')
-        ps2(f'Number of total components:  {len(cnm.estimates.C)}')
-        ps2(f'Number of accepted components: {len(cnm.estimates.idx_components)}')
+        self.log('*[CaImAn]:  ***** ')
+        self.log(f'*[CaImAn]: Number of total components:  {len(cnm.estimates.C)}')
+        self.log(f'*[CaImAn]: Number of accepted components: {len(cnm.estimates.idx_components)}')
 
         # Get alll detected spatial components
         x, y = cnm.estimates.A.shape
@@ -337,7 +328,7 @@ class Pipeline(object):
 
         # Extract DF/F values
         (components, frames) = cnm.estimates.C.shape
-        ps2(f"frames: {frames}")
+        self.log(f"*[CaImAn]: frames: {frames}")
         cnm.estimates.detrend_df_f(quantileMin=8, frames_window=frames)
         setattr(cnm, 'dims', dims)
         # Save input files to *.cmobj file
@@ -349,13 +340,13 @@ class Pipeline(object):
             denoised = cm.movie(cnm.estimates.A.dot(cnm.estimates.C)).reshape(dims + (-1,), order='F').transpose(
                 [2, 0, 1])
             denoised.save(str(self.outpath_s2))
-            ps2(f"caiman denoised movie saved to {self.outpath_s2}")
+            self.log(f"*[CaImAn]: caiman denoised movie saved to {self.outpath_s2}")
         with open(self.cmobj_path, "wb") as f:
             pickle.dump(cnm, f)
-            ps2(f"object cnm dumped to {self.cmobj_path}.")
+            self.log(f"*[CaImAn]: object cnm dumped to {self.cmobj_path}.")
         end_time = perf_counter()
         exec_time = end_time - start_time
-        ps2(f"caiman finished in {exec_time // 60}m, {int(exec_time % 60)} s.")
+        self.log(f"*[CaImAn]: caiman finished in {exec_time // 60}m, {int(exec_time % 60)} s.")
         return self.cmobj_path, self.outpath_s2
 
     def s3(self, file_list):
@@ -403,7 +394,7 @@ class Pipeline(object):
 
         # Peak_caller part
         if self.do_s3:
-            self.s3()
+            self.s3(file_list)
 
         end_time = perf_counter()
         exec_time = end_time - start_time
