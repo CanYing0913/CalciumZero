@@ -774,11 +774,10 @@ class GUI:
                             #     idx=idx
                             # )
                             pass
-                # elif msg.is_running:
                 elif msg['is_running']:
                     if self.status_list[idx] == 'idle':
                         self.status_list[idx] = 'running'
-                        print(f'running {idx}')
+                        print(f'Process {idx} starts to run.')
                         self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Stop'
                         self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.NORMAL)
                 else:
@@ -791,6 +790,7 @@ class GUI:
             self.root.after(1000, self.instance_monitor)
 
     def log_monitor(self):
+        """Log messages sent from other processes through log_queue"""
         try:
             while True:
                 msg = self.log_queue.get_nowait()
@@ -801,20 +801,20 @@ class GUI:
             self.root.after(1000, self.log_monitor)
 
     def run_instance(self, idx):
-        if self.instance_list[idx].run_instance.is_running or self.instance_list[idx].run_instance.is_finished:
+        # Stop process
+        if self.instance_list[idx].run_instance.is_running:
+            self.process_list[idx].terminate()
+        if self.instance_list[idx].run_instance.is_finished:
             return
         # check running ok
         status, msg = self.instance_list[idx].run_instance.ready()
         if not status:
             self.log(f'Instance not ready for running, message: {msg}')
             raise Warning("Instance not ready")
-        print(f'running {idx}')
+        self.log(f'Running instance @ {idx}')
         p = Process(target=self.instance_list[idx].run_instance.run, args=())
         p.start()
         self.process_list[idx] = p
-        # p = Process(target=test, args=(self.msg_queue, idx))
-        # p.start()
-        # self.process_list[idx] = p
 
     def show_params(self, index: int):
         """
