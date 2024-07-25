@@ -1,5 +1,7 @@
 import json
+import os
 import queue
+import signal
 import time
 import platform
 import requests
@@ -763,7 +765,7 @@ class GUI:
                 idx = msg['idx']
                 if msg['is_finished']:
                     if self.status_list[idx] == 'running':
-                        print(f'finished {idx}')
+                        self.log(f'Instance @ {idx} finished.')
                         self.status_list[idx] = 'finished'
                         self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Finished'
                         self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.DISABLED)
@@ -802,11 +804,22 @@ class GUI:
 
     def run_instance(self, idx):
         # Stop process
-        if self.instance_list[idx].run_instance.is_running:
-            self.process_list[idx].terminate()
-        if self.instance_list[idx].run_instance.is_finished:
+        if self.status_list[idx] == 'running':
+            # self.process_list[idx].kill()
+            try:
+                os.kill(self.process_list[idx].pid, signal.SIGINT)
+                self.log(f'Terminating instance @ {idx}.')
+                self.process_list[idx] = None
+                self.status_list[idx] = 'idle'
+                self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Start'
+            except Exception as e:
+                self.log(f"Received error: {e}")
+            return
+        if self.status_list[idx] == 'finished':
+            self.log(f'Instance @ {idx} already finished.')
             return
         # check running ok
+        assert self.status_list[idx] == 'idle'
         status, msg = self.instance_list[idx].run_instance.ready()
         if not status:
             self.log(f'Instance not ready for running, message: {msg}')

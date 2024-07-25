@@ -8,6 +8,8 @@ log/**
 .DS_Store
 # for testing
 Fiji.app/**
+dist
+build
 caiman_data/
 test/
 log/
