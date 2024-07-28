@@ -9,7 +9,7 @@ from typing import Optional, Tuple, List
 
 from src.src_caiman import *
 from src.src_detection import *
-from src.src_peak_caller import PC
+# from src.src_peak_caller import PC
 from src.src_stabilizer import run_plugin
 from src.utils import iprint
 
