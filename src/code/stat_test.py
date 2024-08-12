@@ -3,12 +3,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.stats.multitest import multipletests
+from os  import path
 
 
-def stat_test():
+def stat_test(save_dir):
     # Load the data
     # data = pd.read_csv('./update_figure6/0430/cluster_average.txt', delimiter='\t')
-    data = pd.read_csv('../data/scale_cluster_average.txt', delimiter='\t', index_col=0)
+    data_path = path.join(save_dir, 'data/scale_cluster_average.txt')
+    data = pd.read_csv(data_path, delimiter='\t', index_col=0)
 
     # Split the data into before and after treatment
     before_data = data.iloc[:700]
@@ -70,14 +72,13 @@ def stat_test():
     # df['result_u_bh'] = df['p_values_u_bh'] < alpha
 
     # Print the DataFrame
-    print(df)
+    # print(df)
 
     # Save the DataFrame to a csv file
-    file_path = '../test/test_output.csv'
+    file_path = path.join(save_dir, 'test/test_output.csv')
     df.to_csv(file_path, index=False)
     # with open(file_path, 'w') as f:
     #     f.write(df.to_string())
-
 
     before_data_mean = before_data.mean()
     after_data_mean = after_data.mean()
@@ -96,10 +97,10 @@ def stat_test():
         'Log2 Fold Change': log2_fold_change
     })
 
-    print(results)
+    # print(results)
 
     # Save the results to a text file
-    fold_change_path = '../test/fold_change_results.txt'
+    fold_change_path = path.join(save_dir, 'test/fold_change_results.txt')
     with open(fold_change_path, 'w') as f:
         f.write(results.to_string())
 
@@ -120,9 +121,10 @@ def stat_test():
     plt.title('Log2 Fold Change (After/Before Treatment)')
 
     plt.tight_layout()
-    plt.savefig('../test/fold_change.png')
-    plt.show()
-    plt.close()
+    fig_fc = path.join(save_dir, 'test/fold_change.png')
+    plt.savefig(fig_fc)
+    # plt.show()
+    # plt.close()
 
     new_labels = [label.replace('ROI_', '') for label in results.index]
 
@@ -134,12 +136,11 @@ def stat_test():
     bars1 = ax.bar(index, results['before_treatment'], bar_width, label='Pre-treatment', color='blue')
     bars2 = ax.bar(index + bar_width, results['after_treatment'], bar_width, label='Post-treatment', color='red')
 
-    print(df["p_values_r"])
+    # print(df["p_values_r"])
     for i, (bar1, bar2) in enumerate(zip(bars1, bars2)):
         x = bar1.get_x() + bar1.get_width() / 2 + bar_width / 2
         y = max(bar1.get_height(), bar2.get_height()) + 0.01
         ax.text(x, y, f'{df["p_values_r"].iloc[i]:.2e}', ha='center', va='center', color='black')
-
 
     ax.set_xlabel('Cluster')
     ax.set_ylabel('Average Height')
@@ -147,6 +148,7 @@ def stat_test():
     ax.set_xticks(index + bar_width / 2)
     ax.set_xticklabels(new_labels)
     ax.legend()
-    plt.savefig('../test/treatment.png')
-    plt.show()
-    plt.close()
+    fig_treatment = path.join(save_dir, 'test/treatment.png')
+    plt.savefig(fig_treatment)
+    # plt.show()
+    # plt.close()

@@ -12,6 +12,7 @@ dist
 build
 caiman_data/
 test/
+tests/
 log/
 .eggs/
 *.csv

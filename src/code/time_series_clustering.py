@@ -82,11 +82,11 @@ class SOMClass:
                     num_series = min(max_series, len(win_map[cluster]))
 
                     # Randomly select series to plot
-                    print(cluster)
+                    # print(cluster)
                     selected_series = random.sample(win_map[cluster], num_series)
                     for i, series in enumerate(selected_series):
                         axs[cluster].plot(series, c="gray", alpha=0.5)
-                        print(i)
+                        # print(i)
 
                     # Arithmetic mean
                     # axs[cluster].plot(np.average(np.vstack(self.win_map[cluster]), axis=0), c="red")
@@ -102,7 +102,7 @@ class SOMClass:
         self.scale_averages_df = pd.DataFrame(scale_average).transpose()
         # output_path = "../data/scale_cluster_average.txt"  # Define the path and filename
         # scale_cluster_average.to_csv(output_path)
-        plt.savefig(path.join(save_dir, 'som_clusters.jpg'), format='jpg', dpi=300)
+        plt.savefig(path.join(save_dir, 'plot/som_clusters.jpg'), format='jpg', dpi=300)
         plt.show()
         plt.close(fig)  # Close the figure to free up memory
 
@@ -122,8 +122,8 @@ class SOMClass:
         plt.figure(figsize=(25, 5))
         plt.title("Cluster Distribution for SOM")
         plt.bar(cluster_n, cluster_c)
-        plt.savefig(path.join(save_dir, 'cluster_distribution.jpg'), format='jpg', dpi=300)
-        plt.show()
+        plt.savefig(path.join(save_dir, 'plot/cluster_distribution.jpg'), format='jpg', dpi=300)
+        # plt.show()
         plt.close()  # Close the figure to free up memory
 
     def cluster_mapping(self, save_dir):
@@ -135,7 +135,7 @@ class SOMClass:
         #     cluster_map.append((idx, f"Cluster {winner_node[0]*som_y + winner_node[1] + 1}"))
         self.df = pd.DataFrame(cluster_map, columns=["Series", "Cluster"]).sort_values(by="Cluster").set_index("Series")
         # Save the DataFrame to a CSV file
-        output_path = path.join(save_dir, "cluster_map.csv")  # Define the path and filename
+        output_path = path.join(save_dir, "data/cluster_map.csv")  # Define the path and filename
         self.df.to_csv(output_path)
 
     def dtw_average(self):
@@ -148,11 +148,11 @@ class SOMClass:
         # Calculate DTW Barycenter for each cluster
         cluster_averages = {}
         for cluster_id, indices in cluster_groups.items():
-            print(cluster_id, indices)
+            # print(cluster_id, indices)
             series_in_cluster = [self.original_data[idx-1] for idx in indices]
             if len(series_in_cluster) > 1:  # DBA needs at least two series to compute
                 average_series = dtw_barycenter_averaging(np.vstack(series_in_cluster))
-                print(average_series)
+                # print(average_series)
                 cluster_averages[cluster_id] = average_series.flatten()
             else:
                 # If only one series in the cluster, that series is the "average"
@@ -160,17 +160,6 @@ class SOMClass:
 
         # Optionally, convert cluster averages to a DataFrame or similar structure for further analysis
         self.averages_df = pd.DataFrame.from_dict(cluster_averages)
-
-    # def save_averages_df(self):
-    #     # Generate the header string with "Time" and column names
-    #     num_columns = len(self.averages_df.columns)
-    #     header = "TIME\t" + "\t".join([f"ROI_{i}" for i in range(1, num_columns)]) + "\n"
-    #     # Generate the index numbers for the "Time" column
-    #     index_numbers = "\n".join(
-    #         [str(i) + "\t" + "\t".join(map(str, row)) for i, row in enumerate(self.averages_df.values, 1)]) + "\n"
-    #     # Write the header followed by the index numbers to a text file
-    #     with open(f"../data/cluster_average.txt", "w") as file:
-    #         file.write(header + index_numbers)
 
     @staticmethod
     def save_df_to_txt(df, filename):
@@ -186,20 +175,20 @@ class SOMClass:
         with open(filename, "w") as file:
             file.write(header + index_numbers)
 
-    def save_averages_df(self):
-        self.save_df_to_txt(self.averages_df, "../data/cluster_average.txt")
+    def save_averages_df(self, save_dir):
+        self.save_df_to_txt(self.averages_df, path.join(save_dir, "data/cluster_average.txt"))
 
-    def save_scale_averages_df(self):
-        self.save_df_to_txt(self.scale_averages_df, "../data/scale_cluster_average.txt")
+    def save_scale_averages_df(self, save_dir):
+        self.save_df_to_txt(self.scale_averages_df, path.join(save_dir, "data/scale_cluster_average.txt"))
 
-    def run(self):
+    def run(self, save_dir):
         self.train()
-        self.plot_som_series_center()
-        self.cluster_distribution()
-        self.cluster_mapping()
+        self.plot_som_series_center(save_dir)
+        self.cluster_distribution(save_dir)
+        self.cluster_mapping(save_dir)
         self.dtw_average()
-        self.save_averages_df()
-        self.save_scale_averages_df()
+        self.save_averages_df(save_dir)
+        self.save_scale_averages_df(save_dir)
 
 
 class KMeansClass:
@@ -257,9 +246,10 @@ class KMeansClass:
         print(df)
 
 
-def ts_clustering(filepath='src/code/G2_data.npy'):
+def ts_clustering(filename, save_dir):
     # Load data
-    input_data = np.load(filepath)
+    # filename = 'src/code/G2_data.npy'
+    input_data = np.load(filename)
     input_data_list = input_data.tolist()
     namesofMySeries = range(1, len(input_data_list) + 1)
 
@@ -279,7 +269,7 @@ def ts_clustering(filepath='src/code/G2_data.npy'):
     # print(scaler)
     # Self-organizing map(SOM) clustering
     som = SOMClass(scaled_data, input_data, namesofMySeries, scaler)
-    som.run()
+    som.run(save_dir)
 
     # K-means clustering
     # kmeans = KMeansClass(data, namesofMySeries)
@@ -287,4 +277,3 @@ def ts_clustering(filepath='src/code/G2_data.npy'):
     # kmeans.plot_kmeans_series_center()
     # kmeans.plot_distribution()
     # kmeans.cluster_mapping()
-

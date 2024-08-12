@@ -9,9 +9,11 @@ import seaborn as sns
 from numpy import linalg as LA
 # from scipy.optimize import inf
 from numpy import mean, absolute
-# from google.colab import drive
 from numpy.linalg import matrix_power
 from scipy.signal import find_peaks
+
+from typing import Optional
+from pathlib import Path
 
 
 def mad(data, axis=None):
@@ -23,14 +25,26 @@ def flatten(lst):
 
 
 class PeakCaller:
-    def __init__(self, seq, filename, index=np.array([])):
-        if index.size == 0:
+    def __init__(
+            self,
+            seq: Optional[np.ndarray] = None,
+            save_base: str = '',
+            index=np.array([])
+    ):
+        self.index = index
+        self.num_peak_rec = 0
+        if seq:
+            self.load_seq(seq)
+        self.save_base = save_base
+
+        self.TrendSmoothness = 25
+
+    def load_seq(self, seq: np.ndarray):
+        self.seq = seq
+        if self.index.size == 0:
             self.index = np.array([i for i in range(len(seq))])
         else:
-            self.index = index
-        self.num_peak_rec = 0
-        self.seq = seq
-        self.filename = filename[:-5]
+            self.index = self.index
         self.obs_num = len(seq)
         self.length = len(seq[0])
         self.smoothed_seq = np.zeros(self.obs_num * self.length).reshape(self.obs_num, self.length)
@@ -64,7 +78,6 @@ class PeakCaller:
         self.candidate_mean_prominence = [0 for _ in range(self.obs_num)]
         self.peak_mean_prominence = [0 for _ in range(self.obs_num)]
         self.peak_std_prominence = [0 for _ in range(self.obs_num)]
-        self.TrendSmoothness = 25
 
     def Detrender(self, mark=0, s=60):
         if mark == 1:
@@ -242,13 +255,13 @@ class PeakCaller:
             self.peak_height_std[i] = np.std(np.array(pks[i]))
             self.peak_height_mean[i] = np.mean(np.array(pks[i]))
             continue
-            for k in reversed(candidate[i]):
-                lookafterindex = min(next_peak, k + lookafter)
-                minafter = min(self.detrended_seq[i][k:lookafterindex + 1])
-                if minafter < (1 - required_rise) * self.detrended_seq[i][k]:
-                    next_peak = k
-                else:
-                    self.peak_loc[i][k] = 0
+            # for k in reversed(candidate[i]):
+            #     lookafterindex = min(next_peak, k + lookafter)
+            #     minafter = min(self.detrended_seq[i][k:lookafterindex + 1])
+            #     if minafter < (1 - required_rise) * self.detrended_seq[i][k]:
+            #         next_peak = k
+            #     else:
+            #         self.peak_loc[i][k] = 0
         for num in range(self.obs_num):
             loc = np.where(self.peak_height[num] > (max(self.detrended_seq[num]) - min(self.detrended_seq[num])) / 3)[0]
             # loc=np.where((self.peak_height[num]>self.peak_height_mean[num]+3*self.peak_height_std[num]))[0]
@@ -288,8 +301,8 @@ class PeakCaller:
         plt.xlabel("Time")
         plt.ylabel('Intensity')
         plt.title('ROI#' + str(self.index[num]))
-        # plt.savefig(self.filename+str(num))
-        plt.show()
+        plt.savefig(str(Path(self.save_base).joinpath(f'Peak_{str(num)}.png')))
+        # plt.show()
 
     def Find_Peak_Good(self, thresh=0.15):
         ans = []
@@ -306,7 +319,7 @@ class PeakCaller:
         return ans
 
     def Print_ALL_Peaks(self):
-        path = self.filename + "_All_Peaks"
+        path = str(Path(self.save_base).joinpath("All_Peaks_"))
         for i in range(self.obs_num // 100 + 1):
             num_left = min(self.obs_num - 100 * i, 100)
             if num_left <= 0:
@@ -332,7 +345,7 @@ class PeakCaller:
                 plt.close()
 
     def Raster_Plot(self):
-        path = self.filename + "_Raster_Plot"
+        path = str(Path(self.save_base).joinpath("Raster_Plot"))
         x = []
         y = []
         for i in range(self.obs_num):
@@ -348,7 +361,7 @@ class PeakCaller:
         plt.close()
 
     def Histogram_Height(self):
-        path = self.filename + "_Histogram_Height"
+        path = str(Path(self.save_base).joinpath("Histogram_Height"))
         combined = [item for sublist in self.filterer_peak_height for item in sublist]
         plt.hist(combined, bins=10, edgecolor='black', color=(0.6, 0.6, 0.75))
         plt.xlabel('height of peak')
@@ -358,7 +371,7 @@ class PeakCaller:
         plt.close()
 
     def Histogram_Time(self):
-        path = self.filename + "_Histogram_Time"
+        path = str(Path(self.save_base).joinpath("Histogram_Time"))
         rise_times = [item for sublist in self.filterer_peak_rise_time for item in sublist]
         fall_times = [item for sublist in self.filterer_peak_fall_time for item in sublist]
         plt.hist([fall_times, rise_times], stacked=True, label=['fall_time', 'rise_time'],
@@ -372,9 +385,9 @@ class PeakCaller:
 
     # Path here needs csv extension
     def Save_Result(self):
-        path1 = self.filename + "_Peak_Data.csv"
-        path2 = self.filename + '_Series_Data.csv'
-        path3 = self.filename + "_Summary_Data.csv"
+        path1 = str(Path(self.save_base).joinpath("Peak_Data.csv"))
+        path2 = str(Path(self.save_base).joinpath("Series_Data.csv"))
+        path3 = str(Path(self.save_base).joinpath("Summary_Data.csv"))
         details = {
             'ROI(#)': [],
             'Peak_Number': [],
@@ -449,7 +462,7 @@ class PeakCaller:
         summary_data.to_csv(path3, index=False)
 
     def Synchronization(self, cluster=True):
-        path = self.filename + "_Synchronization_Plot"
+        path = str(Path(self.save_base).joinpath("Synchronization_Plot"))
         Peak_Regions = np.zeros(self.obs_num * self.length).reshape(self.obs_num, self.length)
         for i in range(self.obs_num):
             Peak_Regions[i][0] = self.filterer_peak_half_start[i][0] - self.filterer_peak_half_end[i][0]
@@ -505,7 +518,7 @@ class PeakCaller:
             plt.close()
 
     def Correlation(self):
-        path = self.filename + "_Correlation_Plot"
+        path = str(Path(self.save_base).joinpath("Correlation_Plot"))
         heat_mat = np.zeros(self.obs_num * self.obs_num).reshape(self.obs_num, self.obs_num)
         max_lag = min(50, self.length // 2)
         for i in range(self.obs_num):
@@ -535,7 +548,7 @@ class PeakCaller:
         plt.close()
 
     def Print_Peak_Good(self, thresh=0.15):
-        path = self.filename + "_Peak_Good"
+        path = self.save_base + "_Peak_Good"
         total = 0
         for item in self.series_rel_std_sorted:
             if item[0] < thresh:
@@ -550,7 +563,7 @@ class PeakCaller:
         fig.savefig(path)
 
     def Print_Peak_Bad(self, thresh=0.15):
-        path = self.filename + "_Peak_Bad"
+        path = self.save_base + "_Peak_Bad"
         total = 0
         for item in self.series_rel_std_sorted:
             if item[0] >= thresh:
@@ -614,10 +627,27 @@ class PeakCaller:
         new_idx = np.where(pred > 0)
         return [self.seq[new_idx], self.index[new_idx]]
 
+    def run(self, seq=None):
+        self.load_seq(seq)
+        self.Detrender_2()
+        self.Find_Peak()
+        # self.Print_Peak(13)
+        # self.Print_Peak(62)
+        self.Print_Peak(2)  # cluster
+        self.Print_Peak(5)  # cluster
+        # self.Find_Peak_Good()
+        # self.Find_Peak_Bad()
+        # self.Print_ALL_Peaks()
+        self.Raster_Plot()
+        self.Histogram_Height()
+        self.Histogram_Time()
+        self.Save_Result()
+        self.Synchronization()
+        self.Correlation()
 
 # # Peakcaller with original data
-# filename = 'Case1M57'
-# with h5py.File(f"../data/{filename}.hdf5", "r") as f:
+# save_base = 'Case1M57'
+# with h5py.File(f"../data/{save_base}.hdf5", "r") as f:
 #     # Access the "estimates" group
 #     estimates_group = f["estimates"]
 #     # Assuming "C" is a dataset within the group
@@ -636,51 +666,51 @@ class PeakCaller:
 #     # data = header + index_numbers
 #     data = np.array(df)
 #     # # Write the header followed by the index numbers to a text file
-#     # with open(f"/Users/yugii/Desktop/research/PeakCaller_yg/data/{filename}.txt", "w") as file:
+#     # with open(f"/Users/yugii/Desktop/research/PeakCaller_yg/data/{save_base}.txt", "w") as file:
 #     #     file.write(header + index_numbers)
 
-# Peakcaller with clustered data
-# filename = 'cluster_average'
-filename = 'scale_cluster_average'
-# data = pd.read_csv('../data/cluster_average.txt')
-# Read the text file into a DataFrame
-data = pd.read_csv(f'../data/{filename}.txt', delimiter='\t').T.values
-# print(data)
-
-# 对filter功能做了下调整，最好是可以把filter做成一个独立的功能
-# 无filter的构建过程如下
-# data 是np array
-Caller_obj_1 = PeakCaller(data, f"../peakcaller/{filename}.hdf5")
-Caller_obj_1.Detrender_2()
-Caller_obj_1.Find_Peak()
-# Caller_obj_1.Print_Peak(13)
-# Caller_obj_1.Print_Peak(62)
-Caller_obj_1.Print_Peak(2)  # cluster
-Caller_obj_1.Print_Peak(5)  # cluster
-# Caller_obj_1.Find_Peak_Good()
-# Caller_obj_1.Find_Peak_Bad()
-Caller_obj_1.Print_ALL_Peaks()
-Caller_obj_1.Raster_Plot()
-Caller_obj_1.Histogram_Height()
-Caller_obj_1.Histogram_Time()
-Caller_obj_1.Save_Result()
-Caller_obj_1.Synchronization()
-Caller_obj_1.Correlation()
-# Caller_obj_1.Print_Peak_Good()
-# Caller_obj_1.Print_Peak_Bad()
-
-
-# # 有filter的构建过程如下
-# Caller_obj_1 = PeakCaller(data, "/Users/yugii/Desktop/research/Figure6/peakcaller/G1_1.hdf5")
+# # Peakcaller with clustered data
+# # save_base = 'cluster_average'
+# save_base = 'scale_cluster_average'
+# # data = pd.read_csv('../data/cluster_average.txt')
+# # Read the text file into a DataFrame
+# data = pd.read_csv(f'../data/{save_base}.txt', delimiter='\t').T.values
+# # print(data)
+#
+# # 对filter功能做了下调整，最好是可以把filter做成一个独立的功能
+# # 无filter的构建过程如下
+# # data 是np array
+# Caller_obj_1 = PeakCaller(data, f"../peakcaller/{save_base}.hdf5")
 # Caller_obj_1.Detrender_2()
 # Caller_obj_1.Find_Peak()
-# Caller_obj_1.Print_Peak(0)
+# # Caller_obj_1.Print_Peak(13)
+# # Caller_obj_1.Print_Peak(62)
+# Caller_obj_1.Print_Peak(2)  # cluster
+# Caller_obj_1.Print_Peak(5)  # cluster
+# # Caller_obj_1.Find_Peak_Good()
+# # Caller_obj_1.Find_Peak_Bad()
+# Caller_obj_1.Print_ALL_Peaks()
+# Caller_obj_1.Raster_Plot()
+# Caller_obj_1.Histogram_Height()
+# Caller_obj_1.Histogram_Time()
 # Caller_obj_1.Save_Result()
-# filter_res = Caller_obj_1.Filter_Series('/Users/yugii/Desktop/research/Figure6/peakcaller/finalized_model.sav') #root/finalized_model.sav
-# new_series = filter_res[0]
-# new_index = filter_res[1]
-# Caller_obj_2 = PeakCaller(new_series, "/Users/yugii/Desktop/research/Figure6/peakcaller/G1_new.hdf5", index=new_index)
-# Caller_obj_2.Detrender_2()
-# Caller_obj_2.Find_Peak()  # 使用Caller_obj_2
-# # Prof 要求的即时print
-# Caller_obj_1.Print_Peak(50)  # 这会print第51个series（从0开始），但是如果filter了那ROI#就不一定是50
+# Caller_obj_1.Synchronization()
+# Caller_obj_1.Correlation()
+# # Caller_obj_1.Print_Peak_Good()
+# # Caller_obj_1.Print_Peak_Bad()
+#
+#
+# # # 有filter的构建过程如下
+# # Caller_obj_1 = PeakCaller(data, "/Users/yugii/Desktop/research/Figure6/peakcaller/G1_1.hdf5")
+# # Caller_obj_1.Detrender_2()
+# # Caller_obj_1.Find_Peak()
+# # Caller_obj_1.Print_Peak(0)
+# # Caller_obj_1.Save_Result()
+# # filter_res = Caller_obj_1.Filter_Series('/Users/yugii/Desktop/research/Figure6/peakcaller/finalized_model.sav') #root/finalized_model.sav
+# # new_series = filter_res[0]
+# # new_index = filter_res[1]
+# # Caller_obj_2 = PeakCaller(new_series, "/Users/yugii/Desktop/research/Figure6/peakcaller/G1_new.hdf5", index=new_index)
+# # Caller_obj_2.Detrender_2()
+# # Caller_obj_2.Find_Peak()  # 使用Caller_obj_2
+# # # Prof 要求的即时print
+# # Caller_obj_1.Print_Peak(50)  # 这会print第51个series（从0开始），但是如果filter了那ROI#就不一定是50

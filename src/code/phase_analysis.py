@@ -1,4 +1,5 @@
 import pandas as pd
+from os import path
 
 
 # Define function to generate dataframe for each ROI based on phases
@@ -40,28 +41,29 @@ def generate_phase_dataframe(roi_data, phase_end_times):
 # Iterate over all ROIs based on their number in the phase_times list
 
 
-def analysis():
+def analysis(save_dir):
     # Load the CSV data
-    average_peak_data_path = "../peakcaller/scale_cluster_average_Peak_Data.csv"
+    # average_peak_data_path = path.join(save_dir, 'peakcaller/scale_cluster_average_Peak_Data.csv')
+    average_peak_data_path = path.join(save_dir, 'peakcaller/Peak_Data.csv')
     average_peak_data = pd.read_csv(average_peak_data_path)
 
     # Read phase segmentation data from the text file
-    phases_path = "../data/scale_cluster_phases.txt"
+    phases_path = path.join(save_dir, 'data/scale_cluster_phases.txt')
     with open(phases_path, 'r') as file:
         phase_lines = file.readlines()
 
     # Convert each line to a list of integers (segment start times)
     phase_times = [list(map(int, line.strip().replace('[', '').replace(']', '').split(','))) for line in phase_lines]
-    print(phase_times)
+    # print(phase_times)
     for index, roi_phases in enumerate(phase_times):
         roi_number = index + 1  # ROI numbers are 1-based
         roi_data = average_peak_data[average_peak_data['ROI(#)'] == roi_number]
         roi_dataframe = generate_phase_dataframe(roi_data, roi_phases)
         roi_dataframe[['Frequency', 'Baseline (calcium)']] = roi_dataframe[
-            ['Frequency', 'Baseline (calcium)']].applymap(
+            ['Frequency', 'Baseline (calcium)']].map(
             lambda x: f"{x:e}")
-        print(roi_dataframe)
+        # print(roi_dataframe)
         # Save each dataframe to a CSV file
-        file_path = f"../data/phase/ROI_{roi_number}_data.csv"
-        roi_dataframe.to_csv(file_path)
-        print(f"Data for ROI {roi_number} saved to {file_path}")
+        filename = path.join(save_dir, f'data/phase/ROI_{roi_number}_data.csv')
+        roi_dataframe.to_csv(filename)
+        # print(f"Data for ROI {roi_number} saved to {file_path}")

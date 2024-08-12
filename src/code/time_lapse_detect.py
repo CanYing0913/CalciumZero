@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import ruptures as rpt
 import seaborn as sns
 import pandas as pd
+from os import path
 
 
 def load_data(filepath):
@@ -61,29 +62,28 @@ def save_list_to_txt(data_list, filename):
             file.write(str(item) + '\n')
 
 
-def tl_detect():
+def tl_detect(save_dir):
     # Parameters
-    cluster = "cluster_average"
-    scale_cluster = "scale_cluster_average"
-    filepath = scale_cluster
     window_size = 50
     penalty = 25
 
-    # Load data and perform operations for each column
-    data = load_data(f'../data/{filepath}.txt')
-    change_point_list = []
-    for column_name in data.columns[1:]:  # Skip the first column (assuming it's 'TIME')
-        column_data = data[column_name].to_numpy()
-        # signal = show_signal(column_data, window_size)
-        moving_avg = calculate_moving_average(column_data, window_size)
-        change_points = perform_change_point_detection(column_data, penalty)
-        print(change_points)
-        change_point_list.append(change_points)
-        # plot_data_with_changes(column_data, moving_avg, change_points, title=f'Change Detection Plot for {
-        # column_name}', save_path='./plot')
-        title = f'Change Detection Plot for Cluster {column_name[4:]}'
-        save_path = f'../plot/time_lapse_plot/{filepath[:-8]}/plot_{column_name}.png'
-        plot_data_with_changes(column_data, moving_avg, change_points, title=title, save_path=save_path)
+    for cluster_type in ['cluster', 'scale_cluster']:
+        filename = path.join(save_dir, f'data/{cluster_type}_average.txt')
+        # Load data and perform operations for each column
+        data = load_data(filename)
+        change_point_list = []
+        for column_name in data.columns[1:]:  # Skip the first column (assuming it's 'TIME')
+            column_data = data[column_name].to_numpy()
+            # signal = show_signal(column_data, window_size)
+            moving_avg = calculate_moving_average(column_data, window_size)
+            change_points = perform_change_point_detection(column_data, penalty)
+            # print(change_points)
+            change_point_list.append(change_points)
+            # plot_data_with_changes(column_data, moving_avg, change_points, title=f'Change Detection Plot for {
+            # column_name}', save_path='./plot')
+            title = f'Change Detection Plot for Cluster {column_name[4:]}'
+            save_path = path.join(save_dir, f'plot/time_lapse_plot/{cluster_type}/plot_{column_name}.png')
+            plot_data_with_changes(column_data, moving_avg, change_points, title=title, save_path=save_path)
 
-    save_list_to_txt(change_point_list, f'../data/{filepath[:-8]}_phases.txt')
+        save_list_to_txt(change_point_list, path.join(save_dir, f'data/{cluster_type}_phases.txt'))
 
