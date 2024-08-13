@@ -204,7 +204,7 @@ class GUI:
 
         checkbox_frame = tk.Frame(dialog)
         checkbox_frame.pack()
-        run_1, run_2, run_3 = tk.IntVar(), tk.IntVar(), tk.IntVar()
+        run_1, run_2, run_3, run_4 = tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()
         tk.Label(checkbox_frame, text="Run:").pack(side=tk.LEFT, padx=5)
         tk.Checkbutton(checkbox_frame, text="Crop", variable=run_1,
                        command=lambda n=0, v=run_1: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
@@ -212,6 +212,8 @@ class GUI:
                        command=lambda n=1, v=run_2: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
         tk.Checkbutton(checkbox_frame, text="CaImAn", variable=run_3,
                        command=lambda n=2, v=run_3: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(checkbox_frame, text="PeakCall", variable=run_4,
+                       command=lambda n=3, v=run_4: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
 
         # File/Folder selections
         ioselect_frame = tk.Frame(checkbox_frame)

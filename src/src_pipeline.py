@@ -7,9 +7,11 @@ from multiprocessing import Pool, Queue
 from time import perf_counter
 from typing import Optional, Tuple, List
 
+import numpy as np
+
 from src.src_caiman import *
 from src.src_detection import *
-# from src.src_peak_caller import PC
+from src.src_peak_caller import PC
 from src.src_stabilizer import run_plugin
 from src.utils import iprint
 
@@ -27,7 +29,7 @@ class Pipeline(object):
         self.log_queue = log_queue
         self.logger = None
         self.params_dict = {
-            'run': [True, True, True],
+            'run': [True, True, True, True],
             'crop': {'margin': 200},
             'stabilizer': {
                 'Transformation': 'Translation',
@@ -97,9 +99,10 @@ class Pipeline(object):
         self.done_s2 = False
         self.outpath_s2 = ''
         self.cmobj_path = ''
+        self.data_path = ''
         # Peak Caller related
         self.do_s3 = False
-        self.pc_obj = []
+        self.pc_obj = None
 
     def log(self, txt: str):
         if self.log_queue:
@@ -119,7 +122,7 @@ class Pipeline(object):
             if key == 'params_dict':
                 self.input_list = [value['input_path']]
                 self.work_dir = value['output_path']
-                self.do_s0, self.do_s1, self.do_s2 = value['run']
+                self.do_s0, self.do_s1, self.do_s2, self.do_s3 = value['run']
                 self.params_dict = value
                 continue
             if key in self.params_dict['caiman'].keys():
@@ -206,7 +209,7 @@ class Pipeline(object):
         self.log(f'*[Stabilizer]: Stabilizer result are placed in {results}.')
         return results
 
-    def s2(self, file_list) -> Tuple[Path, Optional[List[Path]]]:
+    def s2(self, file_list) -> Tuple[Path | str, Optional[List[Path | str] | Path | str]]:
         self.cmobj_path = Path(self.work_dir).joinpath("cmn_obj.cmobj")
 
         start_time = perf_counter()
@@ -344,21 +347,19 @@ class Pipeline(object):
         with open(self.cmobj_path, "wb") as f:
             pickle.dump(cnm, f)
             self.log(f"*[CaImAn]: object cnm dumped to {self.cmobj_path}.")
+        self.data_path = str(Path(self.work_dir).joinpath('data.npy'))
+        np.save(self.data_path, cnm.estimates.F_dff)
         end_time = perf_counter()
         exec_time = end_time - start_time
         self.log(f"*[CaImAn]: caiman finished in {exec_time // 60}m, {int(exec_time % 60)} s.")
-        return self.cmobj_path, self.outpath_s2
+        return self.data_path, self.cmobj_path
 
     def s3(self, file_list):
         def ps3(txt: str):
             self.log(f"*[PeakCaller]: {txt}")
         # peak_caller
-        # slice_num = _
-        if not self.do_s2:
-            pass
-        data = self.caiman_obj.estimates.f
-
-        pass
+        self.pc_obj = PC(self.work_dir)
+        self.pc_obj.run(file_list[0])
 
     def run(self):
         msg = {
