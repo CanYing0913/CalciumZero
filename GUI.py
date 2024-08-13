@@ -666,6 +666,50 @@ class GUI:
         roi_en = tk.BooleanVar(value=False)
         qc_tab.roi_cb = tk.Checkbutton(qc_roi_container, text="Show ROI", variable=roi_en, command=on_roi_en_change)
         qc_tab.roi_cb.pack()
+        ac_rj_container = ttk.Frame(qc_roi_container)
+        ac_rj_container.pack(side=tk.BOTTOM)  # side=tk.LEFT)
+        ac_var, rj_var = tk.IntVar(), tk.IntVar()
+
+        def update_listbox(event=None):
+            ac, rj = ac_var.get(), rj_var.get()
+            qc_tab.lb.delete(0, tk.END)
+            if ac and rj:
+                idxs = range(qc_instance.n_ROIs)
+            elif ac:
+                idxs = qc_instance.data.estimates.idx_components
+            elif rj:
+                idxs = list(set(range(qc_instance.n_ROIs)) - set(qc_instance.data.estimates.idx_components))
+            else:
+                qc_tab.roi_scrollbar.config(state=tk.NORMAL)
+                return
+            qc_tab.roi_scrollbar.config(state=tk.DISABLED)
+            # qc_tab.roi_input.config(state=tk.DISABLED)
+            for id in idxs:
+                qc_tab.lb.insert(tk.END, id)
+        qc_tab.roi_acb = tk.Checkbutton(ac_rj_container, text="Accept", variable=ac_var, command=update_listbox)
+        qc_tab.roi_acb.pack()
+        qc_tab.roi_rjb = tk.Checkbutton(ac_rj_container, text="Reject", variable=rj_var, command=update_listbox)
+        qc_tab.roi_rjb.pack()
+        lb_container = ttk.Frame(qc_roi_container)
+        lb_container.pack(side=tk.BOTTOM)
+        qc_tab.lb = tk.Listbox(lb_container, selectmode=tk.SINGLE, height=10)
+
+        def update_roi_idx_from_lb(event=None):
+            idx = qc_tab.lb.get(qc_tab.lb.curselection())
+            qc_tab.roi_input.delete(0, tk.END)
+            qc_tab.roi_input.insert(0, idx)
+            qc_tab.roi_idx.set(idx)
+            update_canvas_from_input(event=event)
+        qc_tab.lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        qc_tab.lb.bind("<<ListboxSelect>>", update_roi_idx_from_lb)
+
+        # Create a scrollbar
+        scrollbar = tk.Scrollbar(lb_container, orient=tk.VERTICAL)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Configure the listbox to work with the scrollbar
+        qc_tab.lb.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=qc_tab.lb.yview)
 
         # ROI scrollbar
         def update_roi_idx_from_scrollbar(event):
