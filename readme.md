@@ -21,4 +21,5 @@ Docker Image is already on DockerHub. Current version: `0.1`.
 - First make sure you have [Docker](https://www.docker.com/) installed on your computer.  
 - Pull the docker image using command `docker image pull canying0913/caiman_pipeline:0.1`.  
 - Download our provided [launch script](https://raw.githubusercontent.com/CanYing0913/CaImAn/master/run_pipeline.py). Use python to run this script, as it will launch a container with the image we just pulled. If you need help with using the launcher script, you can run `python3 run_pipeline.py -h` to have a detailed explanation on its parameters.
-
+# Citation:z
+Xiaofu He*, Yutong Gao, Yian Wang, Xuchen Wang, Qifan Jiang, Bin Xu*,Imaging Analysis of Calcium Activities in Brain Organoid Model of Neuropsychiatric Disorder, Brain Informactics 2024 short paper.
