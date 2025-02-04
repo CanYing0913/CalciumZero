@@ -123,7 +123,7 @@ jobs:
   Build-MacOS:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
@@ -138,7 +138,7 @@ jobs:
       - name: build disk file MacOS
         shell: bash -l {0}
         run: |
-          mkdir cache
+          mkdir cache log
           python setup.py bdist_dmg
 #      - name: test
 #        shell: bash -l {0}
