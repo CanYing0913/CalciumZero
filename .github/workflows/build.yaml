@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
 
       - name: Setup conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           channels: conda-forge, anaconda
@@ -77,7 +77,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
@@ -85,10 +85,10 @@ jobs:
       - name: Setup conda
         uses: conda-incubator/setup-miniconda@v2
         with:
-          mamba-version: "*"
-          channels: conda-forge, anaconda
-          auto-activate-base: false
-          activate-environment: cz
+          miniforge-version: latest
+#          channels: conda-forge, anaconda
+#          auto-activate-base: false
+#          activate-environment: cz
           environment-file: envs/cz.yaml
 
 #      - name: Install cx_Freeze
@@ -128,16 +128,13 @@ jobs:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
       - name: Setup conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          auto-update-conda: true
-          channels: conda-forge, anaconda, defaults
-          channel-priority: true
-          mamba-version: "*"
-          activate-environment: cz
+          miniforge-version: latest
       - name: Install dependencies
         run: |
-          mamba install -n cz -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn cx_Freeze
+          mamba create -n cz -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn cx_Freeze -y
+          mamba activate cz
 #          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
       - name: build disk file MacOS
         shell: bash -l {0}
