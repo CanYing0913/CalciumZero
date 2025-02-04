@@ -69,56 +69,56 @@ jobs:
           force: true
           branch: distribution
 
-  build-linux:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
-          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-
-      - name: Setup conda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniforge-version: latest
-#          channels: conda-forge, anaconda
-#          auto-activate-base: false
-#          activate-environment: cz
-          environment-file: envs/cz.yaml
-
-#      - name: Install cx_Freeze
+#  build-linux:
+#    runs-on: ubuntu-latest
+#    defaults:
+#      run:
+#        shell: bash -l {0}
+#
+#    steps:
+#      - name: Checkout Repository
+#        uses: actions/checkout@v3
+#        with:
+#          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+#          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+#
+#      - name: Setup conda
+#        uses: conda-incubator/setup-miniconda@v2
+#        with:
+#          miniforge-version: latest
+##          channels: conda-forge, anaconda
+##          auto-activate-base: false
+##          activate-environment: cz
+#          environment-file: envs/cz.yaml
+#
+##      - name: Install cx_Freeze
+##        run: |
+##          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+#
+#      - name: Build
 #        run: |
-#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-
-      - name: Build
-        run: |
-          which python
-          mkdir cache
-          python setup.py bdist_appimage # CalciumZero-0.1-x86_64.AppImage
-
-      - name: Release
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git checkout distribution
-          mv dist/CalciumZero-0.1-x86_64.AppImage CalciumZero-0.1-x86_64.AppImage
-          rm -rf dist build
-          git lfs install
-          git lfs track CalciumZero-0.1-x86_64.AppImage
-          git add .gitattributes
-          git add CalciumZero-0.1-x86_64.AppImage
-          git commit -m "Pushing new Linux AppImage"
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          force: true
-          branch: distribution
-
+#          which python
+#          mkdir cache
+#          python setup.py bdist_appimage # CalciumZero-0.1-x86_64.AppImage
+#
+#      - name: Release
+#        run: |
+#          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+#          git config --local user.name "github-actions[bot]"
+#          git checkout distribution
+#          mv dist/CalciumZero-0.1-x86_64.AppImage CalciumZero-0.1-x86_64.AppImage
+#          rm -rf dist build
+#          git lfs install
+#          git lfs track CalciumZero-0.1-x86_64.AppImage
+#          git add .gitattributes
+#          git add CalciumZero-0.1-x86_64.AppImage
+#          git commit -m "Pushing new Linux AppImage"
+#      - name: Push changes
+#        uses: ad-m/github-push-action@master
+#        with:
+#          force: true
+#          branch: distribution
+#
 
   Build-MacOS:
     runs-on: macos-latest
@@ -131,11 +131,10 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-version: latest
+          activate-environment: cz
       - name: Install dependencies
         run: |
-          mamba create -n cz -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn cx_Freeze -y
-          mamba activate cz
-#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+          mamba install -n cz -c conda-forge numpy=1.21 caiman pyimagej openjdk=8 seaborn cx_Freeze -y
       - name: build disk file MacOS
         shell: bash -l {0}
         run: |
