@@ -142,15 +142,23 @@ class GUI:
             self.log(f"ImageJ already installed in {self.project_path}.")
             return
         system = platform.system()
-        match system:
-            case 'Windows':
-                url = 'https://downloads.imagej.net/fiji/latest/fiji-win64.zip'
-            case 'Linux':
-                url = 'https://downloads.imagej.net/fiji/latest/fiji-linux64.zip'
-            case 'Darwin':
-                url = 'https://downloads.imagej.net/fiji/latest/fiji-macosx.zip'
-            case _:
-                raise ValueError(f"Unsupported system: {system}")
+        # match system:
+        #     case 'Windows':
+        #         url = 'https://downloads.imagej.net/fiji/latest/fiji-win64.zip'
+        #     case 'Linux':
+        #         url = 'https://downloads.imagej.net/fiji/latest/fiji-linux64.zip'
+        #     case 'Darwin':
+        #         url = 'https://downloads.imagej.net/fiji/latest/fiji-macosx.zip'
+        #     case _:
+        #         raise ValueError(f"Unsupported system: {system}")
+        if system == 'Windows':
+            url = 'https://downloads.imagej.net/fiji/latest/fiji-win64.zip'
+        elif system == 'Linux':
+            url = 'https://downloads.imagej.net/fiji/latest/fiji-linux64.zip'
+        elif system == 'Darwin':
+            url = 'https://downloads.imagej.net/fiji/latest/fiji-macosx.zip'
+        else:
+            raise ValueError(f"Unsupported system: {system}")
         self.log(f"On {system}, downloading ImageJ from {url}")
         # Download and unzip
         r = requests.get(url)
