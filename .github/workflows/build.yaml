@@ -17,57 +17,57 @@ on:
 #      - master
 
 jobs:
-  Build-Windows:
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
-          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-
-      - name: Setup conda
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-update-conda: true
-          channels: conda-forge, anaconda
-          channel-priority: true
-          mamba-version: "*"
-          activate-environment: cz
-
-      - name: Install dependencies
-        run: |
-          mamba install -n cz -c conda-forge python numpy caiman pyimagej openjdk=8 seaborn cx_Freeze
-#          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
-
-      - name: build installer Windows
-        shell: powershell
-        run: |
-          mkdir cache
-          python setup.py bdist_msi
-#      - name: test
+#  Build-Windows:
+#    runs-on: windows-latest
+#
+#    steps:
+#      - name: Checkout Repository
+#        uses: actions/checkout@v2
+#        with:
+#          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+#          fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+#
+#      - name: Setup conda
+#        uses: conda-incubator/setup-miniconda@v3
+#        with:
+#          auto-update-conda: true
+#          channels: conda-forge, anaconda
+#          channel-priority: true
+#          mamba-version: "*"
+#          activate-environment: cz
+#
+#      - name: Install dependencies
+#        run: |
+#          mamba install -n cz -c conda-forge python numpy caiman pyimagej openjdk=8 seaborn cx_Freeze
+##          mamba install -n cz -y --no-channel-priority -c https://marcelotduarte.github.io/packages/conda cx_Freeze
+#
+#      - name: build installer Windows
 #        shell: powershell
 #        run: |
-#          dir dist
-      - name: Release
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git checkout distribution
-          mv -Path dist/CalciumZero-0.1-win64.msi -Destination CalciumZero-0.1-win64.msi -Force
-          Remove-Item -Path dist -Recurse
-          Remove-Item -Path build -Recurse
-          git lfs install
-          git lfs track CalciumZero-0.1-win64.msi
-          git add .gitattributes
-          git add CalciumZero-0.1-win64.msi
-          git commit -m "Pushing new Windows installer"
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          force: true
-          branch: distribution
+#          mkdir cache
+#          python setup.py bdist_msi
+##      - name: test
+##        shell: powershell
+##        run: |
+##          dir dist
+#      - name: Release
+#        run: |
+#          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+#          git config --local user.name "github-actions[bot]"
+#          git checkout distribution
+#          mv -Path dist/CalciumZero-0.1-win64.msi -Destination CalciumZero-0.1-win64.msi -Force
+#          Remove-Item -Path dist -Recurse
+#          Remove-Item -Path build -Recurse
+#          git lfs install
+#          git lfs track CalciumZero-0.1-win64.msi
+#          git add .gitattributes
+#          git add CalciumZero-0.1-win64.msi
+#          git commit -m "Pushing new Windows installer"
+#      - name: Push changes
+#        uses: ad-m/github-push-action@master
+#        with:
+#          force: true
+#          branch: distribution
 
 #  build-linux:
 #    runs-on: ubuntu-latest
