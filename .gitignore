@@ -5,10 +5,14 @@ __pycache__/
 venv/
 cache/
 log/**
+.DS_Store
 # for testing
-#Fiji.app/**
+Fiji.app/**
+dist
+build
 caiman_data/
 test/
+tests/
 log/
 .eggs/
 *.csv

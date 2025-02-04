@@ -1,24 +1,27 @@
+import json
+import os
 import queue
+import signal
 import time
+import platform
+import requests
+import zipfile
 import tkinter as tk
 import tkinter.messagebox
+from multiprocessing import Process, Queue
 from tkinter import ttk, filedialog, messagebox
-from src.src_pipeline import Pipeline, QC, CalciumZero
-from src.message import Message
-import json
-from pathlib import Path
-from threading import Thread
-import logging
-from multiprocessing import Process, Lock, Queue
-import imagej
 from typing import List, Tuple, Optional
+from shutil import copy
+
 from PIL import Image, ImageTk
+
+from src.src_pipeline import Pipeline, QC, CalciumZero
+from src.utils import *
 
 
 def test(queue, idx):
     msg = {'idx': idx, 'is_running': False, 'is_finished': False}
     # print(f"putting first {msg}")
-    # queue.put(msg)
     time.sleep(5)
     # instance_list[idx].is_running = True
     msg['is_running'] = True
@@ -35,6 +38,7 @@ class MyTk(tk.Tk):
     # @override
     def __init__(self, logger, *args, **kwargs):
         self.logger = logger
+        self.screen_width = self.screen_height = 0
         super().__init__(*args, **kwargs)
 
     # @override
@@ -48,6 +52,7 @@ class MyTk(tk.Tk):
 class GUI:
     __slots__ = [
         'logger',
+        'project_path',
         'debug',
         # GUI fields
         'root',
@@ -80,27 +85,21 @@ class GUI:
         # Set the position of the window to the center of the screen
         window.geometry(f'{width}x{height}+{center_x}+{center_y}')
 
+    def log(self, msg):
+        iprint(msg, self.logger)
+
     def __init__(self, debug=False):
         self.debug = debug
         # Set up logging
-        from datetime import datetime
-        log_folder = Path(__file__).parent.joinpath("log")
-        log_folder.mkdir(exist_ok=True)
-        log_name = log_folder.joinpath(Path('log_' + datetime.now().strftime("%y%m%d_%H%M%S") + '.txt'))
-        self.logger = logging.getLogger('GUI')
-        self.logger.setLevel(logging.DEBUG)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
-        file_handler = logging.FileHandler(log_name)
-        file_handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                                      datefmt='%y-%m-%d %H:%M:%S')
-        console_handler.setFormatter(formatter)
-        file_handler.setFormatter(formatter)
-        self.logger.addHandler(console_handler)
-        self.logger.addHandler(file_handler)
-        self.logger.debug('Logging setup finished.')
-        # TODO:Read Configuration files
+        self.project_path = Path(__file__).parent
+        if self.project_path.is_dir():
+            self.logger = setup_logger(self.project_path)
+        else:
+            self.project_path = Path.cwd()
+            self.logger = setup_logger(self.project_path)
+        self.log(f"Project path set to {self.project_path}")
+        self.prepare_imagej()
+        # TODO: Read Configuration files if needed.
         pass
         self.queue = Queue()
         self.log_queue = Queue()
@@ -135,7 +134,45 @@ class GUI:
 
         # Set up the app
         self.setup()
-        self.logger.debug('GUI setup finished.')
+        self.log('GUI setup finished.')
+
+    def prepare_imagej(self):
+        # Check if installed
+        if Path(self.project_path).joinpath('Fiji.app').exists():
+            self.log(f"ImageJ already installed in {self.project_path}.")
+            return
+        system = platform.system()
+        match system:
+            case 'Windows':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-win64.zip'
+            case 'Linux':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-linux64.zip'
+            case 'Darwin':
+                url = 'https://downloads.imagej.net/fiji/latest/fiji-macosx.zip'
+            case _:
+                raise ValueError(f"Unsupported system: {system}")
+        self.log(f"On {system}, downloading ImageJ from {url}")
+        # Download and unzip
+        r = requests.get(url)
+        if r.status_code == 200:
+            temp_path = Path(self.project_path).joinpath('fiji.zip')
+            try:
+                with open(temp_path, 'wb') as temp_file:
+                    temp_file.write(r.content)
+                with zipfile.ZipFile(str(temp_path), 'r') as zip_ref:
+                    zip_ref.extractall(self.project_path)
+            finally:
+                temp_path.unlink()
+        else:
+            raise ConnectionError(f"Failed to download ImageJ from {url}. Status code: {r.status_code}")
+        self.log(f"ImageJ installed in {self.project_path}.")
+        try:
+            copy(str(self.project_path.joinpath('resource').joinpath('Image_Stabilizer_Headless.class')),
+                 str(self.project_path.joinpath('Fiji.app').joinpath('plugins').joinpath(
+                     'Image_Stabilizer_Headless.class')))
+        except Exception as e:
+            self.log(f"Failed to copy Image_Stabilizer_Headless.class to ImageJ plugins folder. Error: {e}")
+        return str(self.project_path.joinpath('Fiji.app'))
 
     def create_menu(self):
         # Create a Menu Bar
@@ -147,12 +184,11 @@ class GUI:
 
         # Add 'New' Menu Item
         # Function to create a parameter dialog
-
         file_menu.add_command(label="New Instance", command=self.new_run_dialog)
         file_menu.add_command(label="New QC", command=self.new_qc_dialog)
 
     def new_run_dialog(self):
-        with open(Path(__file__).parent.joinpath("config.json"), "r") as f:
+        with open(self.project_path.joinpath("config.json"), "r") as f:
             param_dict = json.load(f)
         # Create a simple dialog window
         dialog = tk.Toplevel(self.root)
@@ -168,7 +204,7 @@ class GUI:
 
         checkbox_frame = tk.Frame(dialog)
         checkbox_frame.pack()
-        run_1, run_2, run_3 = tk.IntVar(), tk.IntVar(), tk.IntVar()
+        run_1, run_2, run_3, run_4 = tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()
         tk.Label(checkbox_frame, text="Run:").pack(side=tk.LEFT, padx=5)
         tk.Checkbutton(checkbox_frame, text="Crop", variable=run_1,
                        command=lambda n=0, v=run_1: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
@@ -176,6 +212,8 @@ class GUI:
                        command=lambda n=1, v=run_2: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
         tk.Checkbutton(checkbox_frame, text="CaImAn", variable=run_3,
                        command=lambda n=2, v=run_3: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(checkbox_frame, text="PeakCall", variable=run_4,
+                       command=lambda n=3, v=run_4: on_checkbox_change(n, v)).pack(side=tk.LEFT, padx=5)
 
         # File/Folder selections
         ioselect_frame = tk.Frame(checkbox_frame)
@@ -188,7 +226,7 @@ class GUI:
 
             file_path = filedialog.askopenfilename(parent=dialog, title="Select a file", filetypes=filetypes)
             param_dict['input_path'] = file_path
-            self.logger.debug(f"Selected input file: {file_path}")
+            self.log(f"Selected input file: {file_path}")
 
         tk.Button(ioselect_frame, text="Select input File", command=on_select_file).pack(side=tk.LEFT, padx=5)
 
@@ -196,7 +234,7 @@ class GUI:
         def on_select_folder():
             folder_path = filedialog.askdirectory(parent=dialog, title="Select a folder")
             param_dict['output_path'] = folder_path
-            self.logger.debug(f"Selected output folder: {folder_path}")
+            self.log(f"Selected output folder: {folder_path}")
 
         tk.Button(ioselect_frame, text="Select output Folder", command=on_select_folder).pack(side=tk.LEFT, padx=5)
 
@@ -385,15 +423,15 @@ class GUI:
                 if param_dict['run'][1]:
                     fname += '_stab'
                 fname = fname + '.tif'
-                self.logger.debug(f'expect fname: {fname}')
+                self.log(f'Expect caiman fname: {fname}')
                 param_dict['caiman']['mc_dict']['fnames'] = [fname]
             status, msg = self.create_instance(run_params=param_dict)
             if not status:
-                self.logger.debug(f'Instance creation failed: {msg}')
+                self.log(f'Instance creation failed: {msg}')
                 tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}", parent=dialog)
                 return
             dialog.destroy()
-            self.logger.debug(f'New instance created and added to position {msg}.')
+            self.log(f'New instance created and added to position {msg}.')
 
         # OK and Cancel buttons
         tk.Button(dialog, text="OK", command=on_ok).pack(side="left", padx=10, pady=10)
@@ -416,7 +454,7 @@ class GUI:
             filetypes = [("cmobj", "*.cmobj"), ("cm_obj", "*.cm_obj"), ("All files", "*.*")]
 
             qc_path = filedialog.askopenfilename(parent=dialog, title="Select a file", filetypes=filetypes)
-            self.logger.debug(f"Selected qc file: {qc_path}")
+            self.log(f"Selected qc file: {qc_path}")
 
         tk.Button(frame_1, text="Select QC File", command=on_select_file).pack(side=tk.LEFT, padx=5)
 
@@ -426,17 +464,17 @@ class GUI:
         # Function to handle 'OK' button click
         def on_ok():
             if qc_path is None or qc_path == '':
-                self.logger.debug(f'No qc file selected.')
+                self.log(f'No qc file selected.')
                 tkinter.messagebox.showerror("Error", "No qc file selected.")
                 return
 
             status, msg = self.create_instance(qc_param={'cm_obj': qc_path})
             if not status:
-                self.logger.debug(f'Instance creation failed: {msg}')
+                self.log(f'Instance creation failed: {msg}')
                 tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}")
                 return
             dialog.destroy()
-            self.logger.debug(f'New QC instance created and added to position {msg}.')
+            self.log(f'New QC instance created and added to position {msg}.')
 
         # OK and Cancel buttons
         tk.Button(frame_2, text="OK", command=on_ok).pack(side=tk.LEFT, padx=10, pady=10)
@@ -472,12 +510,15 @@ class GUI:
             run_instance = Pipeline(
                 queue=self.queue,
                 queue_id=idx,
-                log_queue=self.log_queue
+                log_queue=self.log_queue,
             )
             for item in ['input_path', 'output_path', 'run']:
                 if item not in run_params:
                     return False, f"Missing parameter {item}."
             run_instance.update(params_dict=run_params)  # Setup parameters
+            ijp = str(self.project_path.joinpath("Fiji.app"))
+            self.log(f'ImageJ path set to {ijp}.')
+            run_instance.update(ijp=ijp)
             cur_instance.run_instance = run_instance
             self.instance_list[idx] = cur_instance
             self.create_run_tab(idx)
@@ -625,6 +666,50 @@ class GUI:
         roi_en = tk.BooleanVar(value=False)
         qc_tab.roi_cb = tk.Checkbutton(qc_roi_container, text="Show ROI", variable=roi_en, command=on_roi_en_change)
         qc_tab.roi_cb.pack()
+        ac_rj_container = ttk.Frame(qc_roi_container)
+        ac_rj_container.pack(side=tk.BOTTOM)  # side=tk.LEFT)
+        ac_var, rj_var = tk.IntVar(), tk.IntVar()
+
+        def update_listbox(event=None):
+            ac, rj = ac_var.get(), rj_var.get()
+            qc_tab.lb.delete(0, tk.END)
+            if ac and rj:
+                idxs = range(qc_instance.n_ROIs)
+            elif ac:
+                idxs = qc_instance.data.estimates.idx_components
+            elif rj:
+                idxs = list(set(range(qc_instance.n_ROIs)) - set(qc_instance.data.estimates.idx_components))
+            else:
+                qc_tab.roi_scrollbar.config(state=tk.NORMAL)
+                return
+            qc_tab.roi_scrollbar.config(state=tk.DISABLED)
+            # qc_tab.roi_input.config(state=tk.DISABLED)
+            for id in idxs:
+                qc_tab.lb.insert(tk.END, id)
+        qc_tab.roi_acb = tk.Checkbutton(ac_rj_container, text="Accept", variable=ac_var, command=update_listbox)
+        qc_tab.roi_acb.pack()
+        qc_tab.roi_rjb = tk.Checkbutton(ac_rj_container, text="Reject", variable=rj_var, command=update_listbox)
+        qc_tab.roi_rjb.pack()
+        lb_container = ttk.Frame(qc_roi_container)
+        lb_container.pack(side=tk.BOTTOM)
+        qc_tab.lb = tk.Listbox(lb_container, selectmode=tk.SINGLE, height=10)
+
+        def update_roi_idx_from_lb(event=None):
+            idx = qc_tab.lb.get(qc_tab.lb.curselection())
+            qc_tab.roi_input.delete(0, tk.END)
+            qc_tab.roi_input.insert(0, idx)
+            qc_tab.roi_idx.set(idx)
+            update_canvas_from_input(event=event)
+        qc_tab.lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        qc_tab.lb.bind("<<ListboxSelect>>", update_roi_idx_from_lb)
+
+        # Create a scrollbar
+        scrollbar = tk.Scrollbar(lb_container, orient=tk.VERTICAL)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Configure the listbox to work with the scrollbar
+        qc_tab.lb.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=qc_tab.lb.yview)
 
         # ROI scrollbar
         def update_roi_idx_from_scrollbar(event):
@@ -704,7 +789,7 @@ class GUI:
     def close_instance(self, idx: int):
         # Delete Pipeline instance and running Process
         assert idx < self.TAB_MAX, f"Invalid index={idx} to close."
-        self.logger.debug(f'Closing instance {idx}.')
+        self.log(f'Closing instance at position {idx}.')
         try:
             self.process_list[idx].terminate()
             self.process_list[idx] = None
@@ -726,7 +811,7 @@ class GUI:
                 idx = msg['idx']
                 if msg['is_finished']:
                     if self.status_list[idx] == 'running':
-                        print(f'finished {idx}')
+                        self.log(f'Instance @ {idx} finished.')
                         self.status_list[idx] = 'finished'
                         self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Finished'
                         self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.DISABLED)
@@ -737,11 +822,10 @@ class GUI:
                             #     idx=idx
                             # )
                             pass
-                # elif msg.is_running:
                 elif msg['is_running']:
                     if self.status_list[idx] == 'idle':
                         self.status_list[idx] = 'running'
-                        print(f'running {idx}')
+                        print(f'Process {idx} starts to run.')
                         self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Stop'
                         self.tab_list[idx].notebook.run_tab.ss_button.config(state=tk.NORMAL)
                 else:
@@ -754,30 +838,42 @@ class GUI:
             self.root.after(1000, self.instance_monitor)
 
     def log_monitor(self):
+        """Log messages sent from other processes through log_queue"""
         try:
             while True:
                 msg = self.log_queue.get_nowait()
-                self.logger.debug(msg)
+                self.log(msg)
         except queue.Empty:
             pass
         finally:
             self.root.after(1000, self.log_monitor)
 
     def run_instance(self, idx):
-        if self.instance_list[idx].run_instance.is_running or self.instance_list[idx].run_instance.is_finished:
+        # Stop process
+        if self.status_list[idx] == 'running':
+            # self.process_list[idx].kill()
+            try:
+                os.kill(self.process_list[idx].pid, signal.SIGINT)
+                self.log(f'Terminating instance @ {idx}.')
+                self.process_list[idx] = None
+                self.status_list[idx] = 'idle'
+                self.tab_list[idx].notebook.run_tab.ss_button['text'] = 'Start'
+            except Exception as e:
+                self.log(f"Received error: {e}")
+            return
+        if self.status_list[idx] == 'finished':
+            self.log(f'Instance @ {idx} already finished.')
             return
         # check running ok
+        assert self.status_list[idx] == 'idle'
         status, msg = self.instance_list[idx].run_instance.ready()
         if not status:
-            self.logger.debug(f'not ready, message: {msg}')
+            self.log(f'Instance not ready for running, message: {msg}')
             raise Warning("Instance not ready")
-        print(f'running {idx}')
+        self.log(f'Running instance @ {idx}')
         p = Process(target=self.instance_list[idx].run_instance.run, args=())
         p.start()
         self.process_list[idx] = p
-        # p = Process(target=test, args=(self.queue, idx))
-        # p.start()
-        # self.process_list[idx] = p
 
     def show_params(self, index: int):
         """
@@ -992,15 +1088,15 @@ class GUI:
                 if param_dict['run'][1]:
                     fname += '_stab'
                 fname = fname + '.tif'
-                self.logger.debug(f'expect fname: {fname}')
+                self.log(f'expect fname: {fname}')
                 param_dict['caiman']['mc_dict']['fnames'] = [fname]
             status, msg = self.create_instance(run_params=param_dict)
             if not status:
-                self.logger.debug(f'Instance creation failed: {msg}')
+                self.log(f'Instance creation failed: {msg}')
                 tkinter.messagebox.showerror("Error", f"Instance creation failed: {msg}")
                 return
             dialog.destroy()
-            self.logger.debug(f'New instance created and added to position {msg}.')
+            self.log(f'New instance created and added to position {msg}.')
 
         # OK and Cancel buttons
         tk.Button(dialog, text="OK", command=on_ok).pack(side="left", padx=10, pady=10)
@@ -1010,7 +1106,7 @@ class GUI:
         def on_close():
             if messagebox.askokcancel("Quit", "Do you want to quit the application?"):
                 self.root.destroy()
-                self.logger.debug('GUI closed.')
+                self.log('GUI closed.')
 
         self.root.protocol("WM_DELETE_WINDOW", on_close)
 
